@@ -1,3 +1,4 @@
+import 'package:bonfire/features/settings/models/accord_settings.dart';
 import 'package:bonfire/features/voice/services/voice_session.dart'
     show VoiceSessionState;
 import 'package:bonfire/features/voice/utils/voice_logic.dart';
@@ -15,6 +16,48 @@ void main() {
     test('clamps out-of-range input to 0.0–2.0', () {
       expect(voiceGain(300), 2.0);
       expect(voiceGain(-50), 0.0);
+    });
+  });
+
+  group('VoiceAudioOptions', () {
+    test('defaults keep every platform filter on at the standard bitrate', () {
+      const audio = VoiceAudioOptions();
+      final capture = audio.captureOptions(null);
+      expect(capture.noiseSuppression, isTrue);
+      expect(capture.echoCancellation, isTrue);
+      expect(capture.autoGainControl, isTrue);
+      expect(capture.voiceIsolation, isTrue);
+      expect(audio.publishOptions.encoding, isNull);
+      expect(audio.publishOptions.dtx, isTrue);
+    });
+
+    test('turning noise suppression off also drops voice isolation', () {
+      const audio = VoiceAudioOptions(noiseSuppression: false);
+      final capture = audio.captureOptions('mic-1');
+      expect(capture.noiseSuppression, isFalse);
+      expect(capture.voiceIsolation, isFalse);
+      expect(capture.deviceId, 'mic-1');
+    });
+
+    test('high quality raises the bitrate and disables DTX', () {
+      const audio = VoiceAudioOptions(highQuality: true);
+      expect(audio.publishOptions.encoding?.maxBitrate, 128000);
+      expect(audio.publishOptions.dtx, isFalse);
+    });
+
+    test('maps from settings and compares by value', () {
+      const settings = AccordSettings(
+        voiceEchoCancellation: false,
+        voiceHighQualityAudio: true,
+      );
+      expect(
+        voiceAudioOptionsOf(settings),
+        const VoiceAudioOptions(echoCancellation: false, highQuality: true),
+      );
+      expect(
+        voiceAudioOptionsOf(const AccordSettings()),
+        const VoiceAudioOptions(),
+      );
     });
   });
 

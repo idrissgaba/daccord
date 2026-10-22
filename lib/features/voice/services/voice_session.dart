@@ -42,6 +42,13 @@ class VoiceSession {
   /// platform honours setting volume on a capture track.
   double _inputGain = 1;
 
+  /// Microphone processing/quality preferences, applied to every capture.
+  VoiceAudioOptions _audio = const VoiceAudioOptions();
+
+  /// The selected microphone (null = system default), kept so a processing
+  /// change restarts the capture on the same device.
+  String? _inputDeviceId;
+
   /// Local mic level (0–1) polled from the track's WebRTC `media-source`
   /// stats. [Participant.audioLevel] only updates from throttled server
   /// active-speaker reports, so the meter would lag on quiet input.
@@ -148,12 +155,15 @@ class VoiceSession {
     String? audioOutputDeviceId,
     int outputVolume = 100,
     int inputVolume = 100,
+    VoiceAudioOptions? audio,
   }) async {
     _deafened = selfDeaf;
     _outputGain = voiceGain(outputVolume);
     _inputGain = voiceGain(inputVolume);
+    if (audio != null) _audio = audio;
 
     final captureDeviceId = normalizeDeviceId(audioInputDeviceId);
+    _inputDeviceId = captureDeviceId;
     final room = _ensureRoom();
 
     // `_intentionalDisconnect` stays set until the new connection is up, so the
@@ -180,7 +190,7 @@ class VoiceSession {
     if (!selfMute) {
       try {
         micTrack = await LocalAudioTrack.create(
-          AudioCaptureOptions(deviceId: captureDeviceId),
+          _audio.captureOptions(captureDeviceId),
         );
       } catch (e) {
         _micError = describeMicFailure(e);
@@ -227,7 +237,10 @@ class VoiceSession {
   Future<void> _publishMic(Room room, LocalAudioTrack track) async {
     try {
       final participant = await _awaitLocalParticipant(room);
-      await participant.publishAudioTrack(track);
+      await participant.publishAudioTrack(
+        track,
+        publishOptions: _audio.publishOptions,
+      );
     } catch (e) {
       _micError = describeMicFailure(e);
       debugPrint('LiveKit mic publish failed: $e');
@@ -321,7 +334,26 @@ class VoiceSession {
     final participant = _room?.localParticipant;
     if (participant == null) return null;
     try {
-      await participant.setMicrophoneEnabled(enabled);
+      final hasMic =
+          participant.getTrackPublicationBySource(TrackSource.microphone) !=
+          null;
+      if (enabled && !hasMic) {
+        // First unmute of a call joined muted: publish it ourselves so the
+        // processing and quality preferences apply (the SDK helper would use
+        // its defaults).
+        final track = await LocalAudioTrack.create(
+          _audio.captureOptions(_inputDeviceId),
+        );
+        await participant.publishAudioTrack(
+          track,
+          publishOptions: _audio.publishOptions,
+        );
+      } else {
+        await participant.setMicrophoneEnabled(
+          enabled,
+          audioCaptureOptions: _audio.captureOptions(_inputDeviceId),
+        );
+      }
       if (enabled) {
         _micError = null;
         // Unmuting restarts the capture track, which drops the applied gain.
@@ -505,13 +537,12 @@ class VoiceSession {
     if (participant == null) return;
     await _guardMedia('input device', () async {
       if (deviceId.isNotEmpty) await rtc.Helper.selectAudioInput(deviceId);
+      _inputDeviceId = normalizeDeviceId(deviceId);
       final wasEnabled = participant.isMicrophoneEnabled();
       await participant.setMicrophoneEnabled(false);
       await participant.setMicrophoneEnabled(
         wasEnabled,
-        audioCaptureOptions: AudioCaptureOptions(
-          deviceId: normalizeDeviceId(deviceId),
-        ),
+        audioCaptureOptions: _audio.captureOptions(_inputDeviceId),
       );
       await _applyInputGain();
     });
@@ -522,6 +553,22 @@ class VoiceSession {
   /// web, which is where the settings page offers the picker.
   Future<void> setAudioOutputDevice(String deviceId) =>
       _applyOutputDevice(deviceId);
+
+  /// Applies new microphone processing/quality preferences. Processing changes
+  /// restart the live capture at once; the bitrate is a publish-time setting,
+  /// so [VoiceAudioOptions.highQuality] takes effect from the next join.
+  Future<void> setAudioOptions(VoiceAudioOptions audio) async {
+    if (audio == _audio) return;
+    _audio = audio;
+    final track = _localMicTrack;
+    if (track is LocalAudioTrack) {
+      await _guardMedia(
+        'audio processing',
+        () => track.restartTrack(audio.captureOptions(_inputDeviceId)),
+      );
+      await _applyInputGain();
+    }
+  }
 
   /// Sets the remote-audio output volume from a 0–200 percentage.
   Future<void> setOutputVolume(int percent) async {

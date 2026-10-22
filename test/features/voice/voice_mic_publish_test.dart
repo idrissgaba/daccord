@@ -44,6 +44,7 @@ class _FakeSession extends VoiceSession {
     int outputVolume = 100,
     int inputVolume = 100,
     bool relayOnly = false,
+    VoiceAudioOptions? audio,
   }) async {
     connects++;
     connectedMuted = selfMute;

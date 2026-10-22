@@ -155,6 +155,7 @@ class VoiceController extends _$VoiceController {
           audioOutputDeviceId: s.audioOutputDeviceId,
           outputVolume: s.outputVolume,
           inputVolume: s.inputVolume,
+          audio: voiceAudioOptionsOf(s),
         ),
       ),
       (prev, next) {
@@ -174,6 +175,9 @@ class VoiceController extends _$VoiceController {
         }
         if (prev?.inputVolume != next.inputVolume) {
           session.setInputVolume(next.inputVolume);
+        }
+        if (prev?.audio != next.audio) {
+          session.setAudioOptions(next.audio);
         }
       },
     );
@@ -287,6 +291,7 @@ class VoiceController extends _$VoiceController {
       audioOutputDeviceId: settings.audioOutputDeviceId,
       outputVolume: settings.outputVolume,
       inputVolume: settings.inputVolume,
+      audio: voiceAudioOptionsOf(settings),
     );
     _applyConnectOutcome();
     if (state.sessionState == VoiceSessionState.failed) return;
@@ -436,12 +441,18 @@ class VoiceController extends _$VoiceController {
     if (url == null || url.isEmpty || token == null || token.isEmpty) return;
     final sessionState = _session?.state;
     if (sessionState == null || !needsReconnect(sessionState)) return;
+    final settings = ref.read(settingsControllerProvider);
     await _session?.connect(
       url,
       token,
       selfMute: state.selfMute,
       selfDeaf: state.selfDeaf,
-      relayOnly: ref.read(settingsControllerProvider).voiceRelayOnly,
+      relayOnly: settings.voiceRelayOnly,
+      audioInputDeviceId: settings.audioInputDeviceId,
+      audioOutputDeviceId: settings.audioOutputDeviceId,
+      outputVolume: settings.outputVolume,
+      inputVolume: settings.inputVolume,
+      audio: voiceAudioOptionsOf(settings),
     );
     _applyConnectOutcome();
   }
@@ -558,6 +569,7 @@ class VoiceController extends _$VoiceController {
       audioOutputDeviceId: settings.audioOutputDeviceId,
       outputVolume: settings.outputVolume,
       inputVolume: settings.inputVolume,
+      audio: voiceAudioOptionsOf(settings),
     );
     _applyConnectOutcome();
   }
