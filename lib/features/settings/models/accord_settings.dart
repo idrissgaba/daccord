@@ -17,6 +17,11 @@ class AccordSettings {
   /// Highest per-participant volume the slider offers (200 % = 2× gain).
   static const int maxUserVolume = 200;
 
+  /// Default push-to-talk key: the one left of "1" (` on QWERTY, ² on
+  /// AZERTY), as a USB HID usage (`PhysicalKeyboardKey.backquote`).
+  static const int defaultPushToTalkKey = 0x00070035;
+  static const String defaultPushToTalkKeyLabel = '`';
+
   /// Per-channel notification levels — `channel_id → 'all' | 'mentions' |
   /// 'nothing'`. Missing entries fall back to the global default ("mentions").
   /// Mirrors the reference client's `Config.set_channel_notification_level`.
@@ -94,6 +99,9 @@ class AccordSettings {
     this.voiceEchoCancellation = true,
     this.voiceAutoGainControl = true,
     this.voiceHighQualityAudio = false,
+    this.pushToTalk = false,
+    this.pushToTalkKey = defaultPushToTalkKey,
+    this.pushToTalkKeyLabel = defaultPushToTalkKeyLabel,
     this.recentEmoji = const [],
     this.masterServerUrl = defaultMasterServerUrl,
     this.channelNotifications = const <String, String>{},
@@ -228,6 +236,17 @@ class AccordSettings {
 
   /// Publish the microphone at 128 kbps without DTX (music, instruments).
   final bool voiceHighQualityAudio;
+
+  /// Push-to-talk: the mic transmits only while [pushToTalkKey] is held (or
+  /// the voice bar's talk button is pressed).
+  final bool pushToTalk;
+
+  /// The push-to-talk key as a physical-key USB HID usage, so the binding
+  /// follows the key's position whatever the keyboard layout.
+  final int pushToTalkKey;
+
+  /// How [pushToTalkKey] is shown (its label on the layout used to bind it).
+  final String pushToTalkKeyLabel;
 
   /// Most-recently-used emoji tokens (unicode chars or `name:id` custom refs),
   /// most-recent first.
@@ -372,6 +391,9 @@ class AccordSettings {
     bool? voiceEchoCancellation,
     bool? voiceAutoGainControl,
     bool? voiceHighQualityAudio,
+    bool? pushToTalk,
+    int? pushToTalkKey,
+    String? pushToTalkKeyLabel,
     List<String>? recentEmoji,
     String? masterServerUrl,
     Map<String, String>? channelNotifications,
@@ -434,6 +456,9 @@ class AccordSettings {
       voiceAutoGainControl: voiceAutoGainControl ?? this.voiceAutoGainControl,
       voiceHighQualityAudio:
           voiceHighQualityAudio ?? this.voiceHighQualityAudio,
+      pushToTalk: pushToTalk ?? this.pushToTalk,
+      pushToTalkKey: pushToTalkKey ?? this.pushToTalkKey,
+      pushToTalkKeyLabel: pushToTalkKeyLabel ?? this.pushToTalkKeyLabel,
       recentEmoji: recentEmoji ?? this.recentEmoji,
       masterServerUrl: masterServerUrl ?? this.masterServerUrl,
       channelNotifications: channelNotifications ?? this.channelNotifications,
@@ -633,6 +658,9 @@ class AccordSettings {
     'voiceEchoCancellation': voiceEchoCancellation,
     'voiceAutoGainControl': voiceAutoGainControl,
     'voiceHighQualityAudio': voiceHighQualityAudio,
+    'pushToTalk': pushToTalk,
+    'pushToTalkKey': pushToTalkKey,
+    'pushToTalkKeyLabel': pushToTalkKeyLabel,
     'recentEmoji': recentEmoji,
     'masterServerUrl': masterServerUrl,
     'channelNotifications': channelNotifications,
@@ -707,6 +735,11 @@ class AccordSettings {
       voiceEchoCancellation: json['voiceEchoCancellation'] as bool? ?? true,
       voiceAutoGainControl: json['voiceAutoGainControl'] as bool? ?? true,
       voiceHighQualityAudio: json['voiceHighQualityAudio'] as bool? ?? false,
+      pushToTalk: json['pushToTalk'] as bool? ?? false,
+      pushToTalkKey:
+          (json['pushToTalkKey'] as num?)?.toInt() ?? defaultPushToTalkKey,
+      pushToTalkKeyLabel:
+          json['pushToTalkKeyLabel'] as String? ?? defaultPushToTalkKeyLabel,
       recentEmoji: [
         for (final e in (json['recentEmoji'] as List? ?? const []))
           e.toString(),

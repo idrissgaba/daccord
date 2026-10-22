@@ -8,6 +8,7 @@ import 'package:bonfire/features/voice/utils/audio_output_support.dart';
 import 'package:bonfire/features/voice/views/mic_level_meter.dart';
 import 'package:bonfire/theme/theme.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:livekit_client/livekit_client.dart';
 
@@ -93,6 +94,35 @@ class _VoiceSettingsScreenState extends ConsumerState<VoiceSettingsScreen> {
             label: 'Input volume',
             value: settings.inputVolume,
             onChanged: controller.setInputVolume,
+          ),
+          SectionHeader('Input mode'),
+          SwitchListTile(
+            key: const Key('push-to-talk-switch'),
+            title: const Text('Push to talk'),
+            subtitle: Text(
+              'Your mic only transmits while you hold the key (with the app '
+              'focused) or the talk button in the voice bar.',
+              style: theme.textTheme.bodySmall!.copyWith(color: colors.gray),
+            ),
+            value: settings.pushToTalk,
+            onChanged: controller.setPushToTalk,
+          ),
+          ListTile(
+            key: const Key('push-to-talk-key'),
+            enabled: settings.pushToTalk,
+            title: const Text('Push-to-talk key'),
+            subtitle: Text(settings.pushToTalkKeyLabel),
+            trailing: TextButton(
+              onPressed: settings.pushToTalk
+                  ? () async {
+                      final key = await _captureKey(context);
+                      if (key != null) {
+                        controller.setPushToTalkKey(key.$1, key.$2);
+                      }
+                    }
+                  : null,
+              child: const Text('Change'),
+            ),
           ),
           SectionHeader('Mic test'),
           Padding(
@@ -352,6 +382,48 @@ class _VoiceSettingsScreenState extends ConsumerState<VoiceSettingsScreen> {
       ),
     );
   }
+}
+
+/// Waits for the next key press and returns its physical USB HID usage and a
+/// display label, or null when the dialog is dismissed.
+Future<(int, String)?> _captureKey(BuildContext context) {
+  return showDialog<(int, String)>(
+    context: context,
+    builder: (dialogContext) => Focus(
+      autofocus: true,
+      onKeyEvent: (_, event) {
+        if (event is! KeyDownEvent) return KeyEventResult.handled;
+        if (event.logicalKey == LogicalKeyboardKey.escape) {
+          Navigator.of(dialogContext).pop();
+          return KeyEventResult.handled;
+        }
+        Navigator.of(
+          dialogContext,
+        ).pop((event.physicalKey.usbHidUsage, pushToTalkKeyLabel(event)));
+        return KeyEventResult.handled;
+      },
+      child: AlertDialog(
+        title: const Text('Push-to-talk key'),
+        content: const Text('Press the key to use. Esc cancels.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Cancel'),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+/// How a bound key is shown: the character it types on the current layout,
+/// else the key's name (F-keys, Ctrl, Space…).
+String pushToTalkKeyLabel(KeyEvent event) {
+  final character = event.character?.trim() ?? '';
+  if (character.isNotEmpty) return character.toUpperCase();
+  return event.logicalKey.keyLabel.isNotEmpty
+      ? event.logicalKey.keyLabel
+      : 'Key ${event.physicalKey.usbHidUsage.toRadixString(16)}';
 }
 
 /// A device picker with a leading "System default" option (empty id).

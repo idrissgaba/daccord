@@ -161,6 +161,25 @@ void main() {
     });
   });
 
+  group('push to talk', () {
+    test('defaults to off on the key left of 1', () {
+      final c = makeContainer();
+      expect(stateOf(c).pushToTalk, isFalse);
+      expect(stateOf(c).pushToTalkKey, AccordSettings.defaultPushToTalkKey);
+    });
+
+    test('binding persists across a controller rebuild', () {
+      final c = makeContainer();
+      controllerOf(c)
+        ..setPushToTalk(true)
+        ..setPushToTalkKey(0x00070019, 'V');
+      final rebuilt = makeContainer();
+      expect(stateOf(rebuilt).pushToTalk, isTrue);
+      expect(stateOf(rebuilt).pushToTalkKey, 0x00070019);
+      expect(stateOf(rebuilt).pushToTalkKeyLabel, 'V');
+    });
+  });
+
   group('acceptRules', () {
     test('records acceptance and survives a controller rebuild', () {
       final c1 = makeContainer();

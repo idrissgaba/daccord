@@ -99,6 +99,10 @@ class _VoiceBarState extends ConsumerState<VoiceBar> {
     }
 
     final (statusText, statusColor) = _status(voice, colors, channelName);
+    // Only read while the mic is live, like the level meter below.
+    final pushToTalk =
+        !voice.selfMute &&
+        ref.watch(settingsControllerProvider.select((s) => s.pushToTalk));
 
     return Material(
       color: colors.darkGray,
@@ -157,6 +161,12 @@ class _VoiceBarState extends ConsumerState<VoiceBar> {
                   onPressed: () =>
                       ref.read(voiceControllerProvider.notifier).toggleMute(),
                 ),
+                if (pushToTalk)
+                  _PushToTalkButton(
+                    onChanged: (pressed) => ref
+                        .read(voiceControllerProvider.notifier)
+                        .setPushToTalkPressed(pressed),
+                  ),
                 _VoiceButton(
                   icon: voice.selfDeaf ? Icons.headset_off : Icons.headset,
                   tooltip: voice.selfDeaf ? 'Undeafen' : 'Deafen',
@@ -258,6 +268,62 @@ class _VoiceBarState extends ConsumerState<VoiceBar> {
       case VoiceSessionState.disconnected:
         return (channelName ?? 'Voice', colors.gray);
     }
+  }
+}
+
+/// Hold-to-talk button for push-to-talk mode — the only way to talk on touch
+/// devices, and an alternative to the key on desktop.
+class _PushToTalkButton extends StatefulWidget {
+  const _PushToTalkButton({required this.onChanged});
+
+  final ValueChanged<bool> onChanged;
+
+  @override
+  State<_PushToTalkButton> createState() => _PushToTalkButtonState();
+}
+
+class _PushToTalkButtonState extends State<_PushToTalkButton> {
+  bool _pressed = false;
+
+  void _set(bool pressed) {
+    if (_pressed == pressed) return;
+    setState(() => _pressed = pressed);
+    widget.onChanged(pressed);
+  }
+
+  @override
+  void dispose() {
+    if (_pressed) widget.onChanged(false);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = BonfireThemeExtension.of(context);
+    return Tooltip(
+      message: 'Hold to talk',
+      child: Listener(
+        key: const Key('push-to-talk-button'),
+        onPointerDown: (_) => _set(true),
+        onPointerUp: (_) => _set(false),
+        onPointerCancel: (_) => _set(false),
+        child: Container(
+          margin: const EdgeInsets.only(right: 2),
+          constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+          decoration: BoxDecoration(
+            color: _pressed
+                ? colors.green.withValues(alpha: 0.3)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(4),
+          ),
+          child: Icon(
+            Icons.record_voice_over,
+            size: 18,
+            color: _pressed ? colors.green : colors.dirtyWhite,
+          ),
+        ),
+      ),
+    );
   }
 }
 
