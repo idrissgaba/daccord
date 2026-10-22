@@ -1,6 +1,7 @@
 import '../utils/json_utils.dart';
 import '../utils/qualified_id.dart';
 import 'attachment.dart';
+import 'command.dart';
 import 'embed.dart';
 import 'poll.dart';
 import 'reaction.dart';
@@ -32,6 +33,9 @@ class AccordMessage {
   String? replyTo;
   int flags;
   Object? components;
+
+  /// The command this bot message answers, if any.
+  AccordMessageInteraction? interaction;
   List<String>? stickerIds;
   String? webhookId;
 
@@ -72,6 +76,7 @@ class AccordMessage {
     this.replyTo,
     this.flags = 0,
     this.components,
+    this.interaction,
     this.stickerIds,
     this.webhookId,
     this.webhookAuthorName,
@@ -101,6 +106,9 @@ class AccordMessage {
       mentionEveryone: asBool(d['mention_everyone']),
       flags: asInt(d['flags']),
       components: d['components'],
+      interaction: asMap(d['interaction']) == null
+          ? null
+          : AccordMessageInteraction.fromJson(asMap(d['interaction'])!),
       webhookId: asStringOrNull(d['webhook_id']),
       webhookAuthorName: asStringOrNull(asMap(d['webhook_author'])?['name']),
       threadId: asStringOrNull(d['thread_id']),
@@ -200,6 +208,7 @@ class AccordMessage {
     if (reactions != null) d['reactions'] = toJsonList(reactions!);
     if (replyTo != null) d['reply_to'] = replyTo;
     if (components != null) d['components'] = components;
+    if (interaction != null) d['interaction'] = interaction!.toJson();
     if (stickerIds != null) d['sticker_ids'] = stickerIds;
     if (webhookId != null) d['webhook_id'] = webhookId;
     if (webhookAuthorName != null) {
