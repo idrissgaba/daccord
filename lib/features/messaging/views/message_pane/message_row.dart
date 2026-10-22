@@ -580,6 +580,28 @@ class _MessageRowState extends ConsumerState<_MessageRow> {
     onUserContextMenu: widget.onUserContextMenu,
   );
 
+  /// "Mark unread": this message and everything after it become unread again
+  /// (here, on the server and on the user's other devices).
+  void _markUnread(AccordMessage message) {
+    final serverKey = ref.readActiveServerKey();
+    if (serverKey == null) return;
+    final loaded =
+        ref.read(
+          accordMessagesControllerProvider(serverKey, widget.channelId),
+        ) ??
+        const <AccordMessage>[];
+    final position = readPositionBefore(loaded.map((m) => m.id), message.id);
+    ref
+        .read(readStateControllerProvider(serverKey).notifier)
+        .markUnreadFrom(
+          ref.read(accordAuthProvider.notifier).clientForKey(serverKey),
+          widget.channelId,
+          position,
+          spaceId: widget.spaceId,
+          latestMessageId: loaded.isEmpty ? message.id : loaded.last.id,
+        );
+  }
+
   /// Forwards [message] to another channel or direct message.
   void _forward(AccordMessage message) {
     final spaceId = widget.spaceId;
@@ -649,6 +671,11 @@ class _MessageRowState extends ConsumerState<_MessageRow> {
         label: 'Forward',
         icon: Icons.shortcut,
         onSelected: () => _forward(message),
+      ),
+      AccordMenuEntry(
+        label: 'Mark unread',
+        icon: Icons.mark_chat_unread_outlined,
+        onSelected: () => _markUnread(message),
       ),
       if (widget.spaceId case final spaceId?)
         AccordMenuEntry(

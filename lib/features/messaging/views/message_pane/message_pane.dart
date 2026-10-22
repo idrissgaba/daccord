@@ -164,6 +164,12 @@ class _MessagePaneState extends ConsumerState<MessagePane> {
   AppLifecycleListener? _readLifecycle;
   bool _readScheduled = false;
 
+  /// The read tracker and channel this pane shows, kept so leaving the
+  /// channel (or closing the pane) can release a "mark unread" hold — `ref`
+  /// can't be used in [dispose].
+  ReadStateController? _readTracker;
+  String? _readTrackerChannel;
+
   void _scheduleRead() {
     if (_readScheduled) return;
     _readScheduled = true;
@@ -210,6 +216,10 @@ class _MessagePaneState extends ConsumerState<MessagePane> {
     super.didUpdateWidget(oldWidget);
     // Clear any pending reply or selection when switching channels.
     if (oldWidget.channelId != widget.channelId) {
+      // Leaving a channel marked unread lets it be read on the next visit.
+      if (oldWidget.channelId case final left?) {
+        _readTracker?.releaseHold(left);
+      }
       if (_replyTo != null) _replyTo = null;
       if (_selecting || _selectedMessageIds.isNotEmpty) {
         _selecting = false;
@@ -285,6 +295,9 @@ class _MessagePaneState extends ConsumerState<MessagePane> {
 
   @override
   void dispose() {
+    if (_readTrackerChannel case final channelId?) {
+      _readTracker?.releaseHold(channelId);
+    }
     _scroll.removeListener(_onScroll);
     _readLifecycle?.dispose();
     _scroll.dispose();
@@ -344,6 +357,10 @@ class _MessagePaneState extends ConsumerState<MessagePane> {
     final channel = widget.channel;
     final channelId = widget.channelId;
     final spaceId = widget.spaceId;
+    if (ref.readActiveServerKey() case final key?) {
+      _readTracker = ref.read(readStateControllerProvider(key).notifier);
+      _readTrackerChannel = channelId;
+    }
 
     if (channelId == null) {
       return Container(

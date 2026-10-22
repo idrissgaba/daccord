@@ -181,6 +181,10 @@ class ReadStateController extends _$ReadStateController {
   final _retries = <String, Timer>{};
   final _mentionIds = <String, Set<String>>{};
 
+  /// Channels the user marked unread while looking at them: automatic reads
+  /// (the open pane, incoming messages) leave them alone until [releaseHold].
+  final _held = <String>{};
+
   @override
   ReadStateSnapshot build(String serverKey) {
     ref.onDispose(() {
@@ -274,11 +278,76 @@ class ReadStateController extends _$ReadStateController {
   /// Failed requests remain queued and are retried; they are never considered
   /// synced just because the local badge disappeared.
   void acknowledge(AccordClient? client, String channelId, String? messageId) {
+    if (_held.contains(channelId)) return;
     markRead(channelId, messageId: messageId);
     if (messageId == null || messageId.isEmpty) return;
     if (_atOrBefore(messageId, _syncedThrough[channelId])) return;
     _advance(_pending, channelId, messageId);
     if (client != null) unawaited(_flush(client, channelId));
+  }
+
+  /// "Mark unread": everything after [lastReadMessageId] (`"0"` = the whole
+  /// channel) becomes unread again, here and — through a manual ack — on the
+  /// server and the user's other devices. The channel is held unread until
+  /// [releaseHold], so the open pane doesn't read it straight back.
+  /// [latestMessageId] is the newest message the caller knows of.
+  Future<bool> markUnreadFrom(
+    AccordClient? client,
+    String channelId,
+    String lastReadMessageId, {
+    String? spaceId,
+    String? latestMessageId,
+  }) async {
+    if (channelId.isEmpty) return false;
+    _held.add(channelId);
+    _pending.remove(channelId);
+    _retries.remove(channelId)?.cancel();
+    if (latestMessageId != null) _advance(_latest, channelId, latestMessageId);
+    _rewind(channelId, lastReadMessageId, spaceId: spaceId);
+    if (client == null) return false;
+    try {
+      final result = await client.channels.ack(
+        channelId,
+        lastReadMessageId,
+        manual: true,
+      );
+      return result.ok;
+    } catch (error) {
+      debugPrint('Failed to mark channel $channelId unread: $error');
+      return false;
+    }
+  }
+
+  /// Another of the user's devices marked [channelId] unread back to
+  /// [messageId].
+  void applyRemoteUnread(String channelId, String messageId) =>
+      _rewind(channelId, messageId);
+
+  /// Lets automatic reads of [channelId] through again (the user left it).
+  void releaseHold(String channelId) => _held.remove(channelId);
+
+  /// Whether [channelId] is held unread after a mark-unread.
+  bool isHeld(String channelId) => _held.contains(channelId);
+
+  void _rewind(String channelId, String position, {String? spaceId}) {
+    _readThrough[channelId] = position;
+    _syncedThrough[channelId] = position;
+    _mentionIds.remove(channelId);
+    final entries = Map<String, ReadEntry>.from(state.entries);
+    final latest = _latest[channelId];
+    if (latest == null || _atOrBefore(latest, position)) {
+      entries.remove(channelId);
+    } else {
+      final existing = entries[channelId];
+      entries[channelId] = ReadEntry(
+        channelId: channelId,
+        spaceId: spaceId ?? existing?.spaceId,
+        mentions: existing?.mentions ?? 0,
+        lastMessageId: latest,
+        lastReadMessageId: position,
+      );
+    }
+    state = ReadStateSnapshot(entries: entries);
   }
 
   void retryPending(AccordClient client) {

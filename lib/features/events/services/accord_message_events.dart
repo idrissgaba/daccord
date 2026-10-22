@@ -407,9 +407,13 @@ void bindMessageEvents(
       if (channelId == null || channelId.isEmpty) return;
       final messageId = data['last_read_message_id']?.toString();
       if (messageId == null || messageId.isEmpty) return;
-      ref
-          .read(readStateControllerProvider(serverKey).notifier)
-          .applyRemoteRead(channelId, messageId);
+      final tracker = ref.read(readStateControllerProvider(serverKey).notifier);
+      // A manual ack is "mark unread" on another device: it moves back.
+      if (data['manual'] == true) {
+        tracker.applyRemoteUnread(channelId, messageId);
+      } else {
+        tracker.applyRemoteRead(channelId, messageId);
+      }
     }),
   );
 

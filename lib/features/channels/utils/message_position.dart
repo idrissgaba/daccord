@@ -9,3 +9,15 @@ int compareMessageIds(String a, String b) {
   }
   return a.compareTo(b);
 }
+
+/// The read position that makes [messageId] the first unread message: the
+/// newest of [loadedIds] older than it, or `"0"` (the whole channel unread)
+/// when none is loaded.
+String readPositionBefore(Iterable<String> loadedIds, String messageId) {
+  String? best;
+  for (final id in loadedIds) {
+    if (compareMessageIds(id, messageId) >= 0) continue;
+    if (best == null || compareMessageIds(id, best) > 0) best = id;
+  }
+  return best ?? '0';
+}

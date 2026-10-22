@@ -98,3 +98,9 @@ The client respects a suppression flag when supplied by the server.
 - **Copy message link** copies a `daccord://navigate/...` link. Pasted in a
   message, it becomes clickable and opens the original message in the app —
   in the browser build too.
+
+## Mark Unread
+
+**Mark unread** (message menu) makes that message and everything after it unread
+again — on this device, on the server and on your other devices. While you stay
+in the channel it stays unread; it is read again the next time you open it.

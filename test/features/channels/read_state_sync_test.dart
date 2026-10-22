@@ -140,4 +140,49 @@ void main() {
       greaterThan(0),
     );
   });
+
+  test(
+    'mark unread rewinds, holds against automatic reads, then releases',
+    () async {
+      final bodies = <Map<String, dynamic>>[];
+      final api = client((request) async {
+        bodies.add(jsonDecode(request.body) as Map<String, dynamic>);
+        return http.Response('{"data":null}', 200);
+      });
+      receive('10', mention: false);
+      receive('11', mention: false);
+      reads.acknowledge(api, 'channel', '11');
+      await settle();
+      expect(snapshot().isUnread('channel'), isFalse);
+
+      final ok = await reads.markUnreadFrom(api, 'channel', '10');
+      expect(ok, isTrue);
+      expect(snapshot().isUnread('channel'), isTrue);
+      expect(bodies.last, {'message_id': '10', 'manual': true});
+
+      // The open pane reading it again is ignored while held...
+      reads.acknowledge(api, 'channel', '11');
+      await settle();
+      expect(snapshot().isUnread('channel'), isTrue);
+      expect(reads.isHeld('channel'), isTrue);
+
+      // ...until the user leaves the channel.
+      reads.releaseHold('channel');
+      reads.acknowledge(api, 'channel', '11');
+      await settle();
+      expect(snapshot().isUnread('channel'), isFalse);
+      expect(bodies.last, {'message_id': '11'});
+    },
+  );
+
+  test('a remote mark unread moves the read position back', () {
+    receive('20', mention: false);
+    reads.applyRemoteRead('channel', '20');
+    expect(snapshot().isUnread('channel'), isFalse);
+    reads.applyRemoteUnread('channel', '19');
+    expect(snapshot().isUnread('channel'), isTrue);
+    // And a plain remote read clears it again.
+    reads.applyRemoteRead('channel', '20');
+    expect(snapshot().isUnread('channel'), isFalse);
+  });
 }
