@@ -153,4 +153,31 @@ void main() {
       findsNWidgets(2),
     );
   });
+
+  testWidgets('a bare daccord:// link renders as a link', (tester) async {
+    await tester.pumpWidget(
+      _host(
+        AccordMarkdownBox(
+          content: 'see daccord://navigate/1/2?msg=3 now',
+          syntaxExtensions: accordMarkupSyntaxes(),
+          elementBuilders: accordMarkupBuilders(),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    var linked = false;
+    for (final element in find.byType(RichText).evaluate()) {
+      (element.widget as RichText).text.visitChildren((span) {
+        if (span is TextSpan &&
+            (span.text ?? '').contains('daccord://navigate/1/2?msg=3') &&
+            span.recognizer != null) {
+          linked = true;
+          return false;
+        }
+        return true;
+      });
+    }
+    expect(linked, isTrue);
+  });
 }

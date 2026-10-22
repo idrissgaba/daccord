@@ -622,6 +622,23 @@ class _MessageRowState extends ConsumerState<_MessageRow> {
         icon: Icons.forum_outlined,
         onSelected: () => _openThread(message),
       ),
+      if (widget.spaceId case final spaceId?)
+        AccordMenuEntry(
+          label: 'Copy message link',
+          icon: Icons.link,
+          onSelected: () {
+            Clipboard.setData(
+              ClipboardData(
+                text: messageLink(
+                  spaceId: spaceId,
+                  channelId: widget.channelId,
+                  messageId: message.id,
+                ),
+              ),
+            );
+            showInfoSnack(context, 'Message link copied');
+          },
+        ),
       ...buildMessageActionEntries(
         content: accordMessageText(message, authorName: _authorName),
         canEdit: widget.isOwn,

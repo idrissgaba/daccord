@@ -1,4 +1,5 @@
 import 'package:bonfire/features/messaging/views/message_media_gate.dart';
+import 'package:bonfire/shared/utils/in_app_links.dart';
 import 'package:bonfire/shared/utils/external_url.dart';
 import 'package:bonfire/shared/utils/platform.dart';
 import 'package:bonfire/shared/utils/style/markdown/stylesheet.dart';
@@ -67,6 +68,8 @@ class AccordMarkdownBox extends StatelessWidget {
       },
       onTapLink: (href, title) async {
         if (href == null) return;
+        // Message links and other daccord:// destinations open in the app.
+        if (InAppLinks.open(href)) return;
         await openExternalUrl(context, href);
       },
     );

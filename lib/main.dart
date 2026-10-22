@@ -22,6 +22,7 @@ import 'package:bonfire/features/server/views/federation_join_confirmation.dart'
 import 'package:bonfire/features/developer/controllers/mcp_server_controller.dart';
 import 'package:bonfire/features/settings/controllers/settings.dart';
 import 'package:bonfire/router/controller.dart';
+import 'package:bonfire/shared/utils/in_app_links.dart';
 import 'package:bonfire/shared/app_info.dart';
 import 'package:bonfire/shared/components/app_lifecycle_ticker_mode.dart';
 import 'package:bonfire/shared/components/app_shell.dart';
@@ -192,6 +193,7 @@ class _MainWindowState extends ConsumerState<MainWindow> {
   void initState() {
     super.initState();
     _initDeepLinks();
+    InAppLinks.register(_handleUri);
     // First-launch walkthrough (#175). It snapshots "is this a fresh install?"
     // before sign-in persists a session, then waits for sign-in before showing
     // anything. A no-op on every later launch, and on installs that predate it.
@@ -207,6 +209,7 @@ class _MainWindowState extends ConsumerState<MainWindow> {
 
   @override
   void dispose() {
+    InAppLinks.unregister(_handleUri);
     _linkSub?.cancel();
     super.dispose();
   }
