@@ -418,10 +418,17 @@ void main() {
       );
 
       // Dropping the file frees text sends: this channel has no slowmode, so
-      // only uploads were ever held back.
+      // only uploads were ever held back. With nothing typed the slot offers a
+      // voice message, which is an upload too and stays held back.
       await tester.tap(find.byIcon(Icons.close).last);
       await _tick(tester);
       expect(_visibleText('song.mp3'), findsNothing);
+      final record = tester.widget<IconButton>(
+        find.byKey(const Key('voice-message-record')),
+      );
+      expect(record.onPressed, isNull);
+      await tester.enterText(find.byType(TextField).last, 'text still flows');
+      await tester.pump();
       expect(sendButton().onPressed, isNotNull);
     },
   );
@@ -483,5 +490,50 @@ void main() {
     // A small file still attaches on the fallback limits.
     expect(_visibleText('small.png'), findsOneWidget);
     expect(_visibleText('the limit is'), findsNothing);
+  });
+
+  testWidgets('an empty composer offers a voice message instead of Send', (
+    tester,
+  ) async {
+    FilePicker.platform = _FakeFilePicker(() async => null);
+    await _pump(tester);
+
+    expect(find.byKey(const Key('voice-message-record')), findsOneWidget);
+    expect(find.byTooltip('Send'), findsNothing);
+
+    await tester.enterText(find.byType(TextField).last, 'hello');
+    await tester.pump();
+    expect(find.byKey(const Key('voice-message-record')), findsNothing);
+    expect(find.byTooltip('Send'), findsOneWidget);
+  });
+
+  testWidgets('a denied microphone closes the recorder with the reason', (
+    tester,
+  ) async {
+    const channel = MethodChannel('com.llfbandit.record/messages');
+    final calls = <String>[];
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(channel, (
+      call,
+    ) async {
+      calls.add(call.method);
+      return call.method == 'hasPermission' ? false : null;
+    });
+    addTearDown(
+      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        channel,
+        null,
+      ),
+    );
+    FilePicker.platform = _FakeFilePicker(() async => null);
+    await _pump(tester);
+
+    await tester.tap(find.byKey(const Key('voice-message-record')));
+    await _tick(tester);
+
+    expect(calls, contains('hasPermission'));
+    expect(calls, isNot(contains('start')));
+    expect(find.byKey(const Key('voice-message-recorder')), findsNothing);
+    expect(_visibleText('Microphone access is unavailable'), findsOneWidget);
+    expect(find.byKey(const Key('voice-message-record')), findsOneWidget);
   });
 }

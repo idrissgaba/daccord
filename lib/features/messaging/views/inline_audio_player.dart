@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:audioplayers/audioplayers.dart';
+import 'package:bonfire/features/messaging/utils/voice_message.dart';
 import 'package:bonfire/shared/utils/download_attachment.dart';
 import 'package:bonfire/theme/theme.dart';
 import 'package:flutter/material.dart';
@@ -172,6 +173,7 @@ class _InlineAudioPlayerState extends State<InlineAudioPlayer> {
     final colors = BonfireThemeExtension.of(context);
     final theme = Theme.of(context);
     final maxMs = _duration.inMilliseconds;
+    final voiceMessage = isVoiceMessageFilename(widget.filename);
     final value = maxMs == 0
         ? 0.0
         : _position.inMilliseconds.clamp(0, maxMs).toDouble();
@@ -187,11 +189,15 @@ class _InlineAudioPlayerState extends State<InlineAudioPlayer> {
         children: [
           Row(
             children: [
-              Icon(Icons.audiotrack, size: 16, color: colors.dirtyWhite),
+              Icon(
+                voiceMessage ? Icons.mic : Icons.audiotrack,
+                size: 16,
+                color: colors.dirtyWhite,
+              ),
               const SizedBox(width: 6),
               Expanded(
                 child: Text(
-                  widget.filename,
+                  voiceMessage ? 'Voice message' : widget.filename,
                   overflow: TextOverflow.ellipsis,
                   style: theme.textTheme.bodySmall!.copyWith(
                     color: colors.dirtyWhite,

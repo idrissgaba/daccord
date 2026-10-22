@@ -51,6 +51,7 @@ import 'package:bonfire/features/messaging/views/message_media_gate.dart';
 import 'package:bonfire/features/messaging/views/message_author_header.dart';
 import 'package:bonfire/features/messaging/views/pinned_messages.dart';
 import 'package:bonfire/features/messaging/views/thread_view.dart';
+import 'package:bonfire/features/messaging/views/voice_message_recorder.dart';
 import 'package:bonfire/features/notifications/services/sound.dart';
 import 'package:bonfire/features/notifications/utils/notification_gate.dart';
 import 'package:bonfire/features/onboarding/models/onboarding_step.dart';
