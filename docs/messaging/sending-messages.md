@@ -88,3 +88,13 @@ opening message history. Player behavior follows the
 Author/moderator suppression, angle-bracket link exclusion and asynchronous
 unfurl permission/federation behavior still require server support (#352).
 The client respects a suppression flag when supplied by the server.
+
+## Forwarding and Message Links
+
+- **Forward** (message menu) posts a copy of a message to another channel of
+  the space or to a direct message, optionally after your own comment. The copy
+  quotes the original under a "Forwarded from" line with a link back to it, and
+  re-uploads its files (files from end-to-end encrypted chats stay behind).
+- **Copy message link** copies a `daccord://navigate/...` link. Pasted in a
+  message, it becomes clickable and opens the original message in the app —
+  in the browser build too.

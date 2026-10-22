@@ -580,6 +580,29 @@ class _MessageRowState extends ConsumerState<_MessageRow> {
     onUserContextMenu: widget.onUserContextMenu,
   );
 
+  /// Forwards [message] to another channel or direct message.
+  void _forward(AccordMessage message) {
+    final spaceId = widget.spaceId;
+    final serverKey = ref.readActiveServerKey() ?? '';
+    final channelName = spaceId == null
+        ? null
+        : ref
+              .read(accordChannelsControllerProvider(serverKey, spaceId))
+              ?.firstWhereOrNull((c) => c.id == widget.channelId)
+              ?.name;
+    showForwardMessageDialog(
+      context,
+      message: message,
+      authorName: _authorName,
+      sourceLabel: channelName != null
+          ? '#$channelName'
+          : spaceId == null
+          ? 'a direct message'
+          : 'a channel',
+      spaceId: spaceId,
+    );
+  }
+
   /// Reports [message]. Available in DMs too, where [_MessageRow.spaceId] is
   /// null: the dialog then files an account-level report and offers to block
   /// the author, rather than the action disappearing (#290).
@@ -621,6 +644,11 @@ class _MessageRowState extends ConsumerState<_MessageRow> {
         label: 'Thread',
         icon: Icons.forum_outlined,
         onSelected: () => _openThread(message),
+      ),
+      AccordMenuEntry(
+        label: 'Forward',
+        icon: Icons.shortcut,
+        onSelected: () => _forward(message),
       ),
       if (widget.spaceId case final spaceId?)
         AccordMenuEntry(
