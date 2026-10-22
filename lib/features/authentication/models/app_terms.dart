@@ -24,7 +24,8 @@ const String appTermsSummary =
 const String appTermsContactUrl =
     'https://github.com/DaccordProject/daccord/issues';
 
-const String appTermsBody = '''
+const String appTermsBody =
+    '''
 Last updated: 16 October 2026
 
 1. Accepting these terms
