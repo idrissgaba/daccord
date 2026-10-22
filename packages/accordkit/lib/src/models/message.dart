@@ -2,6 +2,7 @@ import '../utils/json_utils.dart';
 import '../utils/qualified_id.dart';
 import 'attachment.dart';
 import 'embed.dart';
+import 'poll.dart';
 import 'reaction.dart';
 
 /// A message in a channel, thread, or DM.
@@ -38,6 +39,9 @@ class AccordMessage {
   Object? lastReplyAt;
   List<String> threadParticipants;
   Object? title;
+
+  /// The poll this message carries, if any.
+  AccordPoll? poll;
 
   /// Home domain for a remote-homed (federated) message, or `null` when the
   /// message is homed on the connected server. Falls back to the domain of a
@@ -161,6 +165,9 @@ class AccordMessage {
       m.threadParticipants.add(asString(p));
     }
 
+    final rawPoll = asMap(d['poll']);
+    if (rawPoll != null) m.poll = AccordPoll.fromJson(rawPoll);
+
     return m;
   }
 
@@ -197,6 +204,7 @@ class AccordMessage {
     }
     if (title != null) d['title'] = title;
     if (origin != null) d['origin'] = origin;
+    if (poll != null) d['poll'] = poll!.toJson();
     return d;
   }
 

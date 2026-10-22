@@ -60,6 +60,7 @@ export 'src/models/message.dart';
 export 'src/models/message_upload.dart';
 export 'src/models/permission.dart';
 export 'src/models/permission_overwrite.dart';
+export 'src/models/poll.dart';
 export 'src/models/experience.dart';
 export 'src/models/presence.dart';
 export 'src/models/reaction.dart';
