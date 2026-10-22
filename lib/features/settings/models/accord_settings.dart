@@ -90,6 +90,10 @@ class AccordSettings {
     this.voiceAfkTimeoutMinutes = defaultAfkTimeoutMinutes,
     this.voiceAfkAutoMove = true,
     this.voiceRelayOnly = false,
+    this.voiceNoiseSuppression = true,
+    this.voiceEchoCancellation = true,
+    this.voiceAutoGainControl = true,
+    this.voiceHighQualityAudio = false,
     this.recentEmoji = const [],
     this.masterServerUrl = defaultMasterServerUrl,
     this.channelNotifications = const <String, String>{},
@@ -212,6 +216,18 @@ class AccordSettings {
 
   /// Require TURN relay candidates for all voice/video media connections.
   final bool voiceRelayOnly;
+
+  /// Ask the platform to filter background noise from the microphone.
+  final bool voiceNoiseSuppression;
+
+  /// Ask the platform to cancel speaker echo picked up by the microphone.
+  final bool voiceEchoCancellation;
+
+  /// Ask the platform to level the microphone volume automatically.
+  final bool voiceAutoGainControl;
+
+  /// Publish the microphone at 128 kbps without DTX (music, instruments).
+  final bool voiceHighQualityAudio;
 
   /// Most-recently-used emoji tokens (unicode chars or `name:id` custom refs),
   /// most-recent first.
@@ -352,6 +368,10 @@ class AccordSettings {
     int? voiceAfkTimeoutMinutes,
     bool? voiceAfkAutoMove,
     bool? voiceRelayOnly,
+    bool? voiceNoiseSuppression,
+    bool? voiceEchoCancellation,
+    bool? voiceAutoGainControl,
+    bool? voiceHighQualityAudio,
     List<String>? recentEmoji,
     String? masterServerUrl,
     Map<String, String>? channelNotifications,
@@ -407,6 +427,13 @@ class AccordSettings {
           voiceAfkTimeoutMinutes ?? this.voiceAfkTimeoutMinutes,
       voiceAfkAutoMove: voiceAfkAutoMove ?? this.voiceAfkAutoMove,
       voiceRelayOnly: voiceRelayOnly ?? this.voiceRelayOnly,
+      voiceNoiseSuppression:
+          voiceNoiseSuppression ?? this.voiceNoiseSuppression,
+      voiceEchoCancellation:
+          voiceEchoCancellation ?? this.voiceEchoCancellation,
+      voiceAutoGainControl: voiceAutoGainControl ?? this.voiceAutoGainControl,
+      voiceHighQualityAudio:
+          voiceHighQualityAudio ?? this.voiceHighQualityAudio,
       recentEmoji: recentEmoji ?? this.recentEmoji,
       masterServerUrl: masterServerUrl ?? this.masterServerUrl,
       channelNotifications: channelNotifications ?? this.channelNotifications,
@@ -602,6 +629,10 @@ class AccordSettings {
     'voiceAfkTimeoutMinutes': voiceAfkTimeoutMinutes,
     'voiceAfkAutoMove': voiceAfkAutoMove,
     'voiceRelayOnly': voiceRelayOnly,
+    'voiceNoiseSuppression': voiceNoiseSuppression,
+    'voiceEchoCancellation': voiceEchoCancellation,
+    'voiceAutoGainControl': voiceAutoGainControl,
+    'voiceHighQualityAudio': voiceHighQualityAudio,
     'recentEmoji': recentEmoji,
     'masterServerUrl': masterServerUrl,
     'channelNotifications': channelNotifications,
@@ -672,6 +703,10 @@ class AccordSettings {
           defaultAfkTimeoutMinutes,
       voiceAfkAutoMove: json['voiceAfkAutoMove'] as bool? ?? true,
       voiceRelayOnly: json['voiceRelayOnly'] as bool? ?? false,
+      voiceNoiseSuppression: json['voiceNoiseSuppression'] as bool? ?? true,
+      voiceEchoCancellation: json['voiceEchoCancellation'] as bool? ?? true,
+      voiceAutoGainControl: json['voiceAutoGainControl'] as bool? ?? true,
+      voiceHighQualityAudio: json['voiceHighQualityAudio'] as bool? ?? false,
       recentEmoji: [
         for (final e in (json['recentEmoji'] as List? ?? const []))
           e.toString(),

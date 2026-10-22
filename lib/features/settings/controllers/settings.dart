@@ -169,6 +169,18 @@ class SettingsController extends _$SettingsController {
   void setVoiceRelayOnly(bool enabled) =>
       _update(state.copyWith(voiceRelayOnly: enabled));
 
+  void setVoiceNoiseSuppression(bool enabled) =>
+      _update(state.copyWith(voiceNoiseSuppression: enabled));
+
+  void setVoiceEchoCancellation(bool enabled) =>
+      _update(state.copyWith(voiceEchoCancellation: enabled));
+
+  void setVoiceAutoGainControl(bool enabled) =>
+      _update(state.copyWith(voiceAutoGainControl: enabled));
+
+  void setVoiceHighQualityAudio(bool enabled) =>
+      _update(state.copyWith(voiceHighQualityAudio: enabled));
+
   void setInputVolume(int volume) =>
       _update(state.copyWith(inputVolume: volume.clamp(0, 200)));
 

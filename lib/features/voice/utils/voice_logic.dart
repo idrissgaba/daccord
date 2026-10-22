@@ -2,8 +2,11 @@
 /// without a native LiveKit `Room`.
 library;
 
+import 'package:bonfire/features/settings/models/accord_settings.dart';
 import 'package:bonfire/features/voice/services/voice_session.dart'
     show VoiceSessionState;
+import 'package:livekit_client/livekit_client.dart'
+    show AudioCaptureOptions, AudioEncoding, AudioPublishOptions;
 
 /// Converts a 0–200% volume preference into a WebRTC gain multiplier (0.0–2.0),
 /// clamping out-of-range input. Gain is applied per remote track; 100% is
@@ -32,6 +35,70 @@ double participantGain({
   final userGain = voiceGain(userVolumePercent ?? 100);
   return (outputGain * userGain).clamp(0.0, maxGain).toDouble();
 }
+
+/// Microphone processing and quality preferences for a voice session. The
+/// processing flags ask the platform's WebRTC stack (where supported) to clean
+/// up the capture; [highQuality] raises the Opus bitrate for music or
+/// instruments.
+class VoiceAudioOptions {
+  const VoiceAudioOptions({
+    this.noiseSuppression = true,
+    this.echoCancellation = true,
+    this.autoGainControl = true,
+    this.highQuality = false,
+  });
+
+  final bool noiseSuppression;
+  final bool echoCancellation;
+  final bool autoGainControl;
+  final bool highQuality;
+
+  /// Bitrate used when [highQuality] is on (128 kbps, Opus stereo preset).
+  static const AudioEncoding highQualityEncoding =
+      AudioEncoding.presetMusicHighQualityStereo;
+
+  /// Capture options for the microphone [deviceId] (null = system default).
+  AudioCaptureOptions captureOptions(String? deviceId) => AudioCaptureOptions(
+    deviceId: deviceId,
+    noiseSuppression: noiseSuppression,
+    echoCancellation: echoCancellation,
+    autoGainControl: autoGainControl,
+    // Voice isolation is the platform's aggressive noise filter; keep it tied
+    // to noise suppression so turning that off really passes everything.
+    voiceIsolation: noiseSuppression,
+  );
+
+  /// Publish options for the microphone track. High quality also disables DTX,
+  /// which would otherwise cut the quiet passages of music.
+  AudioPublishOptions get publishOptions => highQuality
+      ? const AudioPublishOptions(encoding: highQualityEncoding, dtx: false)
+      : const AudioPublishOptions();
+
+  @override
+  bool operator ==(Object other) =>
+      other is VoiceAudioOptions &&
+      other.noiseSuppression == noiseSuppression &&
+      other.echoCancellation == echoCancellation &&
+      other.autoGainControl == autoGainControl &&
+      other.highQuality == highQuality;
+
+  @override
+  int get hashCode => Object.hash(
+    noiseSuppression,
+    echoCancellation,
+    autoGainControl,
+    highQuality,
+  );
+}
+
+/// The microphone preferences stored in [settings].
+VoiceAudioOptions voiceAudioOptionsOf(AccordSettings settings) =>
+    VoiceAudioOptions(
+      noiseSuppression: settings.voiceNoiseSuppression,
+      echoCancellation: settings.voiceEchoCancellation,
+      autoGainControl: settings.voiceAutoGainControl,
+      highQuality: settings.voiceHighQualityAudio,
+    );
 
 /// Normalises a selected audio/video device id: a null or empty id means
 /// "system default" and is represented as null (what the capture options

@@ -124,6 +124,50 @@ class _VoiceSettingsScreenState extends ConsumerState<VoiceSettingsScreen> {
             onChanged: controller.setInputSensitivity,
           ),
           const Divider(height: 24),
+          SectionHeader('Voice processing'),
+          SwitchListTile(
+            key: const Key('noise-suppression-switch'),
+            title: const Text('Noise suppression'),
+            subtitle: Text(
+              'Filters background noise such as fans, keyboards and traffic.',
+              style: theme.textTheme.bodySmall!.copyWith(color: colors.gray),
+            ),
+            value: settings.voiceNoiseSuppression,
+            onChanged: controller.setVoiceNoiseSuppression,
+          ),
+          SwitchListTile(
+            key: const Key('echo-cancellation-switch'),
+            title: const Text('Echo cancellation'),
+            subtitle: Text(
+              'Stops others hearing themselves through your speakers.',
+              style: theme.textTheme.bodySmall!.copyWith(color: colors.gray),
+            ),
+            value: settings.voiceEchoCancellation,
+            onChanged: controller.setVoiceEchoCancellation,
+          ),
+          SwitchListTile(
+            key: const Key('auto-gain-switch'),
+            title: const Text('Automatic gain control'),
+            subtitle: Text(
+              'Keeps your voice at a steady level.',
+              style: theme.textTheme.bodySmall!.copyWith(color: colors.gray),
+            ),
+            value: settings.voiceAutoGainControl,
+            onChanged: controller.setVoiceAutoGainControl,
+          ),
+          SwitchListTile(
+            key: const Key('high-quality-audio-switch'),
+            title: const Text('High quality audio'),
+            subtitle: Text(
+              'Sends your microphone at 128 kbps — for music or instruments. '
+              'Turn the three filters above off for the cleanest result. '
+              'Applies when you next join a voice channel.',
+              style: theme.textTheme.bodySmall!.copyWith(color: colors.gray),
+            ),
+            value: settings.voiceHighQualityAudio,
+            onChanged: controller.setVoiceHighQualityAudio,
+          ),
+          const Divider(height: 24),
           if (canPickAudioOutputDevice) ...[
             SectionHeader('Output device'),
             _DeviceDropdown(

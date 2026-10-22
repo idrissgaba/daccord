@@ -158,6 +158,7 @@ class VoiceController extends _$VoiceController {
           inputVolume: s.inputVolume,
           userVolumes: s.userVolumes,
           locallyMutedUsers: s.locallyMutedUsers,
+          audio: voiceAudioOptionsOf(s),
         ),
       ),
       (prev, next) {
@@ -183,6 +184,9 @@ class VoiceController extends _$VoiceController {
           session.setUserVolumes(
             _userVolumes(ref.read(settingsControllerProvider)),
           );
+        }
+        if (prev?.audio != next.audio) {
+          session.setAudioOptions(next.audio);
         }
       },
     );
@@ -303,6 +307,7 @@ class VoiceController extends _$VoiceController {
       outputVolume: settings.outputVolume,
       inputVolume: settings.inputVolume,
       userVolumes: _userVolumes(settings),
+      audio: voiceAudioOptionsOf(settings),
     );
     _applyConnectOutcome();
     if (state.sessionState == VoiceSessionState.failed) return;
@@ -464,6 +469,7 @@ class VoiceController extends _$VoiceController {
       outputVolume: settings.outputVolume,
       inputVolume: settings.inputVolume,
       userVolumes: _userVolumes(settings),
+      audio: voiceAudioOptionsOf(settings),
     );
     _applyConnectOutcome();
   }
@@ -581,6 +587,7 @@ class VoiceController extends _$VoiceController {
       outputVolume: settings.outputVolume,
       inputVolume: settings.inputVolume,
       userVolumes: _userVolumes(settings),
+      audio: voiceAudioOptionsOf(settings),
     );
     _applyConnectOutcome();
   }
