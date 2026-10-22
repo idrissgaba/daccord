@@ -237,6 +237,61 @@ class AccordMessagesController extends _$AccordMessagesController {
     return null;
   }
 
+  /// Posts a poll to this channel. Returns null on success, or the reason it
+  /// failed.
+  Future<String?> createPoll(
+    AccordClient client, {
+    required String question,
+    required List<String> answers,
+    bool allowMultiselect = false,
+    int durationHours = 24,
+  }) async {
+    final result = await client.messages.createPoll(channelId, {
+      'question': question.trim(),
+      'answers': [
+        for (final answer in answers) {'text': answer.trim()},
+      ],
+      'allow_multiselect': allowMultiselect,
+      'duration_hours': durationHours,
+    });
+    if (!ref.mounted) return null;
+    if (!result.ok) {
+      return result.error?.message ?? 'Failed to create the poll.';
+    }
+    final message = result.data;
+    if (message is AccordMessage) addMessage(message);
+    return null;
+  }
+
+  /// Votes for (or, with [remove], withdraws the vote for) [answerId] in the
+  /// poll on [messageId]. Returns null on success, or the reason it failed.
+  Future<String?> votePoll(
+    AccordClient client,
+    String messageId,
+    int answerId, {
+    bool remove = false,
+  }) async {
+    final result = remove
+        ? await client.messages.unvotePoll(channelId, messageId, answerId)
+        : await client.messages.votePoll(channelId, messageId, answerId);
+    if (!ref.mounted) return null;
+    if (!result.ok) return result.error?.message ?? 'Vote failed.';
+    final message = result.data;
+    if (message is AccordMessage) updateMessage(message);
+    return null;
+  }
+
+  /// Ends the poll on [messageId] now. Returns null on success, or the reason
+  /// it failed.
+  Future<String?> endPoll(AccordClient client, String messageId) async {
+    final result = await client.messages.expirePoll(channelId, messageId);
+    if (!ref.mounted) return null;
+    if (!result.ok) return result.error?.message ?? 'Could not end the poll.';
+    final message = result.data;
+    if (message is AccordMessage) updateMessage(message);
+    return null;
+  }
+
   /// Pins [messageId] in this channel, optimistically flipping its `pinned`
   /// flag (reverted on failure).
   ///
@@ -399,6 +454,8 @@ class AccordMessagesController extends _$AccordMessagesController {
   }
 
   void updateMessage(AccordMessage message) {
+    final previous = state?.firstWhereOrNull((m) => m.id == message.id);
+    if (previous != null) keepViewerState(message, previous);
     _history.update(message);
     final next = state?.replaceById(message, (m) => m.id);
     if (next != null) state = next;
@@ -791,4 +848,14 @@ class AccordMessagesController extends _$AccordMessagesController {
     if (id != null && id.isNotEmpty) return name;
     return resolveEmojiGlyph(parseEmojiToken(name).name);
   }
+}
+
+/// Carries what an update leaves out from the copy already shown: an update
+/// without reactions keeps the known ones, and a poll broadcast (counts only)
+/// keeps which answers the user picked.
+void keepViewerState(AccordMessage next, AccordMessage previous) {
+  next.reactions ??= previous.reactions;
+  final poll = next.poll;
+  final previousPoll = previous.poll;
+  if (poll != null && previousPoll != null) poll.adoptMineFrom(previousPoll);
 }

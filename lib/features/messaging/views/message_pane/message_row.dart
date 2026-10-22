@@ -536,6 +536,12 @@ class _MessageRowState extends ConsumerState<_MessageRow> {
                             spaceId: widget.spaceId,
                           ),
                         ),
+                      if (message.poll case final poll?)
+                        PollView(
+                          poll: poll,
+                          onVote: (answerId, {required remove}) =>
+                              _votePoll(message.id, answerId, remove: remove),
+                        ),
                       for (final attachment in message.attachments)
                         Padding(
                           padding: const EdgeInsets.only(top: 4),
@@ -568,6 +574,33 @@ class _MessageRowState extends ConsumerState<_MessageRow> {
         ),
       ),
     );
+  }
+
+  AccordMessagesController? get _channelMessages {
+    final serverKey = ref.readActiveServerKey();
+    if (serverKey == null) return null;
+    return ref.read(
+      accordMessagesControllerProvider(serverKey, widget.channelId).notifier,
+    );
+  }
+
+  Future<String?> _votePoll(
+    String messageId,
+    int answerId, {
+    required bool remove,
+  }) async {
+    final client = ref.accordClient;
+    final controller = _channelMessages;
+    if (client == null || controller == null) return 'Not connected.';
+    return controller.votePoll(client, messageId, answerId, remove: remove);
+  }
+
+  Future<void> _endPoll(String messageId) async {
+    final client = ref.accordClient;
+    final controller = _channelMessages;
+    if (client == null || controller == null) return;
+    final error = await controller.endPoll(client, messageId);
+    if (error != null && mounted) showInfoSnack(context, error);
   }
 
   void _openThread(AccordMessage message) => showAccordThread(
@@ -693,6 +726,13 @@ class _MessageRowState extends ConsumerState<_MessageRow> {
             );
             showInfoSnack(context, 'Message link copied');
           },
+        ),
+      if (message.poll case final poll?
+          when !poll.closed && (widget.isOwn || widget.canManageMessages))
+        AccordMenuEntry(
+          label: 'End poll',
+          icon: Icons.stop_circle_outlined,
+          onSelected: () => _endPoll(message.id),
         ),
       ...buildMessageActionEntries(
         content: accordMessageText(message, authorName: _authorName),

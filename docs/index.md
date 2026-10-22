@@ -24,6 +24,7 @@ New to daccord? Start here.
 - [Direct Messages](messaging/direct-messages.md) -- Private conversations
 - [Reactions and Emoji](messaging/reactions-and-emoji.md) -- React to messages
 - [File Sharing](messaging/file-sharing.md) -- Share images and files
+- [Polls](messaging/polls.md) -- Ask a question and let people vote
 - [Voice and Video](voice-and-video/voice-channels.md) -- Join voice calls
 
 ## Personalizing Your Experience

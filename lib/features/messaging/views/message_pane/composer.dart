@@ -478,6 +478,33 @@ class _ComposerState extends ConsumerState<_Composer> {
     });
   }
 
+  void _createPoll() {
+    final client = ref.accordClient;
+    if (client == null) return;
+    final controller = ref.read(
+      accordMessagesControllerProvider(
+        ref.readActiveServerKey() ?? '',
+        widget.channelId,
+      ).notifier,
+    );
+    showCreatePollDialog(
+      context,
+      create:
+          ({
+            required question,
+            required answers,
+            required allowMultiselect,
+            required durationHours,
+          }) => controller.createPoll(
+            client,
+            question: question,
+            answers: answers,
+            allowMultiselect: allowMultiselect,
+            durationHours: durationHours,
+          ),
+    );
+  }
+
   void _removeAttachment(PendingAttachment file) {
     setState(() => _attachments.remove(file));
   }
@@ -789,6 +816,17 @@ class _ComposerState extends ConsumerState<_Composer> {
                             : colors.dirtyWhite,
                       ),
                     ),
+                    if (widget.spaceId != null)
+                      IconButton(
+                        key: const Key('poll-create'),
+                        tooltip: 'Create a poll',
+                        onPressed: _sending ? null : _createPoll,
+                        icon: Icon(
+                          Icons.poll_outlined,
+                          size: 20,
+                          color: colors.dirtyWhite,
+                        ),
+                      ),
                     Expanded(
                       child: TextField(
                         controller: _controller,

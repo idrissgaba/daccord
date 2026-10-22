@@ -199,6 +199,58 @@ class MessagesApi extends EndpointBase {
   }
 
   /// Deletes a single message.
+  /// Posts a message carrying a poll ([data]: `question`, `answers` as
+  /// `{text, emoji?}` maps, `allow_multiselect`, `duration_hours`, optional
+  /// `content`). Space channels only.
+  Future<RestResult> createPoll(
+    String channelId,
+    Map<String, dynamic> data,
+  ) async {
+    final result = await rest.makeRequest(
+      'POST',
+      '/channels/$channelId/polls',
+      body: data,
+      retryOnRateLimit: false,
+    );
+    return _decode(result);
+  }
+
+  /// Votes for [answerId] in the poll on [messageId] (a single-choice poll
+  /// replaces the previous vote); the result is the updated message.
+  Future<RestResult> votePoll(
+    String channelId,
+    String messageId,
+    int answerId,
+  ) async =>
+      _decode(
+        await rest.makeRequest(
+          'PUT',
+          '/channels/$channelId/polls/$messageId/answers/$answerId/@me',
+        ),
+      );
+
+  /// Withdraws the vote for [answerId]; the result is the updated message.
+  Future<RestResult> unvotePoll(
+    String channelId,
+    String messageId,
+    int answerId,
+  ) async =>
+      _decode(
+        await rest.makeRequest(
+          'DELETE',
+          '/channels/$channelId/polls/$messageId/answers/$answerId/@me',
+        ),
+      );
+
+  /// Ends the poll on [messageId] now; the result is the updated message.
+  Future<RestResult> expirePoll(String channelId, String messageId) async =>
+      _decode(
+        await rest.makeRequest(
+          'POST',
+          '/channels/$channelId/polls/$messageId/expire',
+        ),
+      );
+
   Future<RestResult> delete(String channelId, String messageId) {
     return rest.makeRequest(
         'DELETE', '/channels/$channelId/messages/$messageId');
