@@ -77,3 +77,20 @@ See [Invites](invites.md) for details on inviting people to your server.
 Open **Arcade** in space settings to enable reviewed games and manage the
 space's Arcade. See [Managing Arcade](managing-arcade.md) for channel placement,
 notifications, idle cleanup, and custom extensions.
+
+## Webhooks
+
+A webhook lets another service post into a text channel — monitoring alerts,
+download notifications, build results. In **Space Settings → Webhooks** (you
+need the Manage Webhooks permission):
+
+1. Click **New webhook** and pick the channel it posts in.
+2. Click the link icon to copy its URL, and paste it into the service's
+   notification settings (services that support chat webhooks accept it as is).
+3. From the **⋮** menu you can rename it, move it to another channel, change its
+   avatar, or delete it.
+
+Keep the URL secret: anyone who has it can post in that channel. Deleting the
+webhook stops the URL working; what it already posted stays. Messages from a
+webhook (or a bot) show an **APP** badge next to the name. A webhook can't
+notify `@everyone` unless the service explicitly asks to.

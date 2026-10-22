@@ -36,6 +36,7 @@ export 'src/rest/endpoints/soundboard_api.dart';
 export 'src/rest/endpoints/spaces_api.dart';
 export 'src/rest/endpoints/users_api.dart';
 export 'src/rest/endpoints/voice_api.dart';
+export 'src/rest/endpoints/webhooks_api.dart';
 
 // Gateway
 export 'src/gateway/gateway_connection.dart';
@@ -71,6 +72,7 @@ export 'src/models/space.dart';
 export 'src/models/user.dart';
 export 'src/models/voice_server_update.dart';
 export 'src/models/voice_state.dart';
+export 'src/models/webhook.dart';
 
 // Utils
 export 'src/utils/cdn.dart';

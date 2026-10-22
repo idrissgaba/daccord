@@ -22,6 +22,7 @@ import 'package:bonfire/features/spaces/views/accord_reports.dart';
 import 'package:bonfire/features/spaces/views/accord_role_management.dart';
 import 'package:bonfire/features/spaces/views/accord_soundboard.dart';
 import 'package:bonfire/features/spaces/views/accord_transfer_ownership.dart';
+import 'package:bonfire/features/spaces/views/accord_webhooks.dart';
 import 'package:bonfire/shared/components/image_crop_dialog.dart';
 import 'package:bonfire/theme/theme.dart';
 import 'package:collection/collection.dart';
@@ -436,6 +437,10 @@ class _SpaceSettingsState extends ConsumerState<_SpaceSettings> {
       perms,
       AccordPermission.manageSoundboard,
     );
+    final canManageWebhooks = accordHasPermission(
+      perms,
+      AccordPermission.manageWebhooks,
+    );
     final bannerUrl = space == null
         ? null
         : accordSpaceBannerUrl(space, cdnUrl);
@@ -552,7 +557,8 @@ class _SpaceSettingsState extends ConsumerState<_SpaceSettings> {
               canViewAuditLog ||
               canModerate ||
               canManageEmojis ||
-              canUseSoundboard) ...[
+              canUseSoundboard ||
+              canManageWebhooks) ...[
             const Divider(height: 24),
             _ManagementSection(
               spaceId: widget.spaceId,
@@ -562,6 +568,7 @@ class _SpaceSettingsState extends ConsumerState<_SpaceSettings> {
               canManageEmojis: canManageEmojis,
               canUseSoundboard: canUseSoundboard,
               canManageSoundboard: canManageSoundboard,
+              canManageWebhooks: canManageWebhooks,
             ),
           ],
           if (isOwner) ...[
