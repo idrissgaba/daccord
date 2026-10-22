@@ -28,6 +28,7 @@ import '../rest/endpoints/channels_api.dart';
 import '../rest/endpoints/directory_api.dart';
 import '../rest/endpoints/emojis_api.dart';
 import '../rest/endpoints/federation_api.dart';
+import '../rest/endpoints/interactions_api.dart';
 import '../rest/endpoints/invites_api.dart';
 import '../rest/endpoints/members_api.dart';
 import '../rest/endpoints/messages_api.dart';
@@ -78,6 +79,7 @@ class AccordClient {
   late final DirectoryApi directory;
   late final FederationApi federation;
   late final AutomodApi automod;
+  late final InteractionsApi interactions;
 
   AccordClient({
     EncryptionKeyStore? encryptionStore,
@@ -136,6 +138,7 @@ class AccordClient {
     directory = DirectoryApi(rest);
     federation = FederationApi(rest);
     automod = AutomodApi(rest);
+    interactions = InteractionsApi(rest);
 
     gateway = GatewaySocket(
       connectionFactory: connectionFactory,

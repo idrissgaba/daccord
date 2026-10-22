@@ -424,7 +424,12 @@ class _MessageRowState extends ConsumerState<_MessageRow> {
         // the text or swallows a click. `_menuOpen` extends that past the
         // hover: the actions menu's barrier ends the hover, and unmounting the
         // button mid-menu loses the selection (see [_menuStateChanged]).
-        actions: widget.narrow && (_hovered || _menuOpen) ? hoverActions : null,
+        actions:
+            widget.narrow &&
+                (_hovered || _menuOpen) &&
+                !isEphemeralMessage(message)
+            ? hoverActions
+            : null,
         child: GestureDetector(
           // Opaque so the whole row is hit-testable: on mobile a plain-text
           // message renders as a bare RichText with no recognisers, and the
@@ -432,10 +437,10 @@ class _MessageRowState extends ConsumerState<_MessageRow> {
           // `deferToChild` a long-press over the text hits nothing and never
           // fires. Only the avatar (which paints a background) responded before.
           behavior: HitTestBehavior.opaque,
-          onLongPressStart: widget.selecting
+          onLongPressStart: widget.selecting || isEphemeralMessage(message)
               ? null
               : (d) => _showActionsMenu(message, d.globalPosition),
-          onSecondaryTapUp: widget.selecting
+          onSecondaryTapUp: widget.selecting || isEphemeralMessage(message)
               ? null
               : (d) => _showActionsMenu(message, d.globalPosition),
           onTap: widget.selecting ? widget.onToggleSelected : null,
@@ -504,6 +509,12 @@ class _MessageRowState extends ConsumerState<_MessageRow> {
                         ),
                       if (message.replyTo != null)
                         _buildReplyPreview(message, colors),
+                      if (message.interaction case final interaction?)
+                        MessageInteractionHeader(
+                          interaction: interaction,
+                          serverKey: ref.readActiveServerKey() ?? '',
+                          spaceId: widget.spaceId,
+                        ),
                       if (!widget.grouped)
                         MessageAuthorHeader(
                           name: _authorName,
@@ -526,6 +537,8 @@ class _MessageRowState extends ConsumerState<_MessageRow> {
                         ),
                       if (_editing)
                         _buildEditor(theme, colors)
+                      else if (isLoadingMessage(message))
+                        MessageThinking(botName: _authorName)
                       else if (message.type == 'member_join' ||
                           message.content.isNotEmpty)
                         Padding(
@@ -554,6 +567,19 @@ class _MessageRowState extends ConsumerState<_MessageRow> {
                           (message.flags & (1 << 2)) == 0)
                         for (final embed in message.embeds)
                           AccordEmbedBox(embed: embed, cdnUrl: cdnUrl),
+                      if (message.components != null)
+                        MessageComponentsView(message: message),
+                      if (isEphemeralMessage(message))
+                        EphemeralFooter(
+                          onDismiss: () => ref
+                              .read(
+                                accordMessagesControllerProvider(
+                                  ref.readActiveServerKey() ?? '',
+                                  widget.channelId,
+                                ).notifier,
+                              )
+                              .removeMessage(message.id),
+                        ),
                       if ((message.reactions ?? const []).isNotEmpty)
                         _buildReactions(message, theme, colors, cdnUrl),
                       if (message.replyCount > 0)

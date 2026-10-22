@@ -12,6 +12,7 @@ import 'package:bonfire/features/events/services/accord_ready_sync.dart';
 import 'package:bonfire/features/experiences/controllers/turns.dart';
 import 'package:bonfire/features/member/controllers/accord_members.dart';
 import 'package:bonfire/features/messaging/controllers/accord_messages.dart';
+import 'package:bonfire/features/messaging/controllers/app_commands.dart';
 import 'package:bonfire/features/messaging/controllers/forum_posts.dart';
 import 'package:bonfire/features/messaging/controllers/pending_uploads.dart';
 import 'package:bonfire/features/messaging/controllers/thread_replies.dart';
@@ -309,6 +310,29 @@ VoidCallback handleAccordEvents(
           serverKey == ref.read(voiceControllerProvider).serverKey;
       if (!isActive() && !isVoiceServer) return;
       ref.read(voiceControllerProvider.notifier).handleServerUpdate(info);
+    }),
+  );
+
+  // ── Slash commands and components ────────────────────────────────────────
+  // A bot answered one of our interactions; a bot's command list changed.
+  subs.add(
+    client.onRawEvent.listen((event) {
+      switch (event.type) {
+        case 'interaction.success':
+          final id = event.data['id'];
+          if (id is String) {
+            ref.read(interactionTrackerProvider.notifier).succeeded(id);
+          }
+        case 'application_commands.update':
+          final spaceId = event.data['space_id'];
+          if (spaceId is String) {
+            ref
+                .read(
+                  spaceCommandsControllerProvider(serverKey, spaceId).notifier,
+                )
+                .reload(client);
+          }
+      }
     }),
   );
 

@@ -24,6 +24,7 @@ New to daccord? Start here.
 - [Direct Messages](messaging/direct-messages.md) -- Private conversations
 - [Reactions and Emoji](messaging/reactions-and-emoji.md) -- React to messages
 - [File Sharing](messaging/file-sharing.md) -- Share images and files
+- [Slash Commands and Bot Buttons](messaging/slash-commands.md) -- Use bots' commands, buttons and menus
 - [Voice and Video](voice-and-video/voice-channels.md) -- Join voice calls
 
 ## Personalizing Your Experience

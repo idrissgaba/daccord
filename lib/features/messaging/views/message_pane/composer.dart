@@ -73,6 +73,13 @@ class _ComposerState extends ConsumerState<_Composer> {
   /// handle replaces its `[start, end)` range of `_controller.text`.
   ({int start, int end, String query})? _mention;
 
+  /// The `/name` being typed, or null when the command popup is hidden.
+  String? _slashQuery;
+
+  /// The slash command picked from the popup, whose options are being filled
+  /// in; null in plain message mode.
+  AccordCommand? _command;
+
   /// Captured once so `dispose()` can persist the draft without touching `ref`,
   /// which Riverpod tears down before `dispose()` runs. Safe because
   /// `SettingsController` is `keepAlive`, so this notifier outlives the widget.
@@ -281,6 +288,8 @@ class _ComposerState extends ConsumerState<_Composer> {
           .draftFor(nextServerKey, widget.channelId);
       _serverKey = nextServerKey;
       _lastTypingSent = null;
+      _slashQuery = null;
+      _command = null;
       // The cooldown was this channel's (or this account's); a rebuild is
       // already underway, so no setState.
       _cooldownTicker?.cancel();
@@ -348,6 +357,7 @@ class _ComposerState extends ConsumerState<_Composer> {
 
   void _onChanged(String value) {
     _updateMentionState(value);
+    _updateSlashState(value);
     if (value.trim().isEmpty) return;
     final now = DateTime.now();
     if (_lastTypingSent != null &&
@@ -366,6 +376,104 @@ class _ComposerState extends ConsumerState<_Composer> {
         : findMentionTrigger(text, _controller.value.selection);
     if (mention == null && _mention == null) return;
     setState(() => _mention = mention);
+  }
+
+  /// Shows, updates or hides the slash command popup.
+  void _updateSlashState(String text) {
+    final query = widget.spaceId == null ? null : slashQuery(text);
+    if (query == _slashQuery) return;
+    setState(() => _slashQuery = query);
+  }
+
+  /// Switches the box to filling in [command]'s options.
+  void _pickCommand(AccordCommand command) {
+    _controller.clear();
+    _saveDraft(widget.channelId, '');
+    setState(() {
+      _slashQuery = null;
+      _mention = null;
+      _command = command;
+    });
+  }
+
+  void _cancelCommand() {
+    setState(() => _command = null);
+    _focusNode.requestFocus();
+  }
+
+  /// Runs [command] with [options]; resolves to the reason it failed, or
+  /// null. The bot's answer arrives as a message; until it does, the box says
+  /// the command is on its way.
+  Future<String?> _runCommand(
+    AccordCommand command,
+    List<Map<String, dynamic>> options,
+  ) async {
+    final client = ref.accordClient;
+    if (client == null) return 'Not connected.';
+    final result = await client.interactions.runCommand(
+      channelId: widget.channelId,
+      commandId: command.id,
+      options: options,
+    );
+    final data = result.data;
+    final id = result.ok && data is Map ? data['id'] as String? : null;
+    if (id == null) {
+      return result.errorMessageOr('Could not run /${command.name}');
+    }
+    ref
+        .read(interactionTrackerProvider.notifier)
+        .started(
+          PendingInteraction(
+            id: id,
+            channelId: widget.channelId,
+            commandName: command.name,
+          ),
+        );
+    if (mounted && identical(_command, command)) {
+      setState(() => _command = null);
+      _focusNode.requestFocus();
+    }
+    return null;
+  }
+
+  /// `/name text` typed in full: runs the command when the text fills it,
+  /// opens its form when it needs more, or picks the top match of a partial
+  /// `/na`. Returns whether [text] was handled as a command. Decides
+  /// synchronously, so the box is cleared in the same turn as a plain send
+  /// (the Linux send barrier relies on it).
+  bool _sendAsCommand(String text) {
+    final spaceId = widget.spaceId;
+    if (spaceId == null || !text.startsWith('/') || _attachments.isNotEmpty) {
+      return false;
+    }
+    final commands =
+        ref.read(spaceCommandsControllerProvider(_serverKey, spaceId)) ??
+        const <AccordCommand>[];
+    if (commands.isEmpty) return false;
+    final quick = parseQuickCommand(text, commands);
+    if (quick != null) {
+      _controller.clear();
+      _saveDraft(widget.channelId, '');
+      setState(() => _slashQuery = null);
+      unawaited(
+        _runCommand(quick.command, quick.options).then((error) {
+          if (error == null || !mounted) return;
+          if (_controller.text.isEmpty) _controller.text = text;
+          setState(() => _error = error);
+        }),
+      );
+      return true;
+    }
+    final typedName = RegExp(r'^/(\S+)').firstMatch(text)?.group(1);
+    final exact = commands.where((c) => c.name == typedName).firstOrNull;
+    final pick =
+        exact ??
+        (slashQuery(text) == null
+            ? null
+            : matchCommands(commands, slashQuery(text)!).firstOrNull);
+    if (pick == null) return false;
+    _pickCommand(pick);
+    return true;
   }
 
   /// Replaces the active `@query` with `@handle ` and dismisses the popup.
@@ -473,6 +581,7 @@ class _ComposerState extends ConsumerState<_Composer> {
         ? applyEmoticons(raw)
         : raw;
     if ((text.trim().isEmpty && _attachments.isEmpty) || _sending) return;
+    if (_sendAsCommand(text)) return;
     // Enter/Send during a cooldown does nothing; the countdown says why.
     if (_sendBlocked) return;
 
@@ -726,76 +835,96 @@ class _ComposerState extends ConsumerState<_Composer> {
                   allowBroadcast: widget.canMentionEveryone,
                   onPick: _pickMention,
                 ),
-              Row(
-                children: [
-                  IconButton(
-                    tooltip: atAttachmentLimit
-                        ? 'Attachment limit reached '
-                              '(${limits.maxAttachmentsPerMessage} per message)'
-                        : [
-                            'Attach files '
-                                '(${attachmentLimitsHint(maxBytes: limits.maxAttachmentBytes, maxCount: limits.maxAttachmentsPerMessage)})',
-                            if (budgetHint != null) budgetHint,
-                          ].join('\n'),
-                    onPressed: _sending || atAttachmentLimit
-                        ? null
-                        : _pickFiles,
-                    icon: Icon(
-                      Icons.add_circle_outline,
-                      size: 20,
-                      color: atAttachmentLimit
-                          ? colors.gray
-                          : colors.dirtyWhite,
-                    ),
-                  ),
-                  Expanded(
-                    child: TextField(
-                      controller: _controller,
-                      focusNode: _focusNode,
-                      // Deliberately never disabled while sending: a disabled
-                      // TextField gives up focus (and the mobile keyboard) for
-                      // the whole round-trip. The buttons below and the guard
-                      // in _send() are what stop a double-send.
-                      minLines: 1,
-                      maxLines: 6,
-                      textInputAction: composerUsesNativeNewlines
-                          ? TextInputAction.newline
-                          : TextInputAction.send,
-                      onChanged: _onChanged,
-                      onSubmitted: (_) => _onSubmitted(),
-                      style: Theme.of(context).textTheme.bodyLarge,
-                      decoration: InputDecoration(
-                        isDense: true,
-                        border: InputBorder.none,
-                        hintText: hint,
-                        hintStyle: Theme.of(
-                          context,
-                        ).textTheme.bodyLarge!.copyWith(color: colors.gray),
+              if (_slashQuery != null &&
+                  _command == null &&
+                  widget.spaceId != null)
+                CommandPopup(
+                  serverKey: _serverKey,
+                  spaceId: widget.spaceId!,
+                  query: _slashQuery!,
+                  onPick: _pickCommand,
+                ),
+              InteractionStatusLine(channelId: widget.channelId),
+              if (_command != null && widget.spaceId != null)
+                CommandForm(
+                  key: ValueKey('command-form-${_command!.id}'),
+                  serverKey: _serverKey,
+                  spaceId: widget.spaceId!,
+                  command: _command!,
+                  onRun: (options) => _runCommand(_command!, options),
+                  onCancel: _cancelCommand,
+                )
+              else
+                Row(
+                  children: [
+                    IconButton(
+                      tooltip: atAttachmentLimit
+                          ? 'Attachment limit reached '
+                                '(${limits.maxAttachmentsPerMessage} per message)'
+                          : [
+                              'Attach files '
+                                  '(${attachmentLimitsHint(maxBytes: limits.maxAttachmentBytes, maxCount: limits.maxAttachmentsPerMessage)})',
+                              if (budgetHint != null) budgetHint,
+                            ].join('\n'),
+                      onPressed: _sending || atAttachmentLimit
+                          ? null
+                          : _pickFiles,
+                      icon: Icon(
+                        Icons.add_circle_outline,
+                        size: 20,
+                        color: atAttachmentLimit
+                            ? colors.gray
+                            : colors.dirtyWhite,
                       ),
                     ),
-                  ),
-                  IconButton(
-                    tooltip: 'Emoji',
-                    onPressed: _sending ? null : _pickEmoji,
-                    icon: Icon(
-                      Icons.emoji_emotions_outlined,
-                      size: 20,
-                      color: colors.dirtyWhite,
+                    Expanded(
+                      child: TextField(
+                        controller: _controller,
+                        focusNode: _focusNode,
+                        // Deliberately never disabled while sending: a disabled
+                        // TextField gives up focus (and the mobile keyboard) for
+                        // the whole round-trip. The buttons below and the guard
+                        // in _send() are what stop a double-send.
+                        minLines: 1,
+                        maxLines: 6,
+                        textInputAction: composerUsesNativeNewlines
+                            ? TextInputAction.newline
+                            : TextInputAction.send,
+                        onChanged: _onChanged,
+                        onSubmitted: (_) => _onSubmitted(),
+                        style: Theme.of(context).textTheme.bodyLarge,
+                        decoration: InputDecoration(
+                          isDense: true,
+                          border: InputBorder.none,
+                          hintText: hint,
+                          hintStyle: Theme.of(
+                            context,
+                          ).textTheme.bodyLarge!.copyWith(color: colors.gray),
+                        ),
+                      ),
                     ),
-                  ),
-                  IconButton(
-                    tooltip: sendBlocked && cooldown != null
-                        ? sendCooldownLabel(cooldown, now)
-                        : 'Send',
-                    onPressed: _sending || sendBlocked ? null : _send,
-                    icon: Icon(
-                      Icons.send,
-                      size: 20,
-                      color: sendBlocked ? colors.gray : colors.dirtyWhite,
+                    IconButton(
+                      tooltip: 'Emoji',
+                      onPressed: _sending ? null : _pickEmoji,
+                      icon: Icon(
+                        Icons.emoji_emotions_outlined,
+                        size: 20,
+                        color: colors.dirtyWhite,
+                      ),
                     ),
-                  ),
-                ],
-              ),
+                    IconButton(
+                      tooltip: sendBlocked && cooldown != null
+                          ? sendCooldownLabel(cooldown, now)
+                          : 'Send',
+                      onPressed: _sending || sendBlocked ? null : _send,
+                      icon: Icon(
+                        Icons.send,
+                        size: 20,
+                        color: sendBlocked ? colors.gray : colors.dirtyWhite,
+                      ),
+                    ),
+                  ],
+                ),
             ],
           ),
         ),
