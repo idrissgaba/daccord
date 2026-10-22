@@ -6,10 +6,32 @@ import 'package:bonfire/features/voice/services/voice_session.dart'
     show VoiceSessionState;
 
 /// Converts a 0–200% volume preference into a WebRTC gain multiplier (0.0–2.0),
-/// clamping out-of-range input. LiveKit has no per-track volume, so gain is
-/// applied via `Helper.setVolume`; 100% is unity.
+/// clamping out-of-range input. Gain is applied per remote track; 100% is
+/// unity.
 double voiceGain(num volumePercent) =>
     (volumePercent / 100).clamp(0.0, 2.0).toDouble();
+
+/// Highest gain a remote track gets on native platforms, where WebRTC scales
+/// the decoded audio itself.
+const double maxNativeTrackGain = 2.0;
+
+/// Highest gain on the web, where remote audio plays through an
+/// `HTMLAudioElement` whose `volume` cannot exceed 1.
+const double maxWebTrackGain = 1.0;
+
+/// The gain for one remote participant's audio: our global output gain times
+/// that participant's own volume ([userVolumePercent], 100 when unset),
+/// clamped to [maxGain]. Zero when they are muted for us.
+double participantGain({
+  required double outputGain,
+  int? userVolumePercent,
+  bool locallyMuted = false,
+  double maxGain = maxNativeTrackGain,
+}) {
+  if (locallyMuted) return 0;
+  final userGain = voiceGain(userVolumePercent ?? 100);
+  return (outputGain * userGain).clamp(0.0, maxGain).toDouble();
+}
 
 /// Normalises a selected audio/video device id: a null or empty id means
 /// "system default" and is represented as null (what the capture options

@@ -12,6 +12,7 @@ import 'package:bonfire/features/voice/controllers/voice_states.dart';
 import 'package:bonfire/features/voice/services/voice_session.dart'
     show VoiceSession;
 import 'package:bonfire/features/voice/utils/participant_display.dart';
+import 'package:bonfire/features/voice/views/user_volume_menu.dart';
 import 'package:bonfire/features/voice/views/screen_share_picker.dart';
 import 'package:bonfire/features/voice/views/voice_settings_screen.dart';
 import 'package:bonfire/features/voice/views/voice_text_panel.dart';
@@ -395,12 +396,22 @@ class _ConnectedBody extends ConsumerWidget {
       return const Center(child: Text('Connecting…'));
     }
 
+    final serverKey = ref.readActiveServerKey();
     Widget tileWidget(_Tile t) => _VideoTile(
       key: ValueKey('${t.userId}:${t.isScreen}'),
       tile: t,
       speaking: speaking.contains(t.userId),
       spotlighted: spotlightUserId == t.userId,
       onDoubleTap: () => onToggleSpotlight(t.userId),
+      onOpenVolume: serverKey == null || t.userId == myId
+          ? null
+          : (position) => showUserVolumeMenu(
+              context,
+              serverKey: serverKey,
+              userId: t.userId,
+              name: t.name,
+              globalPosition: position,
+            ),
     );
 
     // Spotlight a chosen tile (or any active screen-share) above a strip.
@@ -566,6 +577,7 @@ class _VideoTile extends StatelessWidget {
     required this.speaking,
     required this.spotlighted,
     required this.onDoubleTap,
+    this.onOpenVolume,
   });
 
   final _Tile tile;
@@ -573,12 +585,21 @@ class _VideoTile extends StatelessWidget {
   final bool spotlighted;
   final VoidCallback onDoubleTap;
 
+  /// Opens the local volume menu (right-click position, null on long-press).
+  /// Null for our own tiles.
+  final void Function(Offset? position)? onOpenVolume;
+
   @override
   Widget build(BuildContext context) {
     final colors = BonfireThemeExtension.of(context);
     final initial = accordInitial(tile.name);
+    final openVolume = onOpenVolume;
     return GestureDetector(
       onDoubleTap: onDoubleTap,
+      onSecondaryTapUp: openVolume == null
+          ? null
+          : (d) => openVolume(d.globalPosition),
+      onLongPress: openVolume == null ? null : () => openVolume(null),
       child: Container(
         clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(

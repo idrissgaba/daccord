@@ -11,6 +11,12 @@ class AccordSettings {
   /// Default master-server directory URL (matches the reference client).
   static const String defaultMasterServerUrl = 'https://master.daccord.gg';
 
+  /// Per-participant volume when the user hasn't set one (unity).
+  static const int defaultUserVolume = 100;
+
+  /// Highest per-participant volume the slider offers (200 % = 2× gain).
+  static const int maxUserVolume = 200;
+
   /// Per-channel notification levels — `channel_id → 'all' | 'mentions' |
   /// 'nothing'`. Missing entries fall back to the global default ("mentions").
   /// Mirrors the reference client's `Config.set_channel_notification_level`.
@@ -87,6 +93,8 @@ class AccordSettings {
     this.recentEmoji = const [],
     this.masterServerUrl = defaultMasterServerUrl,
     this.channelNotifications = const <String, String>{},
+    this.userVolumes = const <String, int>{},
+    this.locallyMutedUsers = const <String>[],
     this.acceptedRuleSpaces = const <String>[],
     this.acknowledgedNsfwChannels = const <String>[],
     this.collapsedCategories = const <String, List<String>>{},
@@ -216,6 +224,15 @@ class AccordSettings {
   /// means "use the global default" (mention-only).
   final Map<String, String> channelNotifications;
 
+  /// Per-participant voice volume (0–200 %), keyed by server-qualified user ID.
+  /// Local only: it scales how loud that user sounds to us, like Discord's
+  /// "User Volume". A missing entry means 100 %.
+  final Map<String, int> userVolumes;
+
+  /// Server-qualified user IDs muted for us only ("Mute for me"). Kept apart
+  /// from [userVolumes] so unmuting restores the chosen volume.
+  final List<String> locallyMutedUsers;
+
   /// Space IDs whose rules interstitial the user has accepted. Persisted so the
   /// dialog isn't reshown on every join/restart. Mirrors the reference client's
   /// `Config.set_rules_accepted` / `has_rules_accepted`.
@@ -338,6 +355,8 @@ class AccordSettings {
     List<String>? recentEmoji,
     String? masterServerUrl,
     Map<String, String>? channelNotifications,
+    Map<String, int>? userVolumes,
+    List<String>? locallyMutedUsers,
     List<String>? acceptedRuleSpaces,
     List<String>? acknowledgedNsfwChannels,
     Map<String, List<String>>? collapsedCategories,
@@ -391,6 +410,8 @@ class AccordSettings {
       recentEmoji: recentEmoji ?? this.recentEmoji,
       masterServerUrl: masterServerUrl ?? this.masterServerUrl,
       channelNotifications: channelNotifications ?? this.channelNotifications,
+      userVolumes: userVolumes ?? this.userVolumes,
+      locallyMutedUsers: locallyMutedUsers ?? this.locallyMutedUsers,
       acceptedRuleSpaces: acceptedRuleSpaces ?? this.acceptedRuleSpaces,
       acknowledgedNsfwChannels:
           acknowledgedNsfwChannels ?? this.acknowledgedNsfwChannels,
@@ -446,6 +467,28 @@ class AccordSettings {
   /// The saved draft for [channelId], or empty string when none.
   String draftFor(String serverKey, String channelId) =>
       drafts[ServerEntityKey(serverKey, channelId).encoded] ?? '';
+
+  /// Our local volume for [userId] on [serverKey], 0–200 % (default 100).
+  int userVolume(String serverKey, String userId) =>
+      userVolumes[ServerEntityKey(serverKey, userId).encoded] ??
+      defaultUserVolume;
+
+  /// Whether [userId] on [serverKey] is muted for us only.
+  bool isUserLocallyMuted(String serverKey, String userId) =>
+      locallyMutedUsers.contains(ServerEntityKey(serverKey, userId).encoded);
+
+  /// Per-user volume overrides for one server, keyed by local user ID. Muted
+  /// users map to 0; users without an override are absent (100 %).
+  Map<String, int> userVolumesFor(String serverKey) => {
+    for (final entry in userVolumes.entries)
+      if (ServerEntityKey.tryDecode(entry.key) case final key?
+          when key.serverKey == serverKey)
+        key.entityId: entry.value,
+    for (final encoded in locallyMutedUsers)
+      if (ServerEntityKey.tryDecode(encoded) case final key?
+          when key.serverKey == serverKey)
+        key.entityId: 0,
+  };
 
   /// Camera capture dimensions (width, height) for the selected
   /// [videoResolution].
@@ -562,6 +605,8 @@ class AccordSettings {
     'recentEmoji': recentEmoji,
     'masterServerUrl': masterServerUrl,
     'channelNotifications': channelNotifications,
+    'userVolumes': userVolumes,
+    'locallyMutedUsers': locallyMutedUsers,
     'acceptedRuleSpaces': acceptedRuleSpaces,
     'acknowledgedNsfwChannels': acknowledgedNsfwChannels,
     'collapsedCategories': collapsedCategories,
@@ -639,6 +684,18 @@ class AccordSettings {
             in (json['channelNotifications'] as Map? ?? const {}).entries)
           entry.key.toString(): entry.value.toString(),
       },
+      userVolumes: {
+        for (final entry in (json['userVolumes'] as Map? ?? const {}).entries)
+          if (entry.value is num)
+            entry.key.toString(): (entry.value as num).toInt().clamp(
+              0,
+              maxUserVolume,
+            ),
+      },
+      locallyMutedUsers: [
+        for (final e in (json['locallyMutedUsers'] as List? ?? const []))
+          e.toString(),
+      ],
       acceptedRuleSpaces: [
         for (final e in (json['acceptedRuleSpaces'] as List? ?? const []))
           e.toString(),

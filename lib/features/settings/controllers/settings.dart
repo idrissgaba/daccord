@@ -220,6 +220,42 @@ class SettingsController extends _$SettingsController {
     _update(state.copyWith(channelNotifications: next));
   }
 
+  /// Sets how loud [userId] sounds to us on [serverKey] (0–200 %). Setting the
+  /// default (100 %) drops the override so the stored map stays small.
+  void setUserVolume(String serverKey, String userId, int volume) {
+    final key = ServerEntityKey(serverKey, userId).encoded;
+    final clamped = volume.clamp(0, AccordSettings.maxUserVolume);
+    final next = Map<String, int>.from(state.userVolumes);
+    if (clamped == AccordSettings.defaultUserVolume) {
+      if (!next.containsKey(key)) return;
+      next.remove(key);
+    } else {
+      if (next[key] == clamped) return;
+      next[key] = clamped;
+    }
+    _update(state.copyWith(userVolumes: next));
+  }
+
+  /// Mutes or unmutes [userId] for us only ("Mute for me").
+  void setUserLocallyMuted(String serverKey, String userId, bool muted) {
+    final key = ServerEntityKey(serverKey, userId).encoded;
+    final current = state.locallyMutedUsers;
+    if (current.contains(key) == muted) return;
+    _update(
+      state.copyWith(
+        locallyMutedUsers: muted
+            ? [...current, key]
+            : current.where((k) => k != key).toList(),
+      ),
+    );
+  }
+
+  /// Restores [userId]'s default volume and unmutes them.
+  void resetUserVolume(String serverKey, String userId) {
+    setUserVolume(serverKey, userId, AccordSettings.defaultUserVolume);
+    setUserLocallyMuted(serverKey, userId, false);
+  }
+
   void setShowEmbeds(bool enabled) =>
       _update(state.copyWith(showEmbeds: enabled));
 

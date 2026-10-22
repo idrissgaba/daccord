@@ -59,6 +59,7 @@ lib/
 packages/
   accordkit/       # Accord protocol SDK (REST + gateway + models) — networking layer, maintained here
   livekit_client/  # local fork of livekit_client 2.8.0 (#68 native-release fix) — voice transport
+                   #   + RemoteAudioTrack.setVolume (per-participant volume; web sets the <audio> element volume, max 1)
   media_kit/       # local fork of media_kit 1.1.11 (player-dispose SIGABRT fix) — video decode
   audioplayers_linux/ # local fork of audioplayers_linux 4.2.1 (no-GStreamer abort fix) — SFX
   markdown_viewer/ # custom markdown rendering — protocol-agnostic, KEEP

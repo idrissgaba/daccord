@@ -33,6 +33,20 @@ The voice bar provides these controls:
 
 When someone is speaking, a green ring appears around their avatar in the participant list.
 
+## User Volume
+
+Right-click (desktop and web) or long-press (mobile) another participant — in the
+channel list or on their tile in the voice view — to open **User Volume**:
+
+- **User Volume** -- how loud that person (or bot) sounds to you, 0–200 %. It
+  multiplies the global output volume from Voice & Video settings.
+- **Mute for me** -- silences them for you only; unmuting restores your volume.
+- **Reset** -- back to 100 % and unmuted.
+
+These settings are local: nobody else hears a difference. They are saved per
+server and per user ID, and apply immediately, on rejoin and after reconnecting.
+On the web the browser cannot amplify remote audio, so the slider stops at 100 %.
+
 ## Screen Sharing
 
 1. Click the **Screen Share** button in the voice bar.

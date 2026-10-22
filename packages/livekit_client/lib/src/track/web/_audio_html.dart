@@ -27,6 +27,10 @@ const audioPrefix = 'livekit_audio_';
 web.AudioContext _audioContext = web.AudioContext();
 Map<String, web.Element> _audioElements = {};
 
+/// Playback volume (0–1) per track cid, kept so an element created later by
+/// [startAudio] starts at the volume already requested.
+final Map<String, double> _audioVolumes = {};
+
 Future<dynamic> startAudio(String id, rtc.MediaStreamTrack track) async {
   if (track is! MediaStreamTrackWeb) {
     return;
@@ -45,6 +49,7 @@ Future<dynamic> startAudio(String id, rtc.MediaStreamTrack track) async {
     return;
   }
   final audio = audioElement as web.HTMLAudioElement;
+  audio.volume = _audioVolumes[id] ?? 1.0;
   final audioStream = web.MediaStream();
   audioStream.addTrack(track.jsTrack);
   audioElement.srcObject = audioStream;
@@ -88,6 +93,17 @@ web.HTMLDivElement findOrCreateAudioContainer() {
 
   web.document.body?.append(div);
   return div;
+}
+
+/// Sets the playback volume of track [id]'s audio element. An
+/// `HTMLAudioElement` cannot amplify, so [volume] is clamped to 0–1.
+void setVolume(String id, double volume) {
+  final clamped = volume.clamp(0.0, 1.0).toDouble();
+  _audioVolumes[id] = clamped;
+  final el = web.document.getElementById(audioPrefix + id);
+  if (el != null && el.instanceOfString('HTMLAudioElement')) {
+    (el as web.HTMLAudioElement).volume = clamped;
+  }
 }
 
 void setSinkId(String id, String deviceId) {

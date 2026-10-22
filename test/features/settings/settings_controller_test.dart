@@ -103,6 +103,64 @@ void main() {
     });
   });
 
+  group('per-user volume', () {
+    test('defaults to 100 % and unmuted', () {
+      final c = makeContainer();
+      expect(stateOf(c).userVolume(server, 'u1'), 100);
+      expect(stateOf(c).isUserLocallyMuted(server, 'u1'), isFalse);
+      expect(stateOf(c).userVolumesFor(server), isEmpty);
+    });
+
+    test('stores, clamps and survives a controller rebuild', () {
+      final c = makeContainer();
+      controllerOf(c)
+        ..setUserVolume(server, 'u1', 150)
+        ..setUserVolume(server, 'u2', 999);
+      final rebuilt = makeContainer();
+      expect(stateOf(rebuilt).userVolume(server, 'u1'), 150);
+      expect(stateOf(rebuilt).userVolume(server, 'u2'), 200);
+    });
+
+    test('setting 100 % drops the override', () {
+      final c = makeContainer();
+      controllerOf(c)
+        ..setUserVolume(server, 'u1', 40)
+        ..setUserVolume(server, 'u1', 100);
+      expect(stateOf(c).userVolumes, isEmpty);
+    });
+
+    test('mute for me maps to 0 and unmuting restores the volume', () {
+      final c = makeContainer();
+      controllerOf(c)
+        ..setUserVolume(server, 'u1', 70)
+        ..setUserLocallyMuted(server, 'u1', true);
+      expect(stateOf(c).userVolumesFor(server), {'u1': 0});
+      controllerOf(c).setUserLocallyMuted(server, 'u1', false);
+      expect(stateOf(c).userVolumesFor(server), {'u1': 70});
+    });
+
+    test('reset restores 100 % and unmutes', () {
+      final c = makeContainer();
+      controllerOf(c)
+        ..setUserVolume(server, 'u1', 30)
+        ..setUserLocallyMuted(server, 'u1', true)
+        ..resetUserVolume(server, 'u1');
+      expect(stateOf(c).userVolume(server, 'u1'), 100);
+      expect(stateOf(c).isUserLocallyMuted(server, 'u1'), isFalse);
+    });
+
+    test('identical user IDs on two servers keep independent volumes', () {
+      const other = 'account@https://other.example';
+      final c = makeContainer();
+      controllerOf(c)
+        ..setUserVolume(server, 'u1', 50)
+        ..setUserVolume(other, 'u1', 180);
+      expect(stateOf(c).userVolumesFor(server), {'u1': 50});
+      expect(stateOf(c).userVolumesFor(other), {'u1': 180});
+      expect(stateOf(c).userVolumes.keys, contains(key('u1').encoded));
+    });
+  });
+
   group('acceptRules', () {
     test('records acceptance and survives a controller rebuild', () {
       final c1 = makeContainer();
