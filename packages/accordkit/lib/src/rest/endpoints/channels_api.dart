@@ -70,11 +70,18 @@ class ChannelsApi extends EndpointBase {
   }
 
   /// Acknowledges (marks read) a channel up to [messageId].
-  Future<RestResult> ack(String channelId, String messageId) {
+  /// Marks [channelId] read through [messageId]. With [manual] ("mark
+  /// unread") the server sets the position exactly, even backwards; servers
+  /// without that support ignore the flag and only ever move forward.
+  Future<RestResult> ack(
+    String channelId,
+    String messageId, {
+    bool manual = false,
+  }) {
     return rest.makeRequest(
       'POST',
       '/channels/$channelId/ack',
-      body: {'message_id': messageId},
+      body: {'message_id': messageId, if (manual) 'manual': true},
     );
   }
 }

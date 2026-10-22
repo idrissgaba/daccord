@@ -106,3 +106,19 @@ extras:
 Timestamp styles: `t` short time, `T` time with seconds, `d` short date, `D`
 date, `f` date and time (the default), `F` with the weekday, `R` relative. The
 number is a Unix time in seconds; hovering a timestamp shows the full date.
+
+## Forwarding and Message Links
+
+- **Forward** (message menu) posts a copy of a message to another channel of
+  the space or to a direct message, optionally after your own comment. The copy
+  quotes the original under a "Forwarded from" line with a link back to it, and
+  re-uploads its files (files from end-to-end encrypted chats stay behind).
+- **Copy message link** copies a `daccord://navigate/...` link. Pasted in a
+  message, it becomes clickable and opens the original message in the app —
+  in the browser build too.
+
+## Mark Unread
+
+**Mark unread** (message menu) makes that message and everything after it unread
+again — on this device, on the server and on your other devices. While you stay
+in the channel it stays unread; it is read again the next time you open it.

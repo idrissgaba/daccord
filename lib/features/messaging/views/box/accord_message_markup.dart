@@ -48,6 +48,7 @@ List<md.Syntax> accordMarkupSyntaxes([
 ]) => [
   const _SubtextSyntax(),
   _TimestampSyntax(),
+  _DeepLinkSyntax(),
   _SpoilerSyntax(),
   _UnderlineSyntax(),
   _EmojiSyntax(ctx),
@@ -122,6 +123,28 @@ class _TimestampSyntax extends md.InlineSyntax {
       },
       start: markers.first.start,
       end: markers.last.end,
+    );
+  }
+}
+
+/// A bare `daccord://…` link (e.g. a pasted message link) → a regular link.
+/// Standard autolinking only knows http(s)/www; tapping it opens the
+/// destination in the app.
+class _DeepLinkSyntax extends md.InlineSyntax {
+  _DeepLinkSyntax() : super(_pattern);
+
+  static final _pattern = RegExp(r'daccord://[^\s<>()\[\]]+');
+
+  @override
+  md.InlineObject? parse(md.InlineParser parser, Match match) {
+    final span = parser.consumeBy(match[0]!.length).first;
+    final content = md.Text.fromSpan(span);
+    return md.InlineElement(
+      'autolinkExtension',
+      children: [content],
+      start: content.start,
+      end: content.end,
+      attributes: {'destination': span.text},
     );
   }
 }

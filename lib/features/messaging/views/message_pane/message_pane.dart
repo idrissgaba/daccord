@@ -15,6 +15,7 @@ import 'dart:convert';
 import 'package:accordkit/accordkit.dart';
 import 'package:bonfire/features/authentication/models/accord_auth_state.dart';
 import 'package:bonfire/features/authentication/repositories/accord_auth.dart';
+import 'package:bonfire/features/channels/controllers/accord_channels.dart';
 import 'package:bonfire/features/channels/controllers/muted_channels.dart';
 import 'package:bonfire/features/channels/controllers/read_state.dart';
 import 'package:bonfire/features/channels/utils/mark_channel_read.dart';
@@ -42,6 +43,7 @@ import 'package:bonfire/features/messaging/utils/message_display.dart';
 import 'package:bonfire/features/messaging/views/message_body.dart';
 import 'package:bonfire/features/messaging/views/emoji_picker.dart';
 import 'package:bonfire/features/messaging/views/forum_view.dart';
+import 'package:bonfire/features/messaging/views/forward_message_dialog.dart';
 import 'package:bonfire/features/experiences/views/arcade.dart';
 import 'package:bonfire/features/messaging/utils/emoticons.dart';
 import 'package:bonfire/features/messaging/views/image_lightbox.dart';
@@ -70,6 +72,7 @@ import 'package:bonfire/shared/components/context_menu.dart';
 import 'package:bonfire/shared/components/server_unreachable.dart';
 import 'package:bonfire/shared/utils/client_access.dart';
 import 'package:bonfire/shared/utils/confirm_dialog.dart';
+import 'package:bonfire/shared/utils/in_app_links.dart';
 import 'package:bonfire/shared/utils/platform.dart';
 import 'package:bonfire/shared/utils/rest_result_ext.dart';
 import 'package:bonfire/shared/utils/restore_failed_send.dart';
@@ -162,6 +165,12 @@ class _MessagePaneState extends ConsumerState<MessagePane> {
   AppLifecycleListener? _readLifecycle;
   bool _readScheduled = false;
 
+  /// The read tracker and channel this pane shows, kept so leaving the
+  /// channel (or closing the pane) can release a "mark unread" hold — `ref`
+  /// can't be used in [dispose].
+  ReadStateController? _readTracker;
+  String? _readTrackerChannel;
+
   void _scheduleRead() {
     if (_readScheduled) return;
     _readScheduled = true;
@@ -208,6 +217,10 @@ class _MessagePaneState extends ConsumerState<MessagePane> {
     super.didUpdateWidget(oldWidget);
     // Clear any pending reply or selection when switching channels.
     if (oldWidget.channelId != widget.channelId) {
+      // Leaving a channel marked unread lets it be read on the next visit.
+      if (oldWidget.channelId case final left?) {
+        _readTracker?.releaseHold(left);
+      }
       if (_replyTo != null) _replyTo = null;
       if (_selecting || _selectedMessageIds.isNotEmpty) {
         _selecting = false;
@@ -283,6 +296,9 @@ class _MessagePaneState extends ConsumerState<MessagePane> {
 
   @override
   void dispose() {
+    if (_readTrackerChannel case final channelId?) {
+      _readTracker?.releaseHold(channelId);
+    }
     _scroll.removeListener(_onScroll);
     _readLifecycle?.dispose();
     _scroll.dispose();
@@ -342,6 +358,10 @@ class _MessagePaneState extends ConsumerState<MessagePane> {
     final channel = widget.channel;
     final channelId = widget.channelId;
     final spaceId = widget.spaceId;
+    if (ref.readActiveServerKey() case final key?) {
+      _readTracker = ref.read(readStateControllerProvider(key).notifier);
+      _readTrackerChannel = channelId;
+    }
 
     if (channelId == null) {
       return Container(

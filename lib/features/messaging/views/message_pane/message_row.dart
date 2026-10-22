@@ -580,6 +580,51 @@ class _MessageRowState extends ConsumerState<_MessageRow> {
     onUserContextMenu: widget.onUserContextMenu,
   );
 
+  /// "Mark unread": this message and everything after it become unread again
+  /// (here, on the server and on the user's other devices).
+  void _markUnread(AccordMessage message) {
+    final serverKey = ref.readActiveServerKey();
+    if (serverKey == null) return;
+    final loaded =
+        ref.read(
+          accordMessagesControllerProvider(serverKey, widget.channelId),
+        ) ??
+        const <AccordMessage>[];
+    final position = readPositionBefore(loaded.map((m) => m.id), message.id);
+    ref
+        .read(readStateControllerProvider(serverKey).notifier)
+        .markUnreadFrom(
+          ref.read(accordAuthProvider.notifier).clientForKey(serverKey),
+          widget.channelId,
+          position,
+          spaceId: widget.spaceId,
+          latestMessageId: loaded.isEmpty ? message.id : loaded.last.id,
+        );
+  }
+
+  /// Forwards [message] to another channel or direct message.
+  void _forward(AccordMessage message) {
+    final spaceId = widget.spaceId;
+    final serverKey = ref.readActiveServerKey() ?? '';
+    final channelName = spaceId == null
+        ? null
+        : ref
+              .read(accordChannelsControllerProvider(serverKey, spaceId))
+              ?.firstWhereOrNull((c) => c.id == widget.channelId)
+              ?.name;
+    showForwardMessageDialog(
+      context,
+      message: message,
+      authorName: _authorName,
+      sourceLabel: channelName != null
+          ? '#$channelName'
+          : spaceId == null
+          ? 'a direct message'
+          : 'a channel',
+      spaceId: spaceId,
+    );
+  }
+
   /// Reports [message]. Available in DMs too, where [_MessageRow.spaceId] is
   /// null: the dialog then files an account-level report and offers to block
   /// the author, rather than the action disappearing (#290).
@@ -622,6 +667,33 @@ class _MessageRowState extends ConsumerState<_MessageRow> {
         icon: Icons.forum_outlined,
         onSelected: () => _openThread(message),
       ),
+      AccordMenuEntry(
+        label: 'Forward',
+        icon: Icons.shortcut,
+        onSelected: () => _forward(message),
+      ),
+      AccordMenuEntry(
+        label: 'Mark unread',
+        icon: Icons.mark_chat_unread_outlined,
+        onSelected: () => _markUnread(message),
+      ),
+      if (widget.spaceId case final spaceId?)
+        AccordMenuEntry(
+          label: 'Copy message link',
+          icon: Icons.link,
+          onSelected: () {
+            Clipboard.setData(
+              ClipboardData(
+                text: messageLink(
+                  spaceId: spaceId,
+                  channelId: widget.channelId,
+                  messageId: message.id,
+                ),
+              ),
+            );
+            showInfoSnack(context, 'Message link copied');
+          },
+        ),
       ...buildMessageActionEntries(
         content: accordMessageText(message, authorName: _authorName),
         canEdit: widget.isOwn,
