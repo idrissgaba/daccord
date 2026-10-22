@@ -192,6 +192,9 @@ class SettingsController extends _$SettingsController {
     ),
   );
 
+  void setScreenShareAudio(bool enabled) =>
+      _update(state.copyWith(screenShareAudio: enabled));
+
   void setInputVolume(int volume) =>
       _update(state.copyWith(inputVolume: volume.clamp(0, 200)));
 

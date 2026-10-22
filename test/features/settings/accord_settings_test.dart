@@ -172,6 +172,20 @@ void main() {
       expect(restored.screenShareMotionPriority, isFalse);
     });
 
+    test('4K shares at 3840x2160 with the largest bitrate', () {
+      const p2160 = AccordSettings(screenShareResolution: 3);
+      expect(p2160.screenShareDimensions, (3840, 2160));
+      expect(p2160.screenShareBitrate, 16000000);
+      expect(AccordSettings.screenShareResolutionLabels[3], contains('2160p'));
+    });
+
+    test('screen share audio defaults on and round-trips', () {
+      expect(const AccordSettings().screenShareAudio, isTrue);
+      expect(AccordSettings.fromJson(const {}).screenShareAudio, isTrue);
+      const off = AccordSettings(screenShareAudio: false);
+      expect(AccordSettings.fromJson(off.toJson()).screenShareAudio, isFalse);
+    });
+
     test('an out-of-range persisted resolution is clamped', () {
       expect(
         AccordSettings.fromJson(const {

@@ -32,3 +32,11 @@ bool? debugCanPickAudioOutputDevice;
 bool get canPickAudioOutputDevice =>
     debugCanPickAudioOutputDevice ??
     (!kIsWeb && defaultTargetPlatform != TargetPlatform.iOS);
+
+/// Whether this platform can share its screen. Native desktop and Android use
+/// flutter_webrtc's capturers; desktop browsers use `getDisplayMedia`. Mobile
+/// browsers have no display capture (LiveKit refuses it there).
+bool get canShareScreen =>
+    !kIsWeb ||
+    !(defaultTargetPlatform == TargetPlatform.android ||
+        defaultTargetPlatform == TargetPlatform.iOS);

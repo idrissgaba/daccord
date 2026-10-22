@@ -444,6 +444,7 @@ class VoiceSession {
     int? fps,
     int? bitrate,
     bool motionPriority = true,
+    bool withAudio = false,
   }) async {
     final participant = _room?.localParticipant;
     if (participant == null) return;
@@ -478,6 +479,7 @@ class VoiceSession {
         options: options,
         encoding: encoding,
         motionPriority: motionPriority,
+        withAudio: withAudio,
       ),
     );
   }
@@ -498,6 +500,7 @@ class VoiceSession {
     required ScreenShareCaptureOptions options,
     required VideoEncoding encoding,
     required bool motionPriority,
+    bool withAudio = false,
   }) async {
     // Games want frames; slides/code want pixels. LiveKit's own default for a
     // screen-share track is `maintainResolution`, i.e. exactly the wrong half
@@ -514,13 +517,19 @@ class VoiceSession {
     if (existing != null || isIOS) {
       await participant.setScreenShareEnabled(
         true,
+        captureScreenAudio: withAudio,
         screenShareCaptureOptions: options,
       );
       await _applyScreenShareDegradation(participant, degradation);
       return;
     }
 
-    final track = await LocalVideoTrack.createScreenShareTrack(options);
+    // With audio, the platform capture prompt may also return the shared
+    // tab/screen sound (desktop Chrome/Edge); elsewhere it is video only.
+    final tracks = withAudio
+        ? await LocalVideoTrack.createScreenShareTracksWithAudio(options)
+        : <LocalTrack>[await LocalVideoTrack.createScreenShareTrack(options)];
+    final track = tracks.whereType<LocalVideoTrack>().first;
     await participant.publishVideoTrack(
       track,
       publishOptions: VideoPublishOptions(
@@ -532,6 +541,12 @@ class VoiceSession {
         degradationPreference: degradation,
       ),
     );
+    for (final audio in tracks.whereType<LocalAudioTrack>()) {
+      await participant.publishAudioTrack(
+        audio,
+        publishOptions: screenShareAudioPublishOptions,
+      );
+    }
   }
 
   /// Applies [preference] to the published screen-share sender, for the paths

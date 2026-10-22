@@ -9,12 +9,12 @@ import 'package:bonfire/features/spaces/controllers/spaces.dart';
 import 'package:bonfire/features/spaces/views/accord_soundboard.dart';
 import 'package:bonfire/features/voice/controllers/voice.dart';
 import 'package:bonfire/features/voice/services/voice_session.dart';
+import 'package:bonfire/features/voice/utils/audio_output_support.dart';
 import 'package:bonfire/features/voice/views/mic_level_meter.dart';
 import 'package:bonfire/features/voice/views/screen_share_picker.dart';
 import 'package:bonfire/features/voice/views/voice_settings_screen.dart';
 import 'package:bonfire/theme/theme.dart';
 import 'package:collection/collection.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -183,7 +183,7 @@ class _VoiceBarState extends ConsumerState<VoiceBar> {
                   onPressed: () =>
                       ref.read(voiceControllerProvider.notifier).toggleVideo(),
                 ),
-                if (!kIsWeb)
+                if (canShareScreen)
                   _VoiceButton(
                     icon: voice.selfStream
                         ? Icons.stop_screen_share

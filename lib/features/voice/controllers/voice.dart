@@ -446,6 +446,7 @@ class VoiceController extends _$VoiceController {
         fps: settings.screenShareFps,
         bitrate: settings.screenShareBitrate,
         motionPriority: settings.screenShareMotionPriority,
+        withAudio: settings.screenShareAudio,
       );
     } else {
       await _session?.setScreenShareEnabled(false);

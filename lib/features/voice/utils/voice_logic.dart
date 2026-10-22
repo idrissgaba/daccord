@@ -112,6 +112,14 @@ bool micTransmits({
 /// end of the last word isn't clipped.
 const Duration pushToTalkReleaseDelay = Duration(milliseconds: 200);
 
+/// Publish options for a screen share's sound: music bitrate in stereo and no
+/// DTX, which would cut quiet passages of a video or game.
+const AudioPublishOptions screenShareAudioPublishOptions = AudioPublishOptions(
+  name: 'screen_share_audio',
+  encoding: AudioEncoding.presetMusicHighQualityStereo,
+  dtx: false,
+);
+
 /// Normalises a selected audio/video device id: a null or empty id means
 /// "system default" and is represented as null (what the capture options
 /// expect).
