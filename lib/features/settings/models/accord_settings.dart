@@ -31,6 +31,7 @@ class AccordSettings {
     '720p',
     '1080p',
     '1440p',
+    '2160p (4K)',
   ];
 
   /// Selectable screen-share frame rates.
@@ -84,6 +85,7 @@ class AccordSettings {
     this.voiceAfkTimeoutMinutes = defaultAfkTimeoutMinutes,
     this.voiceAfkAutoMove = true,
     this.voiceRelayOnly = false,
+    this.screenShareAudio = true,
     this.recentEmoji = const [],
     this.masterServerUrl = defaultMasterServerUrl,
     this.channelNotifications = const <String, String>{},
@@ -153,7 +155,8 @@ class AccordSettings {
   final int videoFps;
 
   /// Screen-share capture resolution index into [screenShareResolutionLabels]
-  /// (0 = 720p, 1 = 1080p, 2 = 1440p), independent of [videoResolution].
+  /// (0 = 720p, 1 = 1080p, 2 = 1440p, 3 = 2160p), independent of
+  /// [videoResolution].
   final int screenShareResolution;
 
   /// Screen-share capture frame rate (one of [screenShareFpsOptions]).
@@ -204,6 +207,10 @@ class AccordSettings {
 
   /// Require TURN relay candidates for all voice/video media connections.
   final bool voiceRelayOnly;
+
+  /// Share the shared screen/tab's sound along with the picture, where the
+  /// platform can capture it (desktop Chrome and Edge).
+  final bool screenShareAudio;
 
   /// Most-recently-used emoji tokens (unicode chars or `name:id` custom refs),
   /// most-recent first.
@@ -335,6 +342,7 @@ class AccordSettings {
     int? voiceAfkTimeoutMinutes,
     bool? voiceAfkAutoMove,
     bool? voiceRelayOnly,
+    bool? screenShareAudio,
     List<String>? recentEmoji,
     String? masterServerUrl,
     Map<String, String>? channelNotifications,
@@ -388,6 +396,7 @@ class AccordSettings {
           voiceAfkTimeoutMinutes ?? this.voiceAfkTimeoutMinutes,
       voiceAfkAutoMove: voiceAfkAutoMove ?? this.voiceAfkAutoMove,
       voiceRelayOnly: voiceRelayOnly ?? this.voiceRelayOnly,
+      screenShareAudio: screenShareAudio ?? this.screenShareAudio,
       recentEmoji: recentEmoji ?? this.recentEmoji,
       masterServerUrl: masterServerUrl ?? this.masterServerUrl,
       channelNotifications: channelNotifications ?? this.channelNotifications,
@@ -468,6 +477,8 @@ class AccordSettings {
         return (1920, 1080);
       case 2:
         return (2560, 1440);
+      case 3:
+        return (3840, 2160);
       default:
         return (1280, 720);
     }
@@ -504,6 +515,7 @@ class AccordSettings {
     final base = switch (screenShareResolution) {
       1 => 6000000, // 1080p60
       2 => 9000000, // 1440p60
+      3 => 16000000, // 2160p60
       _ => 3000000, // 720p60
     };
     final scale = screenShareFps <= 15
@@ -559,6 +571,7 @@ class AccordSettings {
     'voiceAfkTimeoutMinutes': voiceAfkTimeoutMinutes,
     'voiceAfkAutoMove': voiceAfkAutoMove,
     'voiceRelayOnly': voiceRelayOnly,
+    'screenShareAudio': screenShareAudio,
     'recentEmoji': recentEmoji,
     'masterServerUrl': masterServerUrl,
     'channelNotifications': channelNotifications,
@@ -627,6 +640,7 @@ class AccordSettings {
           defaultAfkTimeoutMinutes,
       voiceAfkAutoMove: json['voiceAfkAutoMove'] as bool? ?? true,
       voiceRelayOnly: json['voiceRelayOnly'] as bool? ?? false,
+      screenShareAudio: json['screenShareAudio'] as bool? ?? true,
       recentEmoji: [
         for (final e in (json['recentEmoji'] as List? ?? const []))
           e.toString(),

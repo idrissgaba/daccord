@@ -19,6 +19,8 @@ class _RecordingSession extends VoiceSession {
 
   // Camera capture, recorded separately so a test can prove the two toggles
   // read different settings.
+  bool? withAudio;
+
   int? cameraWidth;
   int? cameraHeight;
   int? cameraFps;
@@ -33,9 +35,11 @@ class _RecordingSession extends VoiceSession {
     int? fps,
     int? bitrate,
     bool motionPriority = true,
+    bool withAudio = false,
   }) async {
     calls++;
     this.enabled = enabled;
+    this.withAudio = withAudio;
     this.width = width;
     this.height = height;
     this.fps = fps;
@@ -114,6 +118,7 @@ void main() {
       expect(h.session.fps, 60);
       expect(h.session.bitrate, settings.screenShareBitrate);
       expect(h.session.motionPriority, isTrue);
+      expect(h.session.withAudio, isTrue); // share audio defaults on
 
       // The camera values it used to send.
       expect(h.session.width, isNot(854));

@@ -4,12 +4,22 @@ library;
 
 import 'package:bonfire/features/voice/services/voice_session.dart'
     show VoiceSessionState;
+import 'package:livekit_client/livekit_client.dart'
+    show AudioEncoding, AudioPublishOptions;
 
 /// Converts a 0–200% volume preference into a WebRTC gain multiplier (0.0–2.0),
 /// clamping out-of-range input. LiveKit has no per-track volume, so gain is
 /// applied via `Helper.setVolume`; 100% is unity.
 double voiceGain(num volumePercent) =>
     (volumePercent / 100).clamp(0.0, 2.0).toDouble();
+
+/// Publish options for a screen share's sound: music bitrate in stereo and no
+/// DTX, which would cut quiet passages of a video or game.
+const AudioPublishOptions screenShareAudioPublishOptions = AudioPublishOptions(
+  name: 'screen_share_audio',
+  encoding: AudioEncoding.presetMusicHighQualityStereo,
+  dtx: false,
+);
 
 /// Normalises a selected audio/video device id: a null or empty id means
 /// "system default" and is represented as null (what the capture options

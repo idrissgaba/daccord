@@ -12,6 +12,7 @@ import 'package:bonfire/features/voice/controllers/voice_states.dart';
 import 'package:bonfire/features/voice/services/voice_session.dart'
     show VoiceSession;
 import 'package:bonfire/features/voice/utils/participant_display.dart';
+import 'package:bonfire/features/voice/utils/audio_output_support.dart';
 import 'package:bonfire/features/voice/views/screen_share_picker.dart';
 import 'package:bonfire/features/voice/views/voice_settings_screen.dart';
 import 'package:bonfire/features/voice/views/voice_text_panel.dart';
@@ -19,7 +20,6 @@ import 'package:bonfire/shared/components/horizontal_wheel_scroll.dart';
 import 'package:bonfire/theme/theme.dart';
 import 'package:bonfire/features/member/views/accord_member_avatar.dart';
 import 'package:bonfire/features/voice/views/voice_lobby.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:livekit_client/livekit_client.dart' show VideoTrack;
@@ -691,7 +691,7 @@ class _ControlBar extends ConsumerWidget {
             activeColor: colors.green,
             onPressed: notifier.toggleVideo,
           ),
-          if (!kIsWeb)
+          if (canShareScreen)
             _ControlButton(
               icon: voice.selfStream
                   ? Icons.stop_screen_share

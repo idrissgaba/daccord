@@ -294,6 +294,18 @@ class _VoiceSettingsScreenState extends ConsumerState<VoiceSettingsScreen> {
             ),
           ),
           SwitchListTile(
+            key: const Key('screen-share-audio-switch'),
+            title: const Text('Share audio'),
+            subtitle: Text(
+              'Sends the sound of the shared tab or screen too. Works in '
+              'Chrome and Edge on a computer; the desktop app shares video '
+              'only for now.',
+              style: theme.textTheme.bodySmall!.copyWith(color: colors.gray),
+            ),
+            value: settings.screenShareAudio,
+            onChanged: controller.setScreenShareAudio,
+          ),
+          SwitchListTile(
             key: const Key('screen-share-motion-switch'),
             title: const Text('Prioritise smooth motion'),
             subtitle: Text(
