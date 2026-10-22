@@ -51,6 +51,7 @@ class _FakeSession extends VoiceSession {
     int inputVolume = 100,
     bool relayOnly = false,
     Map<String, int>? userVolumes,
+    VoiceAudioOptions? audio,
   }) async {
     connects++;
     connectedMuted = selfMute;

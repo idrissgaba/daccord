@@ -568,6 +568,7 @@ class VoiceController extends _$VoiceController {
       outputVolume: settings.outputVolume,
       inputVolume: settings.inputVolume,
       userVolumes: _userVolumes(settings),
+      audio: voiceAudioOptionsOf(settings),
     );
     _applyConnectOutcome();
     if (state.sessionState == VoiceSessionState.failed) return;

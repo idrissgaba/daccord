@@ -25,6 +25,11 @@ Material icons and existing sounds; no third-party brand assets are used.
 | Noise suppression / echo cancellation / auto gain toggles, high quality (128 kbps) mic | `feature/voice-audio-options` | Deployed | `voice/services/voice_session.dart`, `voice/utils/voice_logic.dart`, `voice/views/voice_settings_screen.dart` |
 | Push-to-talk (rebindable key, hold-to-talk button) | `feature/push-to-talk` | Deployed | `voice/controllers/voice.dart`, `voice/services/voice_session.dart`, `voice/views/voice_bar.dart`, `voice/views/voice_settings_screen.dart` |
 | Screen share: 4K, shared tab/screen audio, enabled in desktop browsers | `feature/screen-share-plus` | Deployed | `voice/services/voice_session.dart`, `voice/utils/audio_output_support.dart`, `voice/views/voice_bar.dart`, `voice/views/voice_view.dart` |
+| Voice messages (record from the composer, sent as audio files) | `feature/voice-messages` | Deployed | `messaging/utils/voice_message.dart`, `messaging/views/voice_message_recorder.dart`, `messaging/views/message_pane/composer.dart`, `messaging/views/inline_audio_player.dart` (adds the `record` package) |
+| Markdown: `-#` subtext and `<t:…>` dynamic timestamps | `feature/markdown-plus` | Deployed | `messaging/utils/message_timestamp.dart`, `messaging/views/box/accord_message_markup.dart` (adds `source_span`) |
+| Message actions: forward, copy message link (`daccord://` links open in-app), mark unread | `feature/message-actions` | Deployed | `shared/utils/in_app_links.dart`, `messaging/utils/forward_message.dart`, `messaging/views/forward_message_dialog.dart`, `channels/controllers/read_state.dart`, `messaging/views/message_pane/message_row.dart` |
+| Polls (create, vote, results, end early) | `feature/polls` | Deployed | `packages/accordkit/lib/src/models/poll.dart`, `messaging/utils/poll_display.dart`, `messaging/views/poll_view.dart`, `messaging/controllers/accord_messages.dart` |
+| Voice moderation: server mute/deafen, move (menu or drag), disconnect, user limits | `feature/voice-moderation` | Deployed | `voice/views/voice_moderation_menu.dart`, `voice/controllers/voice.dart`, `voice/views/voice_participants.dart`, `voice/utils/voice_logic.dart` |
 
 Paths are under `lib/features/` unless they start with `packages/`.
 
@@ -38,6 +43,11 @@ Notes:
 - Shared screen audio comes from the browser (desktop Chrome/Edge). The native
   desktop app shares video only.
 - Push-to-talk listens while the app has focus (no global OS hotkey).
+- Polls, mark unread and voice moderation need the server fork; against an
+  upstream server the poll button fails with the server's error and the
+  moderation actions are refused.
+- Voice moderation is enforced by the server in LiveKit; the client only
+  reflects it (locked mic, icons) and follows moves.
 
 ## Building and deploying
 
