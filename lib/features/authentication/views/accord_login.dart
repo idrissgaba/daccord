@@ -264,11 +264,22 @@ class _AccordLoginScreenState extends ConsumerState<AccordLoginScreen> {
         return;
       }
       setState(() => _authLocalError = null);
+      // An invite link for this server lets an invite-only server admit us.
+      final pending = ref.read(pendingServerJoinProvider);
+      final invite =
+          pending?.server != null &&
+              AccordServer.sameEndpoint(
+                pending!.server!.baseUrl,
+                server.baseUrl,
+              )
+          ? pending.invite
+          : null;
       notifier.registerWithCredentials(
         server: server,
         username: username,
         password: password,
         displayName: _displayNameController.text.trim(),
+        inviteCode: invite,
       );
     } else {
       setState(() => _authLocalError = null);

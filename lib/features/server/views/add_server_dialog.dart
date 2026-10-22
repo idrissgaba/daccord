@@ -289,6 +289,7 @@ class _AddServerDialogState extends ConsumerState<_AddServerDialog>
             username: username,
             password: password,
             displayName: _displayCtrl.text.trim(),
+            inviteCode: _pendingInviteCode,
           )
         : await _auth.addServerWithCredentials(
             server: server,

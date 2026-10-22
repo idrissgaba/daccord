@@ -257,12 +257,14 @@ class AccordAuth extends _$AccordAuth {
   }
 
   /// Registers a new account on [server] and logs straight in. [displayName]
-  /// defaults to [username] when blank.
+  /// defaults to [username] when blank. [inviteCode] is sent along so a server
+  /// whose registration policy is `invite_only` can admit the account.
   Future<AccordAuthState> registerWithCredentials({
     required AccordServer server,
     required String username,
     required String password,
     String? displayName,
+    String? inviteCode,
   }) async {
     // The server enforces the username rule authoritatively as well.
     final usernameError = validateRegistrationUsername(username);
@@ -273,6 +275,7 @@ class AccordAuth extends _$AccordAuth {
       username: username,
       password: password,
       displayName: displayName,
+      inviteCode: inviteCode,
     );
     if (attempt.error != null) return _fail(attempt.error!);
     return await _completeLogin(server, attempt.data);
@@ -577,6 +580,7 @@ class AccordAuth extends _$AccordAuth {
     required String username,
     required String password,
     String? displayName,
+    String? inviteCode,
   }) async {
     final usernameError = validateRegistrationUsername(username);
     if (usernameError != null) return AddServerOutcome.error(usernameError);
@@ -585,6 +589,7 @@ class AccordAuth extends _$AccordAuth {
       username: username,
       password: password,
       displayName: displayName,
+      inviteCode: inviteCode,
     );
     if (attempt.error != null) return AddServerOutcome.error(attempt.error!);
     return await _completeAddServer(server, attempt.data);
@@ -711,15 +716,19 @@ class AccordAuth extends _$AccordAuth {
     required String username,
     required String password,
     String? displayName,
+    String? inviteCode,
   }) async {
     final authClient = _restClientFor(server);
     try {
       final dn = displayName?.trim();
-      final result = await authClient.auth.register({
-        'username': username,
-        'password': password,
-        'display_name': (dn == null || dn.isEmpty) ? username : dn,
-      });
+      final result = await authClient.auth.register(
+        registrationBody(
+          username: username,
+          password: password,
+          displayName: dn,
+          inviteCode: inviteCode,
+        ),
+      );
       if (!result.ok) {
         return _AuthAttempt.error(
           result.error?.message ?? 'Registration failed',
@@ -1085,4 +1094,25 @@ class AddServerOutcome {
 
   bool get needsMfa => mfaTicket != null;
   bool get needsPasswordReset => passwordResetSession != null;
+}
+
+/// The `POST /auth/register` body. `invite_code` is only sent when there is
+/// one: servers whose policy is `invite_only` require it, the others ignore
+/// unknown fields.
+@visibleForTesting
+Map<String, dynamic> registrationBody({
+  required String username,
+  required String password,
+  String? displayName,
+  String? inviteCode,
+}) {
+  final invite = inviteCode?.trim();
+  return {
+    'username': username,
+    'password': password,
+    'display_name': (displayName == null || displayName.isEmpty)
+        ? username
+        : displayName,
+    if (invite != null && invite.isNotEmpty) 'invite_code': invite,
+  };
 }
