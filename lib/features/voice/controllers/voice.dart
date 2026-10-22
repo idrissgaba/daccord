@@ -13,6 +13,7 @@ import 'package:bonfire/features/voice/utils/afk_logic.dart';
 import 'package:bonfire/features/voice/utils/voice_logic.dart';
 import 'package:collection/collection.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -177,7 +178,17 @@ class VoiceController extends _$VoiceController {
         }
       },
     );
+    ref.listen(settingsControllerProvider.select((s) => s.pushToTalk), (
+      _,
+      enabled,
+    ) {
+      _releasePushToTalk?.cancel();
+      _session?.setPushToTalk(enabled);
+    });
+    HardwareKeyboard.instance.addHandler(_onKeyEvent);
     ref.onDispose(() {
+      HardwareKeyboard.instance.removeHandler(_onKeyEvent);
+      _releasePushToTalk?.cancel();
       _afkMonitor?.dispose();
       _afkMonitor = null;
       _session?.dispose();
@@ -468,7 +479,41 @@ class VoiceController extends _$VoiceController {
     ..onChanged = _onSessionChanged
     ..onTracksChanged = _onSessionTracksChanged
     ..onStateChanged = _onSessionStateChanged
-    ..onDisconnected = _onSessionDisconnected;
+    ..onDisconnected = _onSessionDisconnected
+    ..setPushToTalk(ref.read(settingsControllerProvider).pushToTalk);
+
+  /// Pending close of the push-to-talk mic after the key was released.
+  Timer? _releasePushToTalk;
+
+  /// Global key hook for push-to-talk. Never consumes the event, so the key
+  /// still types normally in text fields.
+  bool _onKeyEvent(KeyEvent event) {
+    if (event is KeyRepeatEvent || !state.isConnected) return false;
+    final settings = ref.read(settingsControllerProvider);
+    if (!settings.pushToTalk ||
+        event.physicalKey.usbHidUsage != settings.pushToTalkKey) {
+      return false;
+    }
+    setPushToTalkPressed(event is KeyDownEvent);
+    return false;
+  }
+
+  /// Push-to-talk key or voice-bar button pressed / released. Releasing keeps
+  /// the mic open for [pushToTalkReleaseDelay] so the last word isn't cut.
+  void setPushToTalkPressed(bool pressed) {
+    final session = _session;
+    if (session == null || !state.isConnected) return;
+    _releasePushToTalk?.cancel();
+    if (pressed) {
+      _afkMonitor?.markActivity();
+      unawaited(session.setPushToTalkPressed(true));
+    } else {
+      _releasePushToTalk = Timer(
+        pushToTalkReleaseDelay,
+        () => session.setPushToTalkPressed(false),
+      );
+    }
+  }
 
   /// High-frequency speaker churn (many times per second while anyone talks):
   /// only push a new state when the speaking set actually changed.

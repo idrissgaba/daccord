@@ -169,6 +169,17 @@ class SettingsController extends _$SettingsController {
   void setVoiceRelayOnly(bool enabled) =>
       _update(state.copyWith(voiceRelayOnly: enabled));
 
+  void setPushToTalk(bool enabled) =>
+      _update(state.copyWith(pushToTalk: enabled));
+
+  /// Binds push-to-talk to the physical key [usbHidUsage], shown as [label].
+  void setPushToTalkKey(int usbHidUsage, String label) => _update(
+    state.copyWith(
+      pushToTalkKey: usbHidUsage,
+      pushToTalkKeyLabel: label.trim().isEmpty ? '?' : label,
+    ),
+  );
+
   void setInputVolume(int volume) =>
       _update(state.copyWith(inputVolume: volume.clamp(0, 200)));
 

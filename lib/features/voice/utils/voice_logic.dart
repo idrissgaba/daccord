@@ -11,6 +11,18 @@ import 'package:bonfire/features/voice/services/voice_session.dart'
 double voiceGain(num volumePercent) =>
     (volumePercent / 100).clamp(0.0, 2.0).toDouble();
 
+/// Whether the microphone should transmit right now: the user hasn't muted
+/// it, and in push-to-talk mode the key is held.
+bool micTransmits({
+  required bool micWanted,
+  required bool pushToTalk,
+  required bool pttPressed,
+}) => micWanted && (!pushToTalk || pttPressed);
+
+/// Delay before push-to-talk closes the mic after the key is released, so the
+/// end of the last word isn't clipped.
+const Duration pushToTalkReleaseDelay = Duration(milliseconds: 200);
+
 /// Normalises a selected audio/video device id: a null or empty id means
 /// "system default" and is represented as null (what the capture options
 /// expect).

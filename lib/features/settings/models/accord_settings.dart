@@ -11,6 +11,11 @@ class AccordSettings {
   /// Default master-server directory URL (matches the reference client).
   static const String defaultMasterServerUrl = 'https://master.daccord.gg';
 
+  /// Default push-to-talk key: the one left of "1" (` on QWERTY, ² on
+  /// AZERTY), as a USB HID usage (`PhysicalKeyboardKey.backquote`).
+  static const int defaultPushToTalkKey = 0x00070035;
+  static const String defaultPushToTalkKeyLabel = '`';
+
   /// Per-channel notification levels — `channel_id → 'all' | 'mentions' |
   /// 'nothing'`. Missing entries fall back to the global default ("mentions").
   /// Mirrors the reference client's `Config.set_channel_notification_level`.
@@ -84,6 +89,9 @@ class AccordSettings {
     this.voiceAfkTimeoutMinutes = defaultAfkTimeoutMinutes,
     this.voiceAfkAutoMove = true,
     this.voiceRelayOnly = false,
+    this.pushToTalk = false,
+    this.pushToTalkKey = defaultPushToTalkKey,
+    this.pushToTalkKeyLabel = defaultPushToTalkKeyLabel,
     this.recentEmoji = const [],
     this.masterServerUrl = defaultMasterServerUrl,
     this.channelNotifications = const <String, String>{},
@@ -204,6 +212,17 @@ class AccordSettings {
 
   /// Require TURN relay candidates for all voice/video media connections.
   final bool voiceRelayOnly;
+
+  /// Push-to-talk: the mic transmits only while [pushToTalkKey] is held (or
+  /// the voice bar's talk button is pressed).
+  final bool pushToTalk;
+
+  /// The push-to-talk key as a physical-key USB HID usage, so the binding
+  /// follows the key's position whatever the keyboard layout.
+  final int pushToTalkKey;
+
+  /// How [pushToTalkKey] is shown (its label on the layout used to bind it).
+  final String pushToTalkKeyLabel;
 
   /// Most-recently-used emoji tokens (unicode chars or `name:id` custom refs),
   /// most-recent first.
@@ -335,6 +354,9 @@ class AccordSettings {
     int? voiceAfkTimeoutMinutes,
     bool? voiceAfkAutoMove,
     bool? voiceRelayOnly,
+    bool? pushToTalk,
+    int? pushToTalkKey,
+    String? pushToTalkKeyLabel,
     List<String>? recentEmoji,
     String? masterServerUrl,
     Map<String, String>? channelNotifications,
@@ -388,6 +410,9 @@ class AccordSettings {
           voiceAfkTimeoutMinutes ?? this.voiceAfkTimeoutMinutes,
       voiceAfkAutoMove: voiceAfkAutoMove ?? this.voiceAfkAutoMove,
       voiceRelayOnly: voiceRelayOnly ?? this.voiceRelayOnly,
+      pushToTalk: pushToTalk ?? this.pushToTalk,
+      pushToTalkKey: pushToTalkKey ?? this.pushToTalkKey,
+      pushToTalkKeyLabel: pushToTalkKeyLabel ?? this.pushToTalkKeyLabel,
       recentEmoji: recentEmoji ?? this.recentEmoji,
       masterServerUrl: masterServerUrl ?? this.masterServerUrl,
       channelNotifications: channelNotifications ?? this.channelNotifications,
@@ -559,6 +584,9 @@ class AccordSettings {
     'voiceAfkTimeoutMinutes': voiceAfkTimeoutMinutes,
     'voiceAfkAutoMove': voiceAfkAutoMove,
     'voiceRelayOnly': voiceRelayOnly,
+    'pushToTalk': pushToTalk,
+    'pushToTalkKey': pushToTalkKey,
+    'pushToTalkKeyLabel': pushToTalkKeyLabel,
     'recentEmoji': recentEmoji,
     'masterServerUrl': masterServerUrl,
     'channelNotifications': channelNotifications,
@@ -627,6 +655,11 @@ class AccordSettings {
           defaultAfkTimeoutMinutes,
       voiceAfkAutoMove: json['voiceAfkAutoMove'] as bool? ?? true,
       voiceRelayOnly: json['voiceRelayOnly'] as bool? ?? false,
+      pushToTalk: json['pushToTalk'] as bool? ?? false,
+      pushToTalkKey:
+          (json['pushToTalkKey'] as num?)?.toInt() ?? defaultPushToTalkKey,
+      pushToTalkKeyLabel:
+          json['pushToTalkKeyLabel'] as String? ?? defaultPushToTalkKeyLabel,
       recentEmoji: [
         for (final e in (json['recentEmoji'] as List? ?? const []))
           e.toString(),

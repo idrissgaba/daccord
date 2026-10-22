@@ -18,6 +18,37 @@ void main() {
     });
   });
 
+  group('micTransmits', () {
+    test('follows the mute state when push-to-talk is off', () {
+      expect(
+        micTransmits(micWanted: true, pushToTalk: false, pttPressed: false),
+        isTrue,
+      );
+      expect(
+        micTransmits(micWanted: false, pushToTalk: false, pttPressed: true),
+        isFalse,
+      );
+    });
+
+    test('push-to-talk transmits only while pressed', () {
+      expect(
+        micTransmits(micWanted: true, pushToTalk: true, pttPressed: false),
+        isFalse,
+      );
+      expect(
+        micTransmits(micWanted: true, pushToTalk: true, pttPressed: true),
+        isTrue,
+      );
+    });
+
+    test('push-to-talk never overrides a self-mute', () {
+      expect(
+        micTransmits(micWanted: false, pushToTalk: true, pttPressed: true),
+        isFalse,
+      );
+    });
+  });
+
   group('normalizeDeviceId', () {
     test('empty / null becomes null (system default)', () {
       expect(normalizeDeviceId(null), isNull);

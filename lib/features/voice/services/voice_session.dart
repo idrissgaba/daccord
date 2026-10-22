@@ -42,6 +42,13 @@ class VoiceSession {
   /// platform honours setting volume on a capture track.
   double _inputGain = 1;
 
+  /// Whether the user wants the mic live (i.e. not self-muted).
+  bool _micWanted = false;
+
+  /// Push-to-talk: the mic only transmits while [_pttPressed].
+  bool _pushToTalk = false;
+  bool _pttPressed = false;
+
   /// Local mic level (0–1) polled from the track's WebRTC `media-source`
   /// stats. [Participant.audioLevel] only updates from throttled server
   /// active-speaker reports, so the meter would lag on quiet input.
@@ -150,6 +157,7 @@ class VoiceSession {
     int inputVolume = 100,
   }) async {
     _deafened = selfDeaf;
+    _micWanted = !selfMute;
     _outputGain = voiceGain(outputVolume);
     _inputGain = voiceGain(inputVolume);
 
@@ -202,6 +210,7 @@ class VoiceSession {
         await _publishMic(room, track);
       }
       if (selfDeaf) await _applyDeafen(true);
+      await _applyTransmitGate();
       await _applyOutputDevice(audioOutputDeviceId);
       await _applyOutputGain();
       await _applyInputGain();
@@ -320,12 +329,15 @@ class VoiceSession {
   Future<String?> setMicEnabled(bool enabled) async {
     final participant = _room?.localParticipant;
     if (participant == null) return null;
+    _micWanted = enabled;
     try {
       await participant.setMicrophoneEnabled(enabled);
       if (enabled) {
         _micError = null;
         // Unmuting restarts the capture track, which drops the applied gain.
         await _applyInputGain();
+        // In push-to-talk mode an unmute only arms the mic; the key opens it.
+        await _applyTransmitGate();
       }
       return null;
     } catch (e) {
@@ -522,6 +534,40 @@ class VoiceSession {
   /// web, which is where the settings page offers the picker.
   Future<void> setAudioOutputDevice(String deviceId) =>
       _applyOutputDevice(deviceId);
+
+  /// Switches push-to-talk on or off. On, the mic stays closed until
+  /// [setPushToTalkPressed]`(true)`; off, it follows the mute state again.
+  Future<void> setPushToTalk(bool enabled) async {
+    _pushToTalk = enabled;
+    _pttPressed = false;
+    await _applyTransmitGate();
+  }
+
+  /// The push-to-talk key (or button) went down / up.
+  Future<void> setPushToTalkPressed(bool pressed) async {
+    if (_pttPressed == pressed) return;
+    _pttPressed = pressed;
+    await _applyTransmitGate();
+  }
+
+  /// Opens or closes the published mic for push-to-talk without stopping the
+  /// capture, so pressing the key transmits instantly. A self-muted mic is left
+  /// alone: push-to-talk never overrides mute.
+  Future<void> _applyTransmitGate() async {
+    final track = _localMicTrack;
+    if (track is! LocalAudioTrack || !_micWanted) return;
+    final open = micTransmits(
+      micWanted: _micWanted,
+      pushToTalk: _pushToTalk,
+      pttPressed: _pttPressed,
+    );
+    await _guardMedia(
+      'push-to-talk',
+      () => open
+          ? track.unmute(stopOnMute: false)
+          : track.mute(stopOnMute: false),
+    );
+  }
 
   /// Sets the remote-audio output volume from a 0–200 percentage.
   Future<void> setOutputVolume(int percent) async {
