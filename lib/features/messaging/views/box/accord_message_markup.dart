@@ -1,16 +1,20 @@
+import 'dart:async';
+
 import 'package:accordkit/accordkit.dart';
 import 'package:bonfire/features/member/utils/member_display.dart';
 import 'package:bonfire/features/messaging/utils/composer_input.dart';
+import 'package:bonfire/features/messaging/utils/message_timestamp.dart';
 import 'package:bonfire/features/messaging/views/message_media_gate.dart';
 import 'package:bonfire/theme/theme.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:dart_markdown/dart_markdown.dart' as md;
 import 'package:flutter/material.dart';
 import 'package:markdown_viewer/markdown_viewer.dart';
+import 'package:source_span/source_span.dart';
 
 /// Resolved lookup tables for Accord's inline tokens (`@user` / `@role` /
 /// `@everyone` / `#channel` chips, custom `:emoji:`, `||spoiler||`,
-/// `__underline__`).
+/// `__underline__`, `<t:…>` timestamps) and the `-# subtext` block.
 ///
 /// All maps are keyed by the **lowercased** handle/name so resolution is
 /// case-insensitive. Anything not present here simply renders as plain text —
@@ -42,6 +46,8 @@ class AccordMarkupContext {
 List<md.Syntax> accordMarkupSyntaxes([
   AccordMarkupContext ctx = const AccordMarkupContext(),
 ]) => [
+  const _SubtextSyntax(),
+  _TimestampSyntax(),
   _SpoilerSyntax(),
   _UnderlineSyntax(),
   _EmojiSyntax(ctx),
@@ -56,6 +62,8 @@ List<MarkdownElementBuilder> accordMarkupBuilders({
   void Function(String userId)? onTapUser,
   void Function(String channelId)? onTapChannel,
 }) => [
+  _SubtextBuilder(),
+  _TimestampBuilder(),
   _SpoilerBuilder(),
   _UnderlineBuilder(),
   _EmojiBuilder(cdnUrl),
@@ -66,6 +74,57 @@ List<MarkdownElementBuilder> accordMarkupBuilders({
 // ---------------------------------------------------------------------------
 // Syntaxes
 // ---------------------------------------------------------------------------
+
+/// A line starting `-# ` → an `accordSubtext` block: smaller, muted text for
+/// footnotes and fine print. Its content still gets inline markdown.
+class _SubtextSyntax extends md.BlockSyntax {
+  const _SubtextSyntax();
+
+  static final _pattern = RegExp(r'^-# +\S');
+
+  @override
+  RegExp get pattern => _pattern;
+
+  @override
+  md.BlockElement parse(md.BlockParser parser) {
+    final content = parser.current.content;
+    final text = content.text;
+    final markerStart = text.indexOf('-#');
+    final bodyStart = text.indexOf(RegExp(r'\S'), markerStart + 2);
+    final marker = content.subspan(markerStart, markerStart + 2);
+    final body = content.subspan(bodyStart, text.trimRight().length);
+    parser.advance();
+    return md.BlockElement(
+      'accordSubtext',
+      markers: [marker],
+      children: [md.UnparsedContent.fromSpan(body)],
+      start: marker.start,
+      end: body.end,
+    );
+  }
+}
+
+/// `<t:SECONDS>` / `<t:SECONDS:STYLE>` → an `accordTimestamp` element shown in
+/// the reader's time zone. An out-of-range value is left as literal text.
+class _TimestampSyntax extends md.InlineSyntax {
+  _TimestampSyntax() : super(messageTimestampPattern);
+
+  @override
+  md.InlineObject? parse(md.InlineParser parser, Match match) {
+    if (messageTimestampInstant(match[1]!) == null) return null;
+    final markers = parser.consumeBy(match[0]!.length);
+    return md.InlineElement(
+      'accordTimestamp',
+      markers: markers,
+      attributes: {
+        'seconds': match[1]!,
+        'style': match[2] ?? defaultMessageTimestampStyle,
+      },
+      start: markers.first.start,
+      end: markers.last.end,
+    );
+  }
+}
 
 /// `||text||` → an `accordSpoiler` element carrying the hidden text.
 class _SpoilerSyntax extends md.InlineSyntax {
@@ -310,6 +369,44 @@ class _EmojiBuilder extends MarkdownElementBuilder {
   }
 }
 
+/// `-# subtext`: the paragraph style, shrunk and dimmed.
+class _SubtextBuilder extends MarkdownElementBuilder {
+  @override
+  List<String> get matchTypes => const ['accordSubtext'];
+
+  @override
+  bool isBlock(element) => true;
+
+  @override
+  TextStyle? buildTextStyle(element, defaultStyle) {
+    final base = defaultStyle.merge(parentStyle);
+    return base.copyWith(
+      fontSize: (base.fontSize ?? 16) * 0.8,
+      color: base.color?.withValues(alpha: 0.65),
+    );
+  }
+}
+
+class _TimestampBuilder extends MarkdownElementBuilder {
+  @override
+  List<String> get matchTypes => const ['accordTimestamp'];
+
+  @override
+  bool isBlock(element) => false;
+
+  @override
+  Widget? buildWidget(element, parent) {
+    final at = messageTimestampInstant(element.attributes['seconds'] ?? '');
+    if (at == null) return null;
+    return _inlineWidget(
+      _Timestamp(
+        at: at.toLocal(),
+        style: element.attributes['style'] ?? defaultMessageTimestampStyle,
+      ),
+    );
+  }
+}
+
 class _SpoilerBuilder extends MarkdownElementBuilder {
   @override
   List<String> get matchTypes => const ['accordSpoiler'];
@@ -413,6 +510,104 @@ class _EmojiImage extends StatelessWidget {
           fit: BoxFit.contain,
           errorWidget: (context, _, _) =>
               Text(':$name:', style: Theme.of(context).textTheme.bodyLarge),
+        ),
+      ),
+    );
+  }
+}
+
+/// A dynamic timestamp: formatted in the reader's locale and time zone, with
+/// the full date in a tooltip. Relative (`R`) ones keep themselves current.
+class _Timestamp extends StatefulWidget {
+  const _Timestamp({required this.at, required this.style});
+
+  final DateTime at;
+  final String style;
+
+  @override
+  State<_Timestamp> createState() => _TimestampState();
+}
+
+class _TimestampState extends State<_Timestamp> {
+  Timer? _refresh;
+
+  @override
+  void initState() {
+    super.initState();
+    _schedule();
+  }
+
+  @override
+  void didUpdateWidget(_Timestamp oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.at != widget.at || oldWidget.style != widget.style) {
+      _schedule();
+    }
+  }
+
+  void _schedule() {
+    _refresh?.cancel();
+    _refresh = null;
+    if (widget.style != 'R') return;
+    _refresh = Timer(relativeTimeRefresh(widget.at, DateTime.now()), () {
+      if (!mounted) return;
+      setState(() {});
+      _schedule();
+    });
+  }
+
+  @override
+  void dispose() {
+    _refresh?.cancel();
+    super.dispose();
+  }
+
+  String _time(
+    MaterialLocalizations l10n,
+    bool use24h, {
+    bool seconds = false,
+  }) {
+    final time = l10n.formatTimeOfDay(
+      TimeOfDay.fromDateTime(widget.at),
+      alwaysUse24HourFormat: use24h,
+    );
+    if (!seconds) return time;
+    final ss = widget.at.second.toString().padLeft(2, '0');
+    // Insert the seconds after the minutes ("9:05 AM" -> "9:05:07 AM").
+    final minutes = widget.at.minute.toString().padLeft(2, '0');
+    final index = time.indexOf(':$minutes');
+    if (index < 0) return time;
+    final end = index + minutes.length + 1;
+    return '${time.substring(0, end)}:$ss${time.substring(end)}';
+  }
+
+  String _format(MaterialLocalizations l10n, bool use24h, String style) =>
+      switch (style) {
+        't' => _time(l10n, use24h),
+        'T' => _time(l10n, use24h, seconds: true),
+        'd' => l10n.formatCompactDate(widget.at),
+        'D' => l10n.formatShortDate(widget.at),
+        'F' => '${l10n.formatFullDate(widget.at)} ${_time(l10n, use24h)}',
+        'R' => relativeTimeLabel(widget.at, DateTime.now()),
+        _ => '${l10n.formatShortDate(widget.at)} ${_time(l10n, use24h)}',
+      };
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = MaterialLocalizations.of(context);
+    final use24h = MediaQuery.alwaysUse24HourFormatOf(context);
+    final colors = BonfireThemeExtension.of(context);
+    return Tooltip(
+      message: _format(l10n, use24h, 'F'),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 3),
+        decoration: BoxDecoration(
+          color: colors.gray.withValues(alpha: 0.18),
+          borderRadius: BorderRadius.circular(3),
+        ),
+        child: Text(
+          _format(l10n, use24h, widget.style),
+          style: Theme.of(context).textTheme.bodyMedium,
         ),
       ),
     );

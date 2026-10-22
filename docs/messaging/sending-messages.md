@@ -88,3 +88,21 @@ opening message history. Player behavior follows the
 Author/moderator suppression, angle-bracket link exclusion and asynchronous
 unfurl permission/federation behavior still require server support (#352).
 The client respects a suppression flag when supplied by the server.
+
+## Formatting
+
+Messages use Markdown — `**bold**`, `*italic*`, `~~strike~~`, `` `code` ``,
+fenced code blocks, `> quotes`, lists and `# headings` — plus a few chat
+extras:
+
+| Type | Shows as |
+|---|---|
+| `__text__` | underlined |
+| `\|\|text\|\|` | a spoiler, revealed on click |
+| `-# text` (at the start of a line) | small, dimmed subtext |
+| `<t:1792660000>` | a date and time in each reader's own time zone |
+| `<t:1792660000:R>` | a live relative time ("in 3 hours", "2 days ago") |
+
+Timestamp styles: `t` short time, `T` time with seconds, `d` short date, `D`
+date, `f` date and time (the default), `F` with the weekday, `R` relative. The
+number is a Unix time in seconds; hovering a timestamp shows the full date.

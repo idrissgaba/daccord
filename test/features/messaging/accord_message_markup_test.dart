@@ -153,4 +153,93 @@ void main() {
       findsNWidgets(2),
     );
   });
+
+  testWidgets('a -# line renders as smaller, dimmed subtext', (tester) async {
+    await tester.pumpWidget(
+      _host(
+        AccordMarkdownBox(
+          content: 'main line\n-# fine **print**',
+          syntaxExtensions: accordMarkupSyntaxes(),
+          elementBuilders: accordMarkupBuilders(),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final text = _paragraphText(tester);
+    expect(text, contains('main line'));
+    expect(text, contains('fine print'));
+    expect(text, isNot(contains('-#')));
+    expect(text, isNot(contains('*')));
+
+    double? sizeOf(String needle) {
+      for (final element in find.byType(RichText).evaluate()) {
+        final span = (element.widget as RichText).text;
+        double? found;
+        span.visitChildren((child) {
+          if (child is TextSpan &&
+              (child.text ?? '').contains(needle) &&
+              child.style?.fontSize != null) {
+            found = child.style!.fontSize;
+            return false;
+          }
+          return true;
+        });
+        if (found != null) return found;
+        if (span is TextSpan && (span.text ?? '').contains(needle)) {
+          return span.style?.fontSize;
+        }
+      }
+      return null;
+    }
+
+    final mainSize = sizeOf('main line');
+    final subSize = sizeOf('fine');
+    expect(mainSize, isNotNull);
+    expect(subSize, isNotNull);
+    expect(subSize!, lessThan(mainSize!));
+  });
+
+  testWidgets('a <t:…> token shows a formatted date, not the raw token', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _host(
+        AccordMarkdownBox(
+          content: 'meet <t:1792660000:D> or <t:1792660000:R>',
+          syntaxExtensions: accordMarkupSyntaxes(),
+          elementBuilders: accordMarkupBuilders(),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.textContaining('<t:'), findsNothing);
+    // 1792660000 is in October 2026; the D style shows the month and year.
+    expect(find.textContaining('2026'), findsWidgets);
+    // The relative one reads "… ago" or "in …" depending on today.
+    expect(
+      find.byWidgetPredicate(
+        (w) =>
+            w is Text &&
+            ((w.data ?? '').endsWith(' ago') ||
+                (w.data ?? '').startsWith('in ')),
+      ),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('an out-of-range timestamp stays literal text', (tester) async {
+    await tester.pumpWidget(
+      _host(
+        AccordMarkdownBox(
+          content: 'bad <t:9999999999999>',
+          syntaxExtensions: accordMarkupSyntaxes(),
+          elementBuilders: accordMarkupBuilders(),
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(_paragraphText(tester), contains('<t:9999999999999>'));
+  });
 }
