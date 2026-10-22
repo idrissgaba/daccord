@@ -77,6 +77,9 @@ dependencies:
   collection: ^1.18.0
   http: ^1.2.1
   audioplayers: ^6.0.0
+  # Voice messages: records the mic to a compressed file on every platform
+  # (AAC/MP4 where available, Opus/WebM in Firefox).
+  record: 7.1.1
   path_provider: ^2.1.3
   universal_platform: ^1.1.0
   hive_ce: ^2.5.0

@@ -48,6 +48,10 @@ class _ComposerState extends ConsumerState<_Composer> {
   /// Files the user has attached but not yet sent.
   final List<PendingAttachment> _attachments = [];
 
+  /// True while a voice message is being recorded: the recorder replaces the
+  /// text field and its buttons.
+  bool _recordingVoice = false;
+
   /// True while a file drag is hovering the composer, which swaps the hint for
   /// a drop prompt and outlines the box.
   bool _dragging = false;
@@ -286,6 +290,9 @@ class _ComposerState extends ConsumerState<_Composer> {
       _cooldownTicker?.cancel();
       _cooldownTicker = null;
       _cooldown = null;
+      // A recording in progress belonged to the old channel: dropping the
+      // recorder from the tree discards it rather than sending it here.
+      _recordingVoice = false;
     } else if (widget.slowmodeSeconds == 0 &&
         oldWidget.slowmodeSeconds > 0 &&
         _cooldown?.kind == SendCooldownKind.slowmode) {
@@ -449,6 +456,28 @@ class _ComposerState extends ConsumerState<_Composer> {
     });
   }
 
+  void _startVoiceMessage() {
+    setState(() {
+      _recordingVoice = true;
+      _error = null;
+    });
+  }
+
+  /// A finished voice message is sent straight away, like any attachment.
+  void _onVoiceMessageRecorded(PendingAttachment file) {
+    setState(() => _recordingVoice = false);
+    _addFiles([file]);
+    if (_attachments.contains(file)) unawaited(_send());
+  }
+
+  void _onVoiceMessageClosed(String? error) {
+    if (!mounted) return;
+    setState(() {
+      _recordingVoice = false;
+      _error = error;
+    });
+  }
+
   void _removeAttachment(PendingAttachment file) {
     setState(() => _attachments.remove(file));
   }
@@ -576,6 +605,12 @@ class _ComposerState extends ConsumerState<_Composer> {
       cooldown: cooldown,
       now: now,
       hasAttachments: _attachments.isNotEmpty,
+    );
+    // A voice message is an upload, so an upload budget holds it back too.
+    final voiceBlocked = sendBlockedByCooldown(
+      cooldown: cooldown,
+      now: now,
+      hasAttachments: true,
     );
     // Configured capacity, shown as guidance beside the per-message limits;
     // only the server knows what's left this minute.
@@ -726,76 +761,109 @@ class _ComposerState extends ConsumerState<_Composer> {
                   allowBroadcast: widget.canMentionEveryone,
                   onPick: _pickMention,
                 ),
-              Row(
-                children: [
-                  IconButton(
-                    tooltip: atAttachmentLimit
-                        ? 'Attachment limit reached '
-                              '(${limits.maxAttachmentsPerMessage} per message)'
-                        : [
-                            'Attach files '
-                                '(${attachmentLimitsHint(maxBytes: limits.maxAttachmentBytes, maxCount: limits.maxAttachmentsPerMessage)})',
-                            if (budgetHint != null) budgetHint,
-                          ].join('\n'),
-                    onPressed: _sending || atAttachmentLimit
-                        ? null
-                        : _pickFiles,
-                    icon: Icon(
-                      Icons.add_circle_outline,
-                      size: 20,
-                      color: atAttachmentLimit
-                          ? colors.gray
-                          : colors.dirtyWhite,
-                    ),
-                  ),
-                  Expanded(
-                    child: TextField(
-                      controller: _controller,
-                      focusNode: _focusNode,
-                      // Deliberately never disabled while sending: a disabled
-                      // TextField gives up focus (and the mobile keyboard) for
-                      // the whole round-trip. The buttons below and the guard
-                      // in _send() are what stop a double-send.
-                      minLines: 1,
-                      maxLines: 6,
-                      textInputAction: composerUsesNativeNewlines
-                          ? TextInputAction.newline
-                          : TextInputAction.send,
-                      onChanged: _onChanged,
-                      onSubmitted: (_) => _onSubmitted(),
-                      style: Theme.of(context).textTheme.bodyLarge,
-                      decoration: InputDecoration(
-                        isDense: true,
-                        border: InputBorder.none,
-                        hintText: hint,
-                        hintStyle: Theme.of(
-                          context,
-                        ).textTheme.bodyLarge!.copyWith(color: colors.gray),
+              if (_recordingVoice)
+                VoiceMessageRecorder(
+                  onRecorded: _onVoiceMessageRecorded,
+                  onClosed: _onVoiceMessageClosed,
+                )
+              else
+                Row(
+                  children: [
+                    IconButton(
+                      tooltip: atAttachmentLimit
+                          ? 'Attachment limit reached '
+                                '(${limits.maxAttachmentsPerMessage} per message)'
+                          : [
+                              'Attach files '
+                                  '(${attachmentLimitsHint(maxBytes: limits.maxAttachmentBytes, maxCount: limits.maxAttachmentsPerMessage)})',
+                              if (budgetHint != null) budgetHint,
+                            ].join('\n'),
+                      onPressed: _sending || atAttachmentLimit
+                          ? null
+                          : _pickFiles,
+                      icon: Icon(
+                        Icons.add_circle_outline,
+                        size: 20,
+                        color: atAttachmentLimit
+                            ? colors.gray
+                            : colors.dirtyWhite,
                       ),
                     ),
-                  ),
-                  IconButton(
-                    tooltip: 'Emoji',
-                    onPressed: _sending ? null : _pickEmoji,
-                    icon: Icon(
-                      Icons.emoji_emotions_outlined,
-                      size: 20,
-                      color: colors.dirtyWhite,
+                    Expanded(
+                      child: TextField(
+                        controller: _controller,
+                        focusNode: _focusNode,
+                        // Deliberately never disabled while sending: a disabled
+                        // TextField gives up focus (and the mobile keyboard) for
+                        // the whole round-trip. The buttons below and the guard
+                        // in _send() are what stop a double-send.
+                        minLines: 1,
+                        maxLines: 6,
+                        textInputAction: composerUsesNativeNewlines
+                            ? TextInputAction.newline
+                            : TextInputAction.send,
+                        onChanged: _onChanged,
+                        onSubmitted: (_) => _onSubmitted(),
+                        style: Theme.of(context).textTheme.bodyLarge,
+                        decoration: InputDecoration(
+                          isDense: true,
+                          border: InputBorder.none,
+                          hintText: hint,
+                          hintStyle: Theme.of(
+                            context,
+                          ).textTheme.bodyLarge!.copyWith(color: colors.gray),
+                        ),
+                      ),
                     ),
-                  ),
-                  IconButton(
-                    tooltip: sendBlocked && cooldown != null
-                        ? sendCooldownLabel(cooldown, now)
-                        : 'Send',
-                    onPressed: _sending || sendBlocked ? null : _send,
-                    icon: Icon(
-                      Icons.send,
-                      size: 20,
-                      color: sendBlocked ? colors.gray : colors.dirtyWhite,
+                    IconButton(
+                      tooltip: 'Emoji',
+                      onPressed: _sending ? null : _pickEmoji,
+                      icon: Icon(
+                        Icons.emoji_emotions_outlined,
+                        size: 20,
+                        color: colors.dirtyWhite,
+                      ),
                     ),
-                  ),
-                ],
-              ),
+                    ValueListenableBuilder(
+                      valueListenable: _controller,
+                      builder: (context, value, _) {
+                        // Nothing typed or attached: the send slot records a
+                        // voice message instead.
+                        if (value.text.trim().isEmpty && _attachments.isEmpty) {
+                          return IconButton(
+                            key: const Key('voice-message-record'),
+                            tooltip: voiceBlocked && cooldown != null
+                                ? sendCooldownLabel(cooldown, now)
+                                : 'Record a voice message',
+                            onPressed: _sending || voiceBlocked
+                                ? null
+                                : _startVoiceMessage,
+                            icon: Icon(
+                              Icons.mic_none,
+                              size: 20,
+                              color: voiceBlocked
+                                  ? colors.gray
+                                  : colors.dirtyWhite,
+                            ),
+                          );
+                        }
+                        return IconButton(
+                          tooltip: sendBlocked && cooldown != null
+                              ? sendCooldownLabel(cooldown, now)
+                              : 'Send',
+                          onPressed: _sending || sendBlocked ? null : _send,
+                          icon: Icon(
+                            Icons.send,
+                            size: 20,
+                            color: sendBlocked
+                                ? colors.gray
+                                : colors.dirtyWhite,
+                          ),
+                        );
+                      },
+                    ),
+                  ],
+                ),
             ],
           ),
         ),

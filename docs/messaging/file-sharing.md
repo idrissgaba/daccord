@@ -29,3 +29,16 @@ You can also paste large blocks of text -- they'll be attached as a text file ra
 - **Audio files** show an inline player with a progress slider so you can listen without downloading.
 - **Video files** show a clickable thumbnail. Click it to play the video.
 - **Other files** appear as a download link with the filename.
+
+## Voice Messages
+
+With nothing typed or attached, the composer's send button becomes a
+**microphone**. Click it to start recording: a red dot, a timer and a live level
+bar replace the text field. Click **Send** to send the recording, or the bin to
+discard it. Recordings shorter than a second are discarded, and recording stops
+and sends on its own after ten minutes.
+
+A voice message is an ordinary audio attachment (AAC/MP4 where the platform can
+record it, Opus/WebM in Firefox), so every client can play it; this client labels
+it "Voice message" with a microphone icon. Like any upload, it counts against
+the server's upload limits and is held back while an upload cooldown runs.
