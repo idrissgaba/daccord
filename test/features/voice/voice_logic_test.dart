@@ -18,6 +18,60 @@ void main() {
     });
   });
 
+  group('participantGain', () {
+    test('defaults to the global gain when no user volume is set', () {
+      expect(participantGain(outputGain: 1.0), 1.0);
+      expect(participantGain(outputGain: 0.5), 0.5);
+      expect(participantGain(outputGain: 1.0, userVolumePercent: 100), 1.0);
+    });
+
+    test('multiplies the global gain by the user volume', () {
+      expect(participantGain(outputGain: 1.0, userVolumePercent: 50), 0.5);
+      expect(participantGain(outputGain: 0.5, userVolumePercent: 150), 0.75);
+      expect(participantGain(outputGain: 1.5, userVolumePercent: 0), 0.0);
+    });
+
+    test('clamps to the native ceiling', () {
+      expect(participantGain(outputGain: 2.0, userVolumePercent: 200), 2.0);
+      expect(participantGain(outputGain: 1.5, userVolumePercent: 150), 2.0);
+      expect(participantGain(outputGain: 1.0, userVolumePercent: 300), 2.0);
+    });
+
+    test('clamps to 1.0 with the web ceiling', () {
+      expect(
+        participantGain(
+          outputGain: 1.0,
+          userVolumePercent: 200,
+          maxGain: maxWebTrackGain,
+        ),
+        1.0,
+      );
+      expect(
+        participantGain(
+          outputGain: 0.5,
+          userVolumePercent: 150,
+          maxGain: maxWebTrackGain,
+        ),
+        0.75,
+      );
+    });
+
+    test('is silent when the user is muted for us', () {
+      expect(
+        participantGain(
+          outputGain: 2.0,
+          userVolumePercent: 200,
+          locallyMuted: true,
+        ),
+        0.0,
+      );
+    });
+
+    test('never goes negative', () {
+      expect(participantGain(outputGain: 1.0, userVolumePercent: -20), 0.0);
+    });
+  });
+
   group('normalizeDeviceId', () {
     test('empty / null becomes null (system default)', () {
       expect(normalizeDeviceId(null), isNull);

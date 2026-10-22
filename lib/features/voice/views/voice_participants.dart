@@ -8,6 +8,7 @@ import 'package:bonfire/features/user/controllers/accord_users.dart';
 import 'package:bonfire/features/voice/controllers/voice.dart';
 import 'package:bonfire/features/voice/controllers/voice_states.dart';
 import 'package:bonfire/features/voice/utils/participant_display.dart';
+import 'package:bonfire/features/voice/views/user_volume_menu.dart';
 import 'package:bonfire/theme/theme.dart';
 import 'package:bonfire/features/member/views/accord_member_avatar.dart';
 import 'package:collection/collection.dart';
@@ -55,6 +56,7 @@ class VoiceParticipantList extends ConsumerWidget {
       ),
     );
     final selfUserId = ref.watchUserId();
+    final serverKey = ref.readActiveServerKey();
 
     final members = spaceId == null
         ? null
@@ -117,6 +119,17 @@ class VoiceParticipantList extends ConsumerWidget {
                 (selfAfk && row.voiceState.userId == selfUserId) ||
                 accordPresenceStatus(presences, row.voiceState.userId) ==
                     'idle',
+            // Our own volume isn't adjustable; everyone else's is, for us only.
+            onOpenVolume:
+                serverKey == null || row.voiceState.userId == selfUserId
+                ? null
+                : (position) => showUserVolumeMenu(
+                    context,
+                    serverKey: serverKey,
+                    userId: row.voiceState.userId,
+                    name: row.display.name,
+                    globalPosition: position,
+                  ),
           ),
       ],
     );
@@ -131,6 +144,7 @@ class _ParticipantRow extends StatelessWidget {
     required this.roles,
     required this.speaking,
     required this.afk,
+    this.onOpenVolume,
   });
 
   final AccordVoiceState voiceState;
@@ -142,6 +156,10 @@ class _ParticipantRow extends StatelessWidget {
   /// Away from keyboard: dims the row and adds a moon badge.
   final bool afk;
 
+  /// Opens the local volume menu (right-click position, null on long-press).
+  /// Null for our own row.
+  final void Function(Offset? position)? onOpenVolume;
+
   @override
   Widget build(BuildContext context) {
     final colors = BonfireThemeExtension.of(context);
@@ -151,58 +169,66 @@ class _ParticipantRow extends StatelessWidget {
         (colorRole == null ? null : accordRoleColor(colorRole.color)) ??
         colors.dirtyWhite;
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(28, 1, 8, 1),
-      child: Row(
-        children: [
-          Opacity(
-            // Dimmed avatar for an away member, matching how every other chat
-            // client signals "present but not here".
-            opacity: afk ? 0.4 : 1,
-            child: Container(
-              width: 22,
-              height: 22,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: speaking
-                    ? Border.all(color: colors.green, width: 2)
-                    : null,
-              ),
-              padding: const EdgeInsets.all(1),
-              child: AccordMemberAvatar(
-                avatarUrl: display.avatarUrl,
-                initial: accordInitial(display.name),
-                radius: 9,
-                backgroundColor: display.color,
-                initialStyle: const TextStyle(fontSize: 9),
-              ),
-            ),
-          ),
-          const SizedBox(width: 6),
-          Expanded(
-            child: Text(
-              display.name,
-              overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.bodySmall!.copyWith(
-                color: afk ? nameColor.withValues(alpha: 0.5) : nameColor,
-              ),
-            ),
-          ),
-          if (afk)
-            Padding(
-              padding: const EdgeInsets.only(left: 4),
-              child: Tooltip(
-                message: 'Away',
-                child: Icon(
-                  Icons.nightlight_round,
-                  size: 11,
-                  color: colors.gray,
-                  key: const Key('voice-participant-afk'),
+    final openVolume = onOpenVolume;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onSecondaryTapUp: openVolume == null
+          ? null
+          : (d) => openVolume(d.globalPosition),
+      onLongPress: openVolume == null ? null : () => openVolume(null),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(28, 1, 8, 1),
+        child: Row(
+          children: [
+            Opacity(
+              // Dimmed avatar for an away member, matching how every other chat
+              // client signals "present but not here".
+              opacity: afk ? 0.4 : 1,
+              child: Container(
+                width: 22,
+                height: 22,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: speaking
+                      ? Border.all(color: colors.green, width: 2)
+                      : null,
+                ),
+                padding: const EdgeInsets.all(1),
+                child: AccordMemberAvatar(
+                  avatarUrl: display.avatarUrl,
+                  initial: accordInitial(display.name),
+                  radius: 9,
+                  backgroundColor: display.color,
+                  initialStyle: const TextStyle(fontSize: 9),
                 ),
               ),
             ),
-          ..._flags(colors),
-        ],
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                display.name,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.bodySmall!.copyWith(
+                  color: afk ? nameColor.withValues(alpha: 0.5) : nameColor,
+                ),
+              ),
+            ),
+            if (afk)
+              Padding(
+                padding: const EdgeInsets.only(left: 4),
+                child: Tooltip(
+                  message: 'Away',
+                  child: Icon(
+                    Icons.nightlight_round,
+                    size: 11,
+                    color: colors.gray,
+                    key: const Key('voice-participant-afk'),
+                  ),
+                ),
+              ),
+            ..._flags(colors),
+          ],
+        ),
       ),
     );
   }

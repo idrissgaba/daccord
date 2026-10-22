@@ -6,6 +6,7 @@ import 'package:bonfire/features/events/controllers/presence.dart';
 import 'package:bonfire/features/notifications/services/sound.dart';
 import 'package:bonfire/features/server/controllers/connections.dart';
 import 'package:bonfire/features/settings/controllers/settings.dart';
+import 'package:bonfire/features/settings/models/accord_settings.dart';
 import 'package:bonfire/features/voice/controllers/voice_states.dart';
 import 'package:bonfire/features/voice/services/afk_monitor.dart';
 import 'package:bonfire/features/voice/services/voice_session.dart';
@@ -155,6 +156,8 @@ class VoiceController extends _$VoiceController {
           audioOutputDeviceId: s.audioOutputDeviceId,
           outputVolume: s.outputVolume,
           inputVolume: s.inputVolume,
+          userVolumes: s.userVolumes,
+          locallyMutedUsers: s.locallyMutedUsers,
         ),
       ),
       (prev, next) {
@@ -175,6 +178,12 @@ class VoiceController extends _$VoiceController {
         if (prev?.inputVolume != next.inputVolume) {
           session.setInputVolume(next.inputVolume);
         }
+        if (prev?.userVolumes != next.userVolumes ||
+            prev?.locallyMutedUsers != next.locallyMutedUsers) {
+          session.setUserVolumes(
+            _userVolumes(ref.read(settingsControllerProvider)),
+          );
+        }
       },
     );
     ref.onDispose(() {
@@ -185,6 +194,12 @@ class VoiceController extends _$VoiceController {
       soundManager.voiceSessionActive = false;
     });
     return const VoiceConnection();
+  }
+
+  /// Our per-participant volumes on the server this session is pinned to.
+  Map<String, int> _userVolumes(AccordSettings settings) {
+    final key = state.serverKey;
+    return key == null ? const {} : settings.userVolumesFor(key);
   }
 
   /// The client for the connection our voice session is pinned to
@@ -287,6 +302,7 @@ class VoiceController extends _$VoiceController {
       audioOutputDeviceId: settings.audioOutputDeviceId,
       outputVolume: settings.outputVolume,
       inputVolume: settings.inputVolume,
+      userVolumes: _userVolumes(settings),
     );
     _applyConnectOutcome();
     if (state.sessionState == VoiceSessionState.failed) return;
@@ -436,12 +452,18 @@ class VoiceController extends _$VoiceController {
     if (url == null || url.isEmpty || token == null || token.isEmpty) return;
     final sessionState = _session?.state;
     if (sessionState == null || !needsReconnect(sessionState)) return;
+    final settings = ref.read(settingsControllerProvider);
     await _session?.connect(
       url,
       token,
       selfMute: state.selfMute,
       selfDeaf: state.selfDeaf,
-      relayOnly: ref.read(settingsControllerProvider).voiceRelayOnly,
+      relayOnly: settings.voiceRelayOnly,
+      audioInputDeviceId: settings.audioInputDeviceId,
+      audioOutputDeviceId: settings.audioOutputDeviceId,
+      outputVolume: settings.outputVolume,
+      inputVolume: settings.inputVolume,
+      userVolumes: _userVolumes(settings),
     );
     _applyConnectOutcome();
   }
@@ -558,6 +580,7 @@ class VoiceController extends _$VoiceController {
       audioOutputDeviceId: settings.audioOutputDeviceId,
       outputVolume: settings.outputVolume,
       inputVolume: settings.inputVolume,
+      userVolumes: _userVolumes(settings),
     );
     _applyConnectOutcome();
   }

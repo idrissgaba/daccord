@@ -38,6 +38,10 @@ class VoiceSession {
   /// audio track via the WebRTC track volume.
   double _outputGain = 1;
 
+  /// Our local per-participant volumes (0–200 %, 0 = muted for us), keyed by
+  /// participant identity (= Accord user ID). Absent users play at 100 %.
+  Map<String, int> _userVolumes = const {};
+
   /// Input (microphone) gain as a 0–2 multiplier; best-effort — not every
   /// platform honours setting volume on a capture track.
   double _inputGain = 1;
@@ -148,10 +152,12 @@ class VoiceSession {
     String? audioOutputDeviceId,
     int outputVolume = 100,
     int inputVolume = 100,
+    Map<String, int>? userVolumes,
   }) async {
     _deafened = selfDeaf;
     _outputGain = voiceGain(outputVolume);
     _inputGain = voiceGain(inputVolume);
+    if (userVolumes != null) _userVolumes = userVolumes;
 
     final captureDeviceId = normalizeDeviceId(audioInputDeviceId);
     final room = _ensureRoom();
@@ -529,6 +535,13 @@ class VoiceSession {
     await _applyOutputGain();
   }
 
+  /// Replaces our per-participant volumes ([userVolumes]: user ID → 0–200 %,
+  /// 0 = muted for us) and re-applies every remote track's gain.
+  Future<void> setUserVolumes(Map<String, int> userVolumes) async {
+    _userVolumes = userVolumes;
+    await _applyOutputGain();
+  }
+
   /// Sets the microphone input volume from a 0–200 percentage (best-effort).
   Future<void> setInputVolume(int percent) async {
     _inputGain = voiceGain(percent);
@@ -547,12 +560,26 @@ class VoiceSession {
     final room = _room;
     if (room == null) return;
     for (final participant in room.remoteParticipants.values) {
+      final gain = _gainFor(participant.identity);
       for (final pub in participant.audioTrackPublications) {
         final track = pub.track;
-        if (track != null) {
-          await _setTrackVolume(track.mediaStreamTrack, _outputGain);
-        }
+        if (track != null) await _setRemoteVolume(track, gain);
       }
+    }
+  }
+
+  /// The gain for [userId]'s audio: global output × their own volume.
+  double _gainFor(String userId) => participantGain(
+    outputGain: _outputGain,
+    userVolumePercent: _userVolumes[userId],
+    maxGain: kIsWeb ? maxWebTrackGain : maxNativeTrackGain,
+  );
+
+  Future<void> _setRemoteVolume(Track track, double gain) async {
+    if (track is RemoteAudioTrack) {
+      await _guardMedia('volume', () => track.setVolume(gain));
+    } else {
+      await _setTrackVolume(track.mediaStreamTrack, gain);
     }
   }
 
@@ -647,7 +674,7 @@ class VoiceSession {
           } else {
             final track = e.track;
             if (track is AudioTrack) {
-              await _setTrackVolume(track.mediaStreamTrack, _outputGain);
+              await _setRemoteVolume(track, _gainFor(e.participant.identity));
             }
           }
         }

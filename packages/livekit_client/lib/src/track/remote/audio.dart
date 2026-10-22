@@ -13,6 +13,7 @@
 // limitations under the License.
 
 import 'package:collection/collection.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_webrtc/flutter_webrtc.dart' as rtc;
 
 import '../../events.dart';
@@ -70,6 +71,18 @@ class RemoteAudioTrack extends RemoteTrack with AudioTrack, RemoteAudioManagemen
   void setSinkId(String deviceId) {
     audio.setSinkId(getCid(), deviceId);
     _deviceId = deviceId;
+  }
+
+  /// Sets this track's playback gain for us only. Native platforms scale the
+  /// decoded audio in WebRTC (above 1 amplifies); the web sets the playing
+  /// element's volume, which is capped at 1. `Helper.setVolume` is not used on
+  /// the web: its `volume` constraint is ignored for remote tracks.
+  Future<void> setVolume(double volume) async {
+    if (kIsWeb) {
+      audio.setVolume(getCid(), volume);
+      return;
+    }
+    await rtc.Helper.setVolume(volume, mediaStreamTrack);
   }
 
   AudioReceiverStats? prevStats;
