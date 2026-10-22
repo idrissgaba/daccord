@@ -198,9 +198,11 @@ class VoiceController extends _$VoiceController {
       _releasePushToTalk?.cancel();
       _session?.setPushToTalk(enabled);
     });
-    HardwareKeyboard.instance.addHandler(_onKeyEvent);
+    final keyHookAttached = _attachKeyHook();
     ref.onDispose(() {
-      HardwareKeyboard.instance.removeHandler(_onKeyEvent);
+      if (keyHookAttached) {
+        HardwareKeyboard.instance.removeHandler(_onKeyEvent);
+      }
       _releasePushToTalk?.cancel();
       _afkMonitor?.dispose();
       _afkMonitor = null;
@@ -510,6 +512,17 @@ class VoiceController extends _$VoiceController {
     ..onStateChanged = _onSessionStateChanged
     ..onDisconnected = _onSessionDisconnected
     ..setPushToTalk(ref.read(settingsControllerProvider).pushToTalk);
+
+  /// Hooks [_onKeyEvent] into the app-wide keyboard. Returns false where no
+  /// services binding exists (pure-Dart tests), which have no keyboard anyway.
+  bool _attachKeyHook() {
+    try {
+      HardwareKeyboard.instance.addHandler(_onKeyEvent);
+      return true;
+    } on FlutterError {
+      return false;
+    }
+  }
 
   /// Pending close of the push-to-talk mic after the key was released.
   Timer? _releasePushToTalk;
