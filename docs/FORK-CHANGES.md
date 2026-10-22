@@ -30,6 +30,8 @@ Material icons and existing sounds; no third-party brand assets are used.
 | Message actions: forward, copy message link (`daccord://` links open in-app), mark unread | `feature/message-actions` | Deployed | `shared/utils/in_app_links.dart`, `messaging/utils/forward_message.dart`, `messaging/views/forward_message_dialog.dart`, `channels/controllers/read_state.dart`, `messaging/views/message_pane/message_row.dart` |
 | Polls (create, vote, results, end early) | `feature/polls` | Deployed | `packages/accordkit/lib/src/models/poll.dart`, `messaging/utils/poll_display.dart`, `messaging/views/poll_view.dart`, `messaging/controllers/accord_messages.dart` |
 | Voice moderation: server mute/deafen, move (menu or drag), disconnect, user limits | `feature/voice-moderation` | Deployed | `voice/views/voice_moderation_menu.dart`, `voice/controllers/voice.dart`, `voice/views/voice_participants.dart`, `voice/utils/voice_logic.dart` |
+| Webhooks management, APP badge, per-message webhook names | `feature/webhooks` | Deployed | `spaces/views/accord_webhooks.dart`, `packages/accordkit/lib/src/models/webhook.dart`, `packages/accordkit/lib/src/rest/endpoints/webhooks_api.dart`, `messaging/views/message_author_header.dart` |
+| Slash commands, bot buttons and menus, ephemeral and "thinking…" answers | `feature/interactions` | Deployed | `messaging/views/command_picker.dart`, `messaging/views/message_components.dart`, `messaging/controllers/app_commands.dart`, `messaging/utils/interaction_logic.dart`, `packages/accordkit/lib/src/models/command.dart`, `packages/accordkit/lib/src/rest/endpoints/interactions_api.dart` |
 
 Paths are under `lib/features/` unless they start with `packages/`.
 
