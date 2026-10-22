@@ -9,6 +9,8 @@ import 'package:bonfire/features/voice/controllers/voice.dart';
 import 'package:bonfire/features/voice/controllers/voice_states.dart';
 import 'package:bonfire/features/voice/utils/participant_display.dart';
 import 'package:bonfire/features/voice/views/user_volume_menu.dart';
+import 'package:bonfire/features/voice/views/voice_moderation_menu.dart';
+import 'package:bonfire/shared/utils/platform.dart';
 import 'package:bonfire/theme/theme.dart';
 import 'package:bonfire/features/member/views/accord_member_avatar.dart';
 import 'package:collection/collection.dart';
@@ -57,6 +59,7 @@ class VoiceParticipantList extends ConsumerWidget {
     );
     final selfUserId = ref.watchUserId();
     final serverKey = ref.readActiveServerKey();
+    final moderation = watchVoiceModerationRights(ref, spaceId);
 
     final members = spaceId == null
         ? null
@@ -105,31 +108,70 @@ class VoiceParticipantList extends ConsumerWidget {
           ),
         );
 
+    // Moderators drag participants onto another voice channel to move them
+    // (mouse layouts; touch keeps long-press for the menu).
+    final dragSpaceId = spaceId;
+    final canDrag =
+        moderation.move &&
+        dragSpaceId != null &&
+        serverKey != null &&
+        shouldUseDesktopLayout(context);
+    Widget draggable(Widget child, String userId, String name) {
+      if (!canDrag) return child;
+      return Draggable<VoiceMoveDrag>(
+        data: VoiceMoveDrag(
+          serverKey: serverKey,
+          spaceId: dragSpaceId,
+          fromChannelId: channelId,
+          userId: userId,
+          name: name,
+        ),
+        feedback: Material(
+          color: Colors.transparent,
+          child: Chip(
+            avatar: const Icon(Icons.volume_up, size: 16),
+            label: Text(name),
+          ),
+        ),
+        childWhenDragging: Opacity(opacity: 0.4, child: child),
+        child: child,
+      );
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         for (final row in rows)
-          _ParticipantRow(
-            voiceState: row.voiceState,
-            display: row.display,
-            member: members?[row.voiceState.userId],
-            roles: roles,
-            speaking: speaking.contains(row.voiceState.userId),
-            afk:
-                (selfAfk && row.voiceState.userId == selfUserId) ||
-                accordPresenceStatus(presences, row.voiceState.userId) ==
-                    'idle',
-            // Our own volume isn't adjustable; everyone else's is, for us only.
-            onOpenVolume:
-                serverKey == null || row.voiceState.userId == selfUserId
-                ? null
-                : (position) => showUserVolumeMenu(
-                    context,
-                    serverKey: serverKey,
-                    userId: row.voiceState.userId,
-                    name: row.display.name,
-                    globalPosition: position,
-                  ),
+          draggable(
+            _ParticipantRow(
+              voiceState: row.voiceState,
+              display: row.display,
+              member: members?[row.voiceState.userId],
+              roles: roles,
+              speaking: speaking.contains(row.voiceState.userId),
+              afk:
+                  (selfAfk && row.voiceState.userId == selfUserId) ||
+                  accordPresenceStatus(presences, row.voiceState.userId) ==
+                      'idle',
+              // Our own volume isn't adjustable; everyone else's is, for us only.
+              // Moderators also get the voice moderation actions, on any row.
+              onOpenVolume:
+                  serverKey == null ||
+                      (row.voiceState.userId == selfUserId && !moderation.any)
+                  ? null
+                  : (position) => showUserVolumeMenu(
+                      context,
+                      serverKey: serverKey,
+                      userId: row.voiceState.userId,
+                      name: row.display.name,
+                      globalPosition: position,
+                      spaceId: spaceId,
+                      channelId: channelId,
+                      showVolume: row.voiceState.userId != selfUserId,
+                    ),
+            ),
+            row.voiceState.userId,
+            row.display.name,
           ),
       ],
     );
@@ -235,15 +277,53 @@ class _ParticipantRow extends StatelessWidget {
 
   List<Widget> _flags(BonfireThemeExtension colors) {
     final flags = <Widget>[];
-    if (voiceState.selfDeaf) {
+    // Moderator-imposed states win over our own toggles, with an icon so they
+    // read differently from a self-mute.
+    if (voiceState.deaf) {
+      flags.add(
+        _serverFlag(
+          Icons.headset_off,
+          'Server deafened',
+          colors.red,
+          const Key('voice-participant-server-deaf'),
+        ),
+      );
+    } else if (voiceState.mute) {
+      flags.add(
+        _serverFlag(
+          Icons.mic_off,
+          'Server muted',
+          colors.red,
+          const Key('voice-participant-server-mute'),
+        ),
+      );
+    } else if (voiceState.selfDeaf) {
       flags.add(_flag('D', colors.red));
     } else if (voiceState.selfMute) {
       flags.add(_flag('M', colors.red));
+    } else if (voiceState.suppress) {
+      flags.add(
+        _serverFlag(
+          Icons.mic_off,
+          "Can't speak in this channel",
+          colors.gray,
+          const Key('voice-participant-suppressed'),
+        ),
+      );
     }
     if (voiceState.selfVideo) flags.add(_flag('V', colors.green));
     if (voiceState.selfStream) flags.add(_flag('S', colors.primary));
     return flags;
   }
+
+  Widget _serverFlag(IconData icon, String tooltip, Color color, Key key) =>
+      Padding(
+        padding: const EdgeInsets.only(left: 4),
+        child: Tooltip(
+          message: tooltip,
+          child: Icon(icon, key: key, size: 13, color: color),
+        ),
+      );
 
   Widget _flag(String text, Color color) => Padding(
     padding: const EdgeInsets.only(left: 4),

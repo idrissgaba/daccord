@@ -13,6 +13,7 @@ import 'package:bonfire/features/voice/services/voice_session.dart'
     show VoiceSession;
 import 'package:bonfire/features/voice/utils/participant_display.dart';
 import 'package:bonfire/features/voice/views/user_volume_menu.dart';
+import 'package:bonfire/features/voice/views/voice_moderation_menu.dart';
 import 'package:bonfire/features/voice/views/screen_share_picker.dart';
 import 'package:bonfire/features/voice/views/voice_settings_screen.dart';
 import 'package:bonfire/features/voice/views/voice_text_panel.dart';
@@ -397,13 +398,14 @@ class _ConnectedBody extends ConsumerWidget {
     }
 
     final serverKey = ref.readActiveServerKey();
+    final moderation = watchVoiceModerationRights(ref, spaceId);
     Widget tileWidget(_Tile t) => _VideoTile(
       key: ValueKey('${t.userId}:${t.isScreen}'),
       tile: t,
       speaking: speaking.contains(t.userId),
       spotlighted: spotlightUserId == t.userId,
       onDoubleTap: () => onToggleSpotlight(t.userId),
-      onOpenVolume: serverKey == null || t.userId == myId
+      onOpenVolume: serverKey == null || (t.userId == myId && !moderation.any)
           ? null
           : (position) => showUserVolumeMenu(
               context,
@@ -411,6 +413,9 @@ class _ConnectedBody extends ConsumerWidget {
               userId: t.userId,
               name: t.name,
               globalPosition: position,
+              spaceId: spaceId,
+              channelId: channelId,
+              showVolume: t.userId != myId,
             ),
     );
 
@@ -467,7 +472,8 @@ class _ConnectedBody extends ConsumerWidget {
           bg: display.color,
           track: camera,
           isScreen: false,
-          muted: vs.selfMute || vs.selfDeaf,
+          muted:
+              vs.selfMute || vs.selfDeaf || vs.mute || vs.deaf || vs.suppress,
         ),
       );
       if (vs.selfStream && session != null) {
@@ -692,16 +698,22 @@ class _ControlBar extends ConsumerWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           _ControlButton(
-            icon: voice.selfMute ? Icons.mic_off : Icons.mic,
-            tooltip: voice.selfMute ? 'Unmute' : 'Mute',
-            active: voice.selfMute,
+            icon: voice.selfMute || !voice.canSpeak ? Icons.mic_off : Icons.mic,
+            tooltip:
+                voice.speakBlockedReason ??
+                (voice.selfMute ? 'Unmute' : 'Mute'),
+            active: voice.selfMute || !voice.canSpeak,
             activeColor: colors.red,
             onPressed: notifier.toggleMute,
           ),
           _ControlButton(
-            icon: voice.selfDeaf ? Icons.headset_off : Icons.headset,
-            tooltip: voice.selfDeaf ? 'Undeafen' : 'Deafen',
-            active: voice.selfDeaf,
+            icon: voice.selfDeaf || voice.serverDeaf
+                ? Icons.headset_off
+                : Icons.headset,
+            tooltip: voice.serverDeaf
+                ? 'A moderator has deafened you.'
+                : (voice.selfDeaf ? 'Undeafen' : 'Deafen'),
+            active: voice.selfDeaf || voice.serverDeaf,
             activeColor: colors.red,
             onPressed: notifier.toggleDeafen,
           ),

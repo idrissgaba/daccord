@@ -334,9 +334,12 @@ class _ChannelTileState extends ConsumerState<_ChannelTile> {
                       spaceId: widget.spaceId!,
                       channelId: channel.id,
                     )
-                  else if (isVoice && voiceCount > 0)
+                  else if (isVoice &&
+                      voiceOccupancyLabel(voiceCount, channel.userLimit) !=
+                          null)
                     Text(
-                      '$voiceCount',
+                      voiceOccupancyLabel(voiceCount, channel.userLimit)!,
+                      key: const Key('voice-channel-occupancy'),
                       style: Theme.of(
                         context,
                       ).textTheme.labelSmall!.copyWith(color: colors.gray),
@@ -385,7 +388,7 @@ class _ChannelTileState extends ConsumerState<_ChannelTile> {
     );
 
     if (!isVoice) return tileRow;
-    return OnboardingAnchor(
+    final voiceTile = OnboardingAnchor(
       anchor: OnboardingAnchorId.voiceChannel,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -393,6 +396,24 @@ class _ChannelTileState extends ConsumerState<_ChannelTile> {
           tileRow,
           VoiceParticipantList(channelId: channel.id, spaceId: widget.spaceId),
         ],
+      ),
+    );
+    final spaceId = widget.spaceId;
+    if (spaceId == null) return voiceTile;
+    // Drop target for a moderator dragging a participant across channels.
+    return DragTarget<VoiceMoveDrag>(
+      onWillAcceptWithDetails: (details) =>
+          details.data.canDropOn(spaceId, channel.id),
+      onAcceptWithDetails: (details) =>
+          moveVoiceParticipant(context, ref, details.data, channel.id),
+      builder: (context, candidates, _) => DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(8),
+          border: candidates.isEmpty
+              ? null
+              : Border.all(color: colors.green, width: 1.5),
+        ),
+        child: voiceTile,
       ),
     );
   }

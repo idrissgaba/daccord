@@ -150,17 +150,26 @@ class _VoiceBarState extends ConsumerState<VoiceBar> {
             Row(
               children: [
                 _VoiceButton(
-                  icon: voice.selfMute ? Icons.mic_off : Icons.mic,
-                  tooltip: voice.selfMute ? 'Unmute' : 'Mute',
-                  active: voice.selfMute,
+                  key: const Key('voice-bar-mute'),
+                  icon: voice.selfMute || !voice.canSpeak
+                      ? Icons.mic_off
+                      : Icons.mic,
+                  tooltip:
+                      voice.speakBlockedReason ??
+                      (voice.selfMute ? 'Unmute' : 'Mute'),
+                  active: voice.selfMute || !voice.canSpeak,
                   activeColor: colors.red,
                   onPressed: () =>
                       ref.read(voiceControllerProvider.notifier).toggleMute(),
                 ),
                 _VoiceButton(
-                  icon: voice.selfDeaf ? Icons.headset_off : Icons.headset,
-                  tooltip: voice.selfDeaf ? 'Undeafen' : 'Deafen',
-                  active: voice.selfDeaf,
+                  icon: voice.selfDeaf || voice.serverDeaf
+                      ? Icons.headset_off
+                      : Icons.headset,
+                  tooltip: voice.serverDeaf
+                      ? 'A moderator has deafened you.'
+                      : (voice.selfDeaf ? 'Undeafen' : 'Deafen'),
+                  active: voice.selfDeaf || voice.serverDeaf,
                   activeColor: colors.red,
                   onPressed: () =>
                       ref.read(voiceControllerProvider.notifier).toggleDeafen(),
@@ -263,6 +272,7 @@ class _VoiceBarState extends ConsumerState<VoiceBar> {
 
 class _VoiceButton extends StatelessWidget {
   const _VoiceButton({
+    super.key,
     required this.icon,
     required this.tooltip,
     required this.active,

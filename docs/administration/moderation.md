@@ -21,6 +21,26 @@ Right-click a member in the member list to access moderation actions:
 
 These actions require the appropriate permissions for your role.
 
+## Voice Moderation
+
+Right-click (or long-press) someone in a voice channel to moderate them. You
+only see the actions your roles allow:
+
+- **Server Mute** (Mute Members): they can't speak until you lift it, in every
+  voice channel of the space.
+- **Server Deafen** (Deafen Members): they can neither hear nor speak.
+- **Move To** (Move Members): pick another voice channel and they're moved
+  there. On a computer you can also drag them onto another voice channel.
+- **Disconnect** (Move Members): removes them from voice.
+
+The server enforces these, not the app: a muted member's microphone is cut off
+even on another client. Muted and deafened members show a red microphone or
+headset icon in the channel list.
+
+A voice channel's **user limit** caps how many people can be in it (shown as
+`2/10` next to the channel). Members who can move others can still join a full
+channel.
+
 ## Managing Bans
 
 1. Open space settings.

@@ -37,6 +37,9 @@ class VoiceConnection {
     this.isAfk = false,
     this.error,
     this.tick = 0,
+    this.serverMute = false,
+    this.serverDeaf = false,
+    this.suppressed = false,
   });
 
   final String? channelId;
@@ -68,7 +71,26 @@ class VoiceConnection {
   /// video grid watches it to rebuild its tiles.
   final int tick;
 
+  /// A moderator muted us (the server sends none of our audio).
+  final bool serverMute;
+
+  /// A moderator deafened us (the server sends us nothing, takes nothing).
+  final bool serverDeaf;
+
+  /// The channel denies us `speak`.
+  final bool suppressed;
+
   bool get isConnected => channelId != null;
+
+  /// Whether the server carries our microphone right now.
+  bool get canSpeak => !(serverMute || serverDeaf || suppressed);
+
+  /// Why we can't speak (see [canSpeak]), or null.
+  String? get speakBlockedReason => voiceSpeakBlockedReason(
+    serverMute: serverMute,
+    serverDeaf: serverDeaf,
+    suppressed: suppressed,
+  );
 
   VoiceConnection copyWith({
     String? channelId,
@@ -84,6 +106,9 @@ class VoiceConnection {
     String? error,
     bool clearError = false,
     int? tick,
+    bool? serverMute,
+    bool? serverDeaf,
+    bool? suppressed,
   }) {
     return VoiceConnection(
       channelId: channelId ?? this.channelId,
@@ -98,6 +123,9 @@ class VoiceConnection {
       isAfk: isAfk ?? this.isAfk,
       error: clearError ? null : (error ?? this.error),
       tick: tick ?? this.tick,
+      serverMute: serverMute ?? this.serverMute,
+      serverDeaf: serverDeaf ?? this.serverDeaf,
+      suppressed: suppressed ?? this.suppressed,
     );
   }
 }
@@ -267,7 +295,7 @@ class VoiceController extends _$VoiceController {
     final info = result.data;
     if (!result.ok || info is! AccordVoiceServerUpdate) {
       state = state.copyWith(
-        error: result.error?.message ?? 'Failed to join voice channel',
+        error: voiceJoinErrorMessage(result.error?.message),
       );
       return;
     }
@@ -287,6 +315,9 @@ class VoiceController extends _$VoiceController {
       serverKey: serverKey,
       sessionState: VoiceSessionState.connecting,
       clearError: true,
+      serverMute: info.voiceState?.mute ?? false,
+      serverDeaf: info.voiceState?.deaf ?? false,
+      suppressed: info.voiceState?.suppress ?? false,
     );
     final settings = ref.read(settingsControllerProvider);
     // Flag the live call *before* the media session comes up, so no chime can
@@ -295,7 +326,7 @@ class VoiceController extends _$VoiceController {
     await _session!.connect(
       url,
       token,
-      selfMute: state.selfMute,
+      selfMute: state.selfMute || !state.canSpeak,
       selfDeaf: state.selfDeaf,
       relayOnly: settings.voiceRelayOnly,
       audioInputDeviceId: settings.audioInputDeviceId,
@@ -355,8 +386,35 @@ class VoiceController extends _$VoiceController {
     state = state.copyWith(selfMute: muted);
     soundManager.play(muted ? 'mute' : 'unmute');
     _sendVoiceStateUpdate();
+    // Our own unmute still counts, but the mic stays off until the server
+    // lets us speak again (see [applyServerFlags]).
+    if (!muted && !state.canSpeak) {
+      state = state.copyWith(error: state.speakBlockedReason);
+      return;
+    }
     final session = _session;
     if (session != null) unawaited(_applyMic(session, enabled: !muted));
+  }
+
+  /// Our own voice state changed on the server: a moderator muted or deafened
+  /// us (or lifted it), or the channel's `speak` right changed. LiveKit already
+  /// enforces it; this keeps the bar and the microphone in step.
+  void applyServerFlags(AccordVoiceState vs) {
+    if (!state.isConnected || vs.channelId != state.channelId) return;
+    final couldSpeak = state.canSpeak;
+    state = state.copyWith(
+      serverMute: vs.mute,
+      serverDeaf: vs.deaf,
+      suppressed: vs.suppress,
+    );
+    final session = _session;
+    if (session == null || couldSpeak == state.canSpeak) return;
+    if (!state.canSpeak) {
+      state = state.copyWith(error: state.speakBlockedReason);
+      unawaited(session.setMicEnabled(false));
+    } else if (!state.selfMute) {
+      unawaited(_applyMic(session, enabled: true));
+    }
   }
 
   /// Applies a mute toggle to the media session. An *unmute* that fails (the
@@ -441,8 +499,61 @@ class VoiceController extends _$VoiceController {
   /// Fresh LiveKit credentials arrived over the gateway. Reconnects only when
   /// the session has actually dropped ([needsReconnect]); serialized behind any
   /// in-flight join.
-  void handleServerUpdate(AccordVoiceServerUpdate info) {
+  void handleServerUpdate(AccordVoiceServerUpdate info, {String? serverKey}) {
+    if (info.moved) {
+      if (serverKey != null && serverKey != state.serverKey) return;
+      _serialize(() => _followMoveLocked(info));
+      return;
+    }
     _serialize(() => _serverUpdateLocked(info));
+  }
+
+  /// A moderator moved us to another channel: reconnect to the new room with
+  /// the credentials the server sent, without leaving voice on the server
+  /// (it already moved us there).
+  Future<void> _followMoveLocked(AccordVoiceServerUpdate info) async {
+    if (!state.isConnected || info.channelId.isEmpty) return;
+    if (!isMoveForUs(
+      currentChannelId: state.channelId,
+      fromChannelId: info.fromChannelId,
+      toChannelId: info.channelId,
+    )) {
+      return;
+    }
+    final url = info.livekitUrl;
+    final token = info.token;
+    if (url == null || url.isEmpty || token == null || token.isEmpty) return;
+    final flags = info.voiceState;
+    state = state.copyWith(
+      channelId: info.channelId,
+      spaceId: info.spaceId.isEmpty ? null : info.spaceId,
+      sessionState: VoiceSessionState.connecting,
+      // Camera and screen share don't follow us into the new room.
+      selfVideo: false,
+      selfStream: false,
+      serverMute: flags?.mute ?? false,
+      serverDeaf: flags?.deaf ?? false,
+      suppressed: flags?.suppress ?? false,
+      clearError: true,
+    );
+    _reconnectAttempted = false;
+    final settings = ref.read(settingsControllerProvider);
+    await _session?.connect(
+      url,
+      token,
+      selfMute: state.selfMute || !state.canSpeak,
+      selfDeaf: state.selfDeaf,
+      relayOnly: settings.voiceRelayOnly,
+      audioInputDeviceId: settings.audioInputDeviceId,
+      audioOutputDeviceId: settings.audioOutputDeviceId,
+      outputVolume: settings.outputVolume,
+      inputVolume: settings.inputVolume,
+      userVolumes: _userVolumes(settings),
+    );
+    _applyConnectOutcome();
+    if (state.sessionState == VoiceSessionState.failed) return;
+    soundManager.play('voice_join');
+    await _refreshVoiceStates(info.channelId);
   }
 
   Future<void> _serverUpdateLocked(AccordVoiceServerUpdate info) async {
@@ -519,12 +630,26 @@ class VoiceController extends _$VoiceController {
     state = state.copyWith(sessionState: sessionState);
   }
 
-  void _onSessionDisconnected({required bool intentional}) {
+  void _onSessionDisconnected({
+    required bool intentional,
+    bool removed = false,
+  }) {
     if (!shouldAutoReconnect(
       intentional: intentional,
       stillConnected: state.isConnected,
       alreadyAttempted: _reconnectAttempted,
     )) {
+      return;
+    }
+    if (removed) {
+      // The server pulled us out of the room: a move or a disconnect is on its
+      // way over the gateway. Give it a moment before falling back to a
+      // reconnect, which would otherwise put us back where we were.
+      state = state.copyWith(sessionState: VoiceSessionState.reconnecting);
+      Future<void>.delayed(removedReconnectGrace, () {
+        if (!state.isConnected) return;
+        _serialize(_reconnectLocked);
+      });
       return;
     }
     // LiveKit gave up its own retries. Rather than wait on a gateway push that

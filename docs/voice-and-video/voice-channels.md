@@ -29,6 +29,11 @@ The voice bar provides these controls:
 - **Settings** -- Open voice settings
 - **Disconnect** -- Leave the voice channel
 
+If a moderator mutes or deafens you, the microphone (or headset) button turns
+red and says so when you hover it; your own mute still works, and your
+microphone comes back on its own when they lift it. If a moderator moves you
+to another channel, the app follows you there.
+
 ## Speaking Indicator
 
 When someone is speaking, a green ring appears around their avatar in the participant list.
