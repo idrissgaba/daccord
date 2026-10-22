@@ -80,7 +80,7 @@ class VoiceSession {
 
   /// Fires when the room disconnects. [intentional] is true for a local
   /// leave/teardown, false for a dropped connection.
-  void Function({required bool intentional})? onDisconnected;
+  void Function({required bool intentional, bool removed})? onDisconnected;
 
   Room? get room => _room;
   VoiceSessionState get state => _state;
@@ -798,7 +798,10 @@ class VoiceSession {
             _intentionalDisconnect ||
             e.reason == DisconnectReason.clientInitiated;
         _setState(VoiceSessionState.disconnected);
-        onDisconnected?.call(intentional: intentional);
+        onDisconnected?.call(
+          intentional: intentional,
+          removed: e.reason == DisconnectReason.participantRemoved,
+        );
       })
       ..on<RoomReconnectingEvent>((_) {
         _setState(VoiceSessionState.reconnecting);

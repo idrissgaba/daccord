@@ -15,6 +15,11 @@ class AccordVoiceServerUpdate {
   /// Present in the REST join response, absent in the gateway event.
   AccordVoiceState? voiceState;
 
+  /// A moderator moved us from [fromChannelId] to [channelId]; the client
+  /// should reconnect to the new room with these credentials.
+  bool moved;
+  String? fromChannelId;
+
   AccordVoiceServerUpdate({
     this.spaceId = '',
     this.channelId = '',
@@ -23,6 +28,8 @@ class AccordVoiceServerUpdate {
     this.token,
     this.sfuEndpoint,
     this.voiceState,
+    this.moved = false,
+    this.fromChannelId,
   });
 
   factory AccordVoiceServerUpdate.fromJson(Map<String, dynamic> d) {
@@ -34,6 +41,8 @@ class AccordVoiceServerUpdate {
       livekitUrl: asStringOrNull(d['livekit_url'] ?? d['url']),
       token: asStringOrNull(d['token']),
       sfuEndpoint: asStringOrNull(d['sfu_endpoint'] ?? d['endpoint']),
+      moved: d['moved'] == true,
+      fromChannelId: asStringOrNull(d['from_channel_id']),
     );
     final rawVs = asMap(d['voice_state']);
     if (rawVs != null) v.voiceState = AccordVoiceState.fromJson(rawVs);
@@ -50,6 +59,8 @@ class AccordVoiceServerUpdate {
     if (token != null) d['token'] = token;
     if (sfuEndpoint != null) d['sfu_endpoint'] = sfuEndpoint;
     if (voiceState != null) d['voice_state'] = voiceState!.toJson();
+    if (moved) d['moved'] = true;
+    if (fromChannelId != null) d['from_channel_id'] = fromChannelId;
     return d;
   }
 }

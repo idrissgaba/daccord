@@ -1,5 +1,6 @@
 import 'package:bonfire/features/settings/controllers/settings.dart';
 import 'package:bonfire/features/settings/models/accord_settings.dart';
+import 'package:bonfire/features/voice/views/voice_moderation_menu.dart';
 import 'package:bonfire/shared/utils/platform.dart';
 import 'package:bonfire/theme/theme.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -14,17 +15,44 @@ int get maxUserVolumeSlider => kIsWeb ? 100 : AccordSettings.maxUserVolume;
 /// anchored menu at [globalPosition] on desktop layouts (right-click), a bottom
 /// sheet otherwise (long-press). Changes apply live and only affect what we
 /// hear.
+///
+/// With [spaceId] and [channelId] (a space voice channel), the menu also
+/// carries the voice moderation actions the current user may take. Without
+/// [showVolume] (our own row) it carries only those.
 Future<void> showUserVolumeMenu(
   BuildContext context, {
   required String serverKey,
   required String userId,
   required String name,
   Offset? globalPosition,
+  String? spaceId,
+  String? channelId,
+  bool showVolume = true,
 }) {
-  final panel = UserVolumePanel(
-    serverKey: serverKey,
-    userId: userId,
-    name: name,
+  final moderation = spaceId != null && channelId != null;
+  final panel = Column(
+    mainAxisSize: MainAxisSize.min,
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      if (showVolume)
+        UserVolumePanel(serverKey: serverKey, userId: userId, name: name)
+      else
+        ListTile(
+          dense: true,
+          title: Text(
+            name,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.titleSmall,
+          ),
+        ),
+      if (moderation)
+        VoiceModerationPanel(
+          serverKey: serverKey,
+          spaceId: spaceId,
+          channelId: channelId,
+          userId: userId,
+        ),
+    ],
   );
   if (shouldUseDesktopLayout(context) && globalPosition != null) {
     final overlay =
@@ -37,24 +65,30 @@ Future<void> showUserVolumeMenu(
         globalPosition & const Size(40, 40),
         Offset.zero & overlay.size,
       ),
-      items: [_PanelMenuEntry(child: panel)],
+      items: [
+        _PanelMenuEntry(
+          height: (showVolume ? 200 : 48) + (moderation ? 200 : 0),
+          child: panel,
+        ),
+      ],
     );
   }
   return showModalBottomSheet<void>(
     context: context,
-    builder: (_) => SafeArea(child: panel),
+    isScrollControlled: true,
+    builder: (_) => SafeArea(child: SingleChildScrollView(child: panel)),
   );
 }
 
 /// Hosts the interactive [UserVolumePanel] inside a popup menu, which
 /// otherwise only offers selectable rows.
 class _PanelMenuEntry extends PopupMenuEntry<int> {
-  const _PanelMenuEntry({required this.child});
+  const _PanelMenuEntry({required this.height, required this.child});
 
   final Widget child;
 
   @override
-  double get height => 200;
+  final double height;
 
   @override
   bool represents(int? value) => false;

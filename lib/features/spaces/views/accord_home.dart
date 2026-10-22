@@ -66,8 +66,10 @@ import 'package:bonfire/shared/utils/text_prompt_dialog.dart';
 import 'package:bonfire/features/voice/controllers/voice.dart';
 import 'package:bonfire/features/voice/controllers/voice_states.dart';
 import 'package:bonfire/features/voice/utils/voice_logic.dart'
-    show isVoiceDoubleTap;
+    show isVoiceDoubleTap, voiceOccupancyLabel;
 import 'package:bonfire/features/voice/views/voice_bar.dart';
+import 'package:bonfire/features/voice/views/voice_moderation_menu.dart'
+    show VoiceMoveDrag, moveVoiceParticipant;
 import 'package:bonfire/features/voice/views/voice_participants.dart';
 import 'package:bonfire/features/voice/views/voice_pip_overlay.dart';
 import 'package:bonfire/theme/theme.dart';

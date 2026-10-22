@@ -281,6 +281,9 @@ VoidCallback handleAccordEvents(
               .read(voiceControllerProvider.notifier)
               .handleForcedDisconnect(previousChannel);
         }
+        if (isVoiceServer && vs.userId == me && vs.channelId != null) {
+          ref.read(voiceControllerProvider.notifier).applyServerFlags(vs);
+        }
         return;
       }
 
@@ -295,6 +298,9 @@ VoidCallback handleAccordEvents(
             .read(voiceControllerProvider.notifier)
             .handleForcedDisconnect(voice.channelId);
       }
+      if (isVoiceServer && vs.userId == me && vs.channelId != null) {
+        ref.read(voiceControllerProvider.notifier).applyServerFlags(vs);
+      }
     }),
   );
 
@@ -308,7 +314,9 @@ VoidCallback handleAccordEvents(
       final isVoiceServer =
           serverKey == ref.read(voiceControllerProvider).serverKey;
       if (!isActive() && !isVoiceServer) return;
-      ref.read(voiceControllerProvider.notifier).handleServerUpdate(info);
+      ref
+          .read(voiceControllerProvider.notifier)
+          .handleServerUpdate(info, serverKey: serverKey);
     }),
   );
 

@@ -144,6 +144,27 @@ bool shouldAutoReconnect({
   required bool alreadyAttempted,
 }) => !intentional && stillConnected && !alreadyAttempted;
 
+/// How long to wait after the server removes us from a LiveKit room before
+/// reconnecting on our own: long enough for the gateway to say why (a move or
+/// a disconnect).
+const Duration removedReconnectGrace = Duration(seconds: 2);
+
+/// Whether a move announced for [fromChannelId] to [toChannelId] applies to a
+/// session in [currentChannelId]: we must still be where the move started, and
+/// not already at its destination.
+bool isMoveForUs({
+  required String? currentChannelId,
+  required String? fromChannelId,
+  required String toChannelId,
+}) {
+  if (currentChannelId == null || currentChannelId == toChannelId) {
+    return false;
+  }
+  return fromChannelId == null ||
+      fromChannelId.isEmpty ||
+      fromChannelId == currentChannelId;
+}
+
 /// Whether fresh credentials (token refresh / SFU move) should reconnect a
 /// session in [state]: only once it has dropped, failed or is reconnecting, so
 /// a healthy or still-connecting session isn't churned.
@@ -202,4 +223,42 @@ String describeMicFailure(Object error) {
   return reason.isEmpty
       ? 'Microphone unavailable'
       : 'Microphone unavailable: $reason';
+}
+
+/// Why the server won't carry our voice right now (a moderator muted or
+/// deafened us, or the channel denies `speak`), or null when it will.
+String? voiceSpeakBlockedReason({
+  required bool serverMute,
+  required bool serverDeaf,
+  required bool suppressed,
+}) {
+  if (serverDeaf) return 'A moderator has deafened you.';
+  if (serverMute) return 'A moderator has muted you.';
+  if (suppressed) return "You don't have permission to speak in this channel.";
+  return null;
+}
+
+/// The user-facing reason a voice join failed, from the server's error
+/// [message] (null keeps the generic fallback).
+String voiceJoinErrorMessage(String? message) => switch (message) {
+  'channel_full' => 'This voice channel is full.',
+  null || '' => 'Failed to join voice channel',
+  _ => message,
+};
+
+/// A channel's `user_limit` as a number (the model keeps the raw JSON), or
+/// null when unset or not a number.
+int? voiceUserLimit(Object? raw) => switch (raw) {
+  final int limit => limit,
+  final num limit => limit.toInt(),
+  final String limit => int.tryParse(limit),
+  _ => null,
+};
+
+/// The occupancy shown beside a voice channel: `3` for an open channel with
+/// people in it, `3/10` for a capped one (shown even when empty), or null.
+String? voiceOccupancyLabel(int count, Object? userLimit) {
+  final limit = voiceUserLimit(userLimit);
+  if (limit != null && limit > 0) return '$count/$limit';
+  return count > 0 ? '$count' : null;
 }
