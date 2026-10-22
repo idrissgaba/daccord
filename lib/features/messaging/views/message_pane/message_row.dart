@@ -144,6 +144,9 @@ class _MessageRowState extends ConsumerState<_MessageRow> {
   /// never shows the raw snowflake ID (the user controller fetches asynchronously
   /// — by the next rebuild a real name resolves; "Unknown" is the brief gap).
   String get _authorName {
+    // A webhook call may name itself for one message.
+    final webhookName = widget.message.webhookAuthorName;
+    if (webhookName != null && webhookName.isNotEmpty) return webhookName;
     if (widget.author != null) {
       return accordMemberName(widget.author, fallback: 'Unknown');
     }
@@ -523,6 +526,11 @@ class _MessageRowState extends ConsumerState<_MessageRow> {
                           time: _time,
                           timeTooltip: _fullTime,
                           edited: message.editedAt != null,
+                          appBadge:
+                              message.webhookId != null ||
+                              (widget.author?.user?.bot ??
+                                  widget.authorUser?.bot ??
+                                  false),
                         ),
                       if (_editing)
                         _buildEditor(theme, colors)

@@ -35,6 +35,7 @@ class MessageAuthorHeader extends StatelessWidget {
     this.edited = false,
     this.onNameLongPressStart,
     this.onNameSecondaryTapUp,
+    this.appBadge = false,
   });
 
   /// The resolved author display name.
@@ -71,6 +72,10 @@ class MessageAuthorHeader extends StatelessWidget {
   final bool edited;
   final GestureLongPressStartCallback? onNameLongPressStart;
   final GestureTapUpCallback? onNameSecondaryTapUp;
+
+  /// Marks the author as an app (a bot account or a webhook) with an "APP"
+  /// pill after the name.
+  final bool appBadge;
 
   @override
   Widget build(BuildContext context) {
@@ -117,6 +122,7 @@ class MessageAuthorHeader extends StatelessWidget {
           const SizedBox(width: 5),
           RemoteOriginBadge(domain: origin),
         ],
+        if (appBadge) ...[const SizedBox(width: 5), const AppBadge()],
         const SizedBox(width: 8),
         timeWidget,
         if (edited) ...[
@@ -127,6 +133,33 @@ class MessageAuthorHeader extends StatelessWidget {
           ),
         ],
       ],
+    );
+  }
+}
+
+/// The small "APP" pill shown after a bot's or a webhook's name.
+class AppBadge extends StatelessWidget {
+  const AppBadge({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = BonfireThemeExtension.of(context);
+    return Container(
+      key: const Key('app-badge'),
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+      decoration: BoxDecoration(
+        color: colors.primary,
+        borderRadius: BorderRadius.circular(3),
+      ),
+      child: const Text(
+        'APP',
+        style: TextStyle(
+          color: Colors.white,
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+          height: 1.2,
+        ),
+      ),
     );
   }
 }

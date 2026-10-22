@@ -34,6 +34,10 @@ class AccordMessage {
   Object? components;
   List<String>? stickerIds;
   String? webhookId;
+
+  /// The display name a webhook call chose for this message only
+  /// (`webhook_author.name`).
+  String? webhookAuthorName;
   String? threadId;
   int replyCount;
   Object? lastReplyAt;
@@ -70,6 +74,7 @@ class AccordMessage {
     this.components,
     this.stickerIds,
     this.webhookId,
+    this.webhookAuthorName,
     this.threadId,
     this.replyCount = 0,
     this.lastReplyAt,
@@ -97,6 +102,7 @@ class AccordMessage {
       flags: asInt(d['flags']),
       components: d['components'],
       webhookId: asStringOrNull(d['webhook_id']),
+      webhookAuthorName: asStringOrNull(asMap(d['webhook_author'])?['name']),
       threadId: asStringOrNull(d['thread_id']),
       replyCount: asInt(d['reply_count']),
       lastReplyAt: d['last_reply_at'],
@@ -196,6 +202,9 @@ class AccordMessage {
     if (components != null) d['components'] = components;
     if (stickerIds != null) d['sticker_ids'] = stickerIds;
     if (webhookId != null) d['webhook_id'] = webhookId;
+    if (webhookAuthorName != null) {
+      d['webhook_author'] = {'name': webhookAuthorName};
+    }
     if (threadId != null) d['thread_id'] = threadId;
     if (replyCount > 0) d['reply_count'] = replyCount;
     if (lastReplyAt != null) d['last_reply_at'] = lastReplyAt;

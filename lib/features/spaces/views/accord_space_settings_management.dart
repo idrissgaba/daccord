@@ -37,6 +37,7 @@ class _ManagementSection extends StatelessWidget {
     required this.canManageEmojis,
     required this.canUseSoundboard,
     required this.canManageSoundboard,
+    this.canManageWebhooks = false,
   });
 
   final String spaceId;
@@ -46,6 +47,7 @@ class _ManagementSection extends StatelessWidget {
   final bool canManageEmojis;
   final bool canUseSoundboard;
   final bool canManageSoundboard;
+  final bool canManageWebhooks;
 
   @override
   Widget build(BuildContext context) {
@@ -109,6 +111,15 @@ class _ManagementSection extends StatelessWidget {
               spaceId: spaceId,
               canManage: canManageSoundboard,
             ),
+          ),
+        if (canManageWebhooks)
+          ListTile(
+            key: const Key('space-settings-webhooks'),
+            leading: Icon(Icons.webhook, color: colors.dirtyWhite),
+            title: const Text('Webhooks'),
+            subtitle: const Text('Let services post into a channel'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => showAccordWebhooks(context, spaceId: spaceId),
           ),
       ],
     );
