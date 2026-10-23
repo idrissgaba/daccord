@@ -300,6 +300,7 @@ class _ChannelListState extends ConsumerState<_ChannelList> {
               fit: BoxFit.cover,
               errorWidget: (_, _, _) => const SizedBox.shrink(),
             ),
+          if (id != null) SpaceEventsEntry(spaceId: id),
           Expanded(
             child: channels == null
                 ? _emptyState(context, spaceId: id)
