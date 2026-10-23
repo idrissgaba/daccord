@@ -326,6 +326,7 @@ class _ChannelListState extends ConsumerState<_ChannelList> {
                     ),
                   ),
           ),
+          const StreamerModeBar(),
           VoiceBar(
             onTapStatus: () {
               final channelId = ref.read(voiceControllerProvider).channelId;

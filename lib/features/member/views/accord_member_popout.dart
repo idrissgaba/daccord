@@ -19,6 +19,7 @@ import 'package:bonfire/features/user/views/accord_direct_messages.dart';
 import 'package:bonfire/features/spaces/views/accord_reports.dart';
 import 'package:bonfire/theme/theme.dart';
 import 'package:collection/collection.dart';
+import 'package:bonfire/features/member/views/profile_extras.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -119,7 +120,12 @@ class _MemberPopoutState extends ConsumerState<_MemberPopout> {
       closeOnSuccess: true,
       missingIsSuccess: true,
       onSuccess: () => ref
-          .read(accordMembersControllerProvider(_serverKey, widget.spaceId).notifier)
+          .read(
+            accordMembersControllerProvider(
+              _serverKey,
+              widget.spaceId,
+            ).notifier,
+          )
           .removeMember(widget.userId),
     );
   }
@@ -168,7 +174,9 @@ class _MemberPopoutState extends ConsumerState<_MemberPopout> {
       accordMembersControllerProvider(_serverKey, widget.spaceId),
     )?[widget.userId];
     if (member != null) return accordMemberName(member);
-    final cached = ref.read(accordUsersControllerProvider(_serverKey))[widget.userId];
+    final cached = ref.read(
+      accordUsersControllerProvider(_serverKey),
+    )[widget.userId];
     return accordUserName(cached, fallback: widget.userId);
   }
 
@@ -188,7 +196,12 @@ class _MemberPopoutState extends ConsumerState<_MemberPopout> {
       closeOnSuccess: true,
       missingIsSuccess: true,
       onSuccess: () => ref
-          .read(accordMembersControllerProvider(_serverKey, widget.spaceId).notifier)
+          .read(
+            accordMembersControllerProvider(
+              _serverKey,
+              widget.spaceId,
+            ).notifier,
+          )
           .removeMember(widget.userId),
       onResult: (result) {
         if (request.deleteMessageSeconds == 0) return;
@@ -258,7 +271,12 @@ class _MemberPopoutState extends ConsumerState<_MemberPopout> {
       onSuccess: () {
         member.nickname = next.isEmpty ? null : next;
         ref
-            .read(accordMembersControllerProvider(_serverKey, widget.spaceId).notifier)
+            .read(
+              accordMembersControllerProvider(
+                _serverKey,
+                widget.spaceId,
+              ).notifier,
+            )
             .upsertMember(member);
       },
     );
@@ -279,7 +297,12 @@ class _MemberPopoutState extends ConsumerState<_MemberPopout> {
         }
         member.roles = roles;
         ref
-            .read(accordMembersControllerProvider(_serverKey, widget.spaceId).notifier)
+            .read(
+              accordMembersControllerProvider(
+                _serverKey,
+                widget.spaceId,
+              ).notifier,
+            )
             .upsertMember(member);
       },
     );
@@ -302,14 +325,18 @@ class _MemberPopoutState extends ConsumerState<_MemberPopout> {
   Widget build(BuildContext context) {
     final colors = BonfireThemeExtension.of(context);
 
-    final members = ref.watch(accordMembersControllerProvider(_serverKey, widget.spaceId));
+    final members = ref.watch(
+      accordMembersControllerProvider(_serverKey, widget.spaceId),
+    );
     final member = members?[widget.userId];
     // Backfill the target from the on-demand user cache when outside the page.
     final cachedUser = ref.watch(
       accordUsersControllerProvider(_serverKey).select((m) => m[widget.userId]),
     );
     if (member == null && cachedUser == null && members != null) {
-      ref.read(accordUsersControllerProvider(_serverKey).notifier).ensure(widget.userId);
+      ref
+          .read(accordUsersControllerProvider(_serverKey).notifier)
+          .ensure(widget.userId);
     }
 
     final space = ref.watch(
@@ -391,6 +418,7 @@ class _MemberPopoutState extends ConsumerState<_MemberPopout> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              ProfileThemeBand(serverKey: _serverKey, userId: widget.userId),
               _ProfileHeader(
                 name: name,
                 username: username,
@@ -403,6 +431,12 @@ class _MemberPopoutState extends ConsumerState<_MemberPopout> {
                 nameColor: nameColor,
                 customStatus: customStatus,
                 remoteDomain: remoteDomain,
+              ),
+              ProfileExtrasSection(
+                serverKey: _serverKey,
+                userId: widget.userId,
+                isSelf: isSelf,
+                bio: member?.user?.bio ?? cachedUser?.bio,
               ),
               if (timedOut) ...[
                 const SizedBox(height: 12),

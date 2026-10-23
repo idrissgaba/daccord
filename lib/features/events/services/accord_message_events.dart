@@ -156,7 +156,8 @@ void bindMessageEvents(
       // notify without a mention. Only the visible-channel skip is scoped to the
       // active connection, which owns that pointer.
       final notify = MessageNotificationGate.shouldNotify(
-        notificationsEnabled: settings.notificationsEnabled,
+        notificationsEnabled:
+            settings.notificationsEnabled && !settings.streamerMode,
         fromBlockedUser: blockedAuthor,
         suppressEveryone: settings.suppressEveryone,
         isOwnMessage: isOwn,

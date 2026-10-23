@@ -37,3 +37,18 @@ The PIN does **not** encrypt messages, sessions, settings, or other profile data
 ## Deleting a Profile
 
 Select a non-default profile and click **Delete** to remove it. This deletes only that profile's configuration, including saved server connections; other profiles and shared app data are left intact. The default profile cannot be deleted.
+
+## Pronouns, Theme and Notes
+
+In **Edit profile** you can add your **pronouns** and pick a two-colour
+**profile theme**; both show on your profile card for everyone, along with your
+bio under **About me**.
+
+On someone else's profile card, the **Note** field is yours alone: write
+anything to remember about them; it saves when you leave the field.
+
+## Streamer Mode
+
+**Settings → Streamer mode** hides your notes and invite codes and silences
+notifications while you stream or share your screen. A purple bar says it's on;
+click it to turn it off.

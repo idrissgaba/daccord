@@ -104,6 +104,7 @@ class AccordSettings {
     this.compactMode = false,
     this.showEmbeds = true,
     this.convertEmoticons = true,
+    this.streamerMode = false,
     this.reducedMotion = false,
     this.uiScale = 1.0,
     this.spaceOrder = const <String>[],
@@ -283,6 +284,10 @@ class AccordSettings {
   /// Discord; see `applyEmoticons` in the messaging feature.
   final bool convertEmoticons;
 
+  /// Streamer mode: hides private details (notes, invite codes) and keeps
+  /// notifications quiet while sharing the screen.
+  final bool streamerMode;
+
   /// Reduces/disables UI animations (route transitions etc.). Mirrors
   /// `accessibility.reduced_motion`.
   final bool reducedMotion;
@@ -355,6 +360,7 @@ class AccordSettings {
     bool? compactMode,
     bool? showEmbeds,
     bool? convertEmoticons,
+    bool? streamerMode,
     bool? reducedMotion,
     double? uiScale,
     List<String>? spaceOrder,
@@ -409,6 +415,7 @@ class AccordSettings {
       compactMode: compactMode ?? this.compactMode,
       showEmbeds: showEmbeds ?? this.showEmbeds,
       convertEmoticons: convertEmoticons ?? this.convertEmoticons,
+      streamerMode: streamerMode ?? this.streamerMode,
       reducedMotion: reducedMotion ?? this.reducedMotion,
       uiScale: uiScale ?? this.uiScale,
       spaceOrder: spaceOrder ?? this.spaceOrder,
@@ -579,6 +586,7 @@ class AccordSettings {
     'compactMode': compactMode,
     'showEmbeds': showEmbeds,
     'convertEmoticons': convertEmoticons,
+    'streamerMode': streamerMode,
     'reducedMotion': reducedMotion,
     'uiScale': uiScale,
     'spaceOrder': spaceOrder,
@@ -676,6 +684,7 @@ class AccordSettings {
       compactMode: json['compactMode'] as bool? ?? false,
       showEmbeds: json['showEmbeds'] as bool? ?? true,
       convertEmoticons: json['convertEmoticons'] as bool? ?? true,
+      streamerMode: json['streamerMode'] as bool? ?? false,
       reducedMotion: json['reducedMotion'] as bool? ?? false,
       uiScale:
           (json['uiScale'] as num?)?.toDouble().clamp(minUiScale, maxUiScale) ??
