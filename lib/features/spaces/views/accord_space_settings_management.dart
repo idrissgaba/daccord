@@ -98,6 +98,18 @@ class _ManagementSection extends StatelessWidget {
             trailing: const Icon(Icons.chevron_right),
             onTap: () => showAccordEmojiManagement(context, spaceId: spaceId),
           ),
+        if (canManageEmojis)
+          ListTile(
+            key: const Key('space-settings-stickers'),
+            leading: Icon(
+              Icons.sticky_note_2_outlined,
+              color: colors.dirtyWhite,
+            ),
+            title: const Text('Stickers'),
+            subtitle: const Text('Upload, rename, and delete stickers'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => showStickerManagement(context, spaceId: spaceId),
+          ),
         if (canUseSoundboard)
           ListTile(
             leading: Icon(Icons.graphic_eq, color: colors.dirtyWhite),

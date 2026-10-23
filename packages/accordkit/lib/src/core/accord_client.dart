@@ -37,6 +37,7 @@ import '../rest/endpoints/reports_api.dart';
 import '../rest/endpoints/roles_api.dart';
 import '../rest/endpoints/soundboard_api.dart';
 import '../rest/endpoints/spaces_api.dart';
+import '../rest/endpoints/stickers_api.dart';
 import '../rest/endpoints/users_api.dart';
 import '../rest/endpoints/voice_api.dart';
 import 'accord_config.dart';
@@ -78,6 +79,7 @@ class AccordClient {
   late final DirectoryApi directory;
   late final FederationApi federation;
   late final AutomodApi automod;
+  late final StickersApi stickers;
 
   AccordClient({
     EncryptionKeyStore? encryptionStore,
@@ -136,6 +138,7 @@ class AccordClient {
     directory = DirectoryApi(rest);
     federation = FederationApi(rest);
     automod = AutomodApi(rest);
+    stickers = StickersApi(rest);
 
     gateway = GatewaySocket(
       connectionFactory: connectionFactory,

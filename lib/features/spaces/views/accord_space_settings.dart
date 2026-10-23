@@ -22,6 +22,7 @@ import 'package:bonfire/features/spaces/views/accord_reports.dart';
 import 'package:bonfire/features/spaces/views/accord_role_management.dart';
 import 'package:bonfire/features/spaces/views/accord_soundboard.dart';
 import 'package:bonfire/features/spaces/views/accord_transfer_ownership.dart';
+import 'package:bonfire/features/messaging/views/stickers.dart';
 import 'package:bonfire/shared/components/image_crop_dialog.dart';
 import 'package:bonfire/theme/theme.dart';
 import 'package:collection/collection.dart';

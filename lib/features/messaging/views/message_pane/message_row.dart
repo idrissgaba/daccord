@@ -536,6 +536,8 @@ class _MessageRowState extends ConsumerState<_MessageRow> {
                             spaceId: widget.spaceId,
                           ),
                         ),
+                      for (final sticker in message.stickers)
+                        MessageSticker(sticker: sticker),
                       for (final attachment in message.attachments)
                         Padding(
                           padding: const EdgeInsets.only(top: 4),

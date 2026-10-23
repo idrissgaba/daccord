@@ -12,6 +12,7 @@ import 'package:bonfire/features/events/services/accord_ready_sync.dart';
 import 'package:bonfire/features/experiences/controllers/turns.dart';
 import 'package:bonfire/features/member/controllers/accord_members.dart';
 import 'package:bonfire/features/messaging/controllers/accord_messages.dart';
+import 'package:bonfire/features/messaging/controllers/space_stickers.dart';
 import 'package:bonfire/features/messaging/controllers/forum_posts.dart';
 import 'package:bonfire/features/messaging/controllers/pending_uploads.dart';
 import 'package:bonfire/features/messaging/controllers/thread_replies.dart';
@@ -309,6 +310,24 @@ VoidCallback handleAccordEvents(
           serverKey == ref.read(voiceControllerProvider).serverKey;
       if (!isActive() && !isVoiceServer) return;
       ref.read(voiceControllerProvider.notifier).handleServerUpdate(info);
+    }),
+  );
+
+  // ── Stickers ─────────────────────────────────────────────────────────────
+  subs.add(
+    client.onRawEvent.listen((event) {
+      if (!event.type.startsWith('sticker.')) return;
+      final spaceId = event.data['space_id'];
+      if (spaceId is! String) return;
+      final controller = ref.read(
+        spaceStickersControllerProvider(serverKey, spaceId).notifier,
+      );
+      if (event.type == 'sticker.delete') {
+        final id = event.data['id'];
+        if (id is String) controller.remove(id);
+      } else {
+        controller.upsert(AccordSticker.fromJson(event.data));
+      }
     }),
   );
 

@@ -34,6 +34,7 @@ export 'src/rest/endpoints/reports_api.dart';
 export 'src/rest/endpoints/roles_api.dart';
 export 'src/rest/endpoints/soundboard_api.dart';
 export 'src/rest/endpoints/spaces_api.dart';
+export 'src/rest/endpoints/stickers_api.dart';
 export 'src/rest/endpoints/users_api.dart';
 export 'src/rest/endpoints/voice_api.dart';
 
@@ -68,6 +69,7 @@ export 'src/models/report_category.dart';
 export 'src/models/role.dart';
 export 'src/models/sound.dart';
 export 'src/models/space.dart';
+export 'src/models/sticker.dart';
 export 'src/models/user.dart';
 export 'src/models/voice_server_update.dart';
 export 'src/models/voice_state.dart';

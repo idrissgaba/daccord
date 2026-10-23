@@ -459,6 +459,33 @@ class _ComposerState extends ConsumerState<_Composer> {
     _insertAtCursor(pick.composerText);
   }
 
+  /// Sends a sticker picked from the spaces we belong to.
+  Future<void> _pickSticker() async {
+    final spaceId = widget.spaceId;
+    if (spaceId == null) return;
+    final sticker = await showStickerPicker(context, spaceId: spaceId);
+    final client = ref.accordClient;
+    if (sticker == null || client == null || !mounted) return;
+    final result = await client.stickers.send(widget.channelId, sticker.id);
+    if (!mounted) return;
+    final message = result.data;
+    if (result.ok && message is AccordMessage) {
+      ref
+          .read(
+            accordMessagesControllerProvider(
+              ref.readActiveServerKey() ?? '',
+              widget.channelId,
+            ).notifier,
+          )
+          .addMessage(message);
+    } else {
+      setState(
+        () => _error = result.errorMessageOr('Could not send the sticker'),
+      );
+    }
+    _focusNode.requestFocus();
+  }
+
   void _insertAtCursor(String text) {
     _controller.value = insertAtSelection(_controller.value, text);
     _focusNode.requestFocus();
@@ -783,6 +810,17 @@ class _ComposerState extends ConsumerState<_Composer> {
                       color: colors.dirtyWhite,
                     ),
                   ),
+                  if (widget.spaceId != null)
+                    IconButton(
+                      key: const Key('sticker-pick'),
+                      tooltip: 'Stickers',
+                      onPressed: _sending ? null : _pickSticker,
+                      icon: Icon(
+                        Icons.sticky_note_2_outlined,
+                        size: 20,
+                        color: colors.dirtyWhite,
+                      ),
+                    ),
                   IconButton(
                     tooltip: sendBlocked && cooldown != null
                         ? sendCooldownLabel(cooldown, now)
