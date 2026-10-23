@@ -34,7 +34,7 @@ bool _canManageEvents(WidgetRef ref, String spaceId) {
 }
 
 String _cdn(String? cdnUrl, String path) =>
-    path.startsWith('http') ? path : '${cdnUrl ?? ''}$path';
+    AccordCDN.resolvePath(path, cdnUrl: cdnUrl ?? '');
 
 /// The "Events" row at the top of a space's channel list: a red LIVE line
 /// while an event is under way, otherwise how many are coming up.
