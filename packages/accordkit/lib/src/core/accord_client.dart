@@ -27,6 +27,7 @@ import '../rest/endpoints/bans_api.dart';
 import '../rest/endpoints/channels_api.dart';
 import '../rest/endpoints/directory_api.dart';
 import '../rest/endpoints/emojis_api.dart';
+import '../rest/endpoints/events_api.dart';
 import '../rest/endpoints/federation_api.dart';
 import '../rest/endpoints/interactions_api.dart';
 import '../rest/endpoints/invites_api.dart';
@@ -82,6 +83,7 @@ class AccordClient {
   late final AutomodApi automod;
   late final WebhooksApi webhooks;
   late final InteractionsApi interactions;
+  late final EventsApi events;
 
   AccordClient({
     EncryptionKeyStore? encryptionStore,
@@ -142,6 +144,7 @@ class AccordClient {
     automod = AutomodApi(rest);
     webhooks = WebhooksApi(rest);
     interactions = InteractionsApi(rest);
+    events = EventsApi(rest);
 
     gateway = GatewaySocket(
       connectionFactory: connectionFactory,

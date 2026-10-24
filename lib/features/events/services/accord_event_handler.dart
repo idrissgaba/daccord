@@ -13,6 +13,8 @@ import 'package:bonfire/features/experiences/controllers/turns.dart';
 import 'package:bonfire/features/member/controllers/accord_members.dart';
 import 'package:bonfire/features/messaging/controllers/accord_messages.dart';
 import 'package:bonfire/features/messaging/controllers/app_commands.dart';
+import 'package:bonfire/features/spaces/controllers/space_events.dart';
+import 'package:bonfire/features/notifications/services/notification.dart';
 import 'package:bonfire/features/messaging/controllers/forum_posts.dart';
 import 'package:bonfire/features/messaging/controllers/pending_uploads.dart';
 import 'package:bonfire/features/messaging/controllers/thread_replies.dart';
@@ -339,6 +341,57 @@ VoidCallback handleAccordEvents(
                   spaceCommandsControllerProvider(serverKey, spaceId).notifier,
                 )
                 .reload(client);
+          }
+      }
+    }),
+  );
+
+  // ── Scheduled events ─────────────────────────────────────────────────────
+  // Kept in sync for the active server; an interested member hears when one
+  // of their events starts.
+  subs.add(
+    client.onRawEvent.listen((event) {
+      if (!event.type.startsWith('scheduled_event.')) return;
+      final data = event.data;
+      final spaceId = data['space_id'];
+      if (spaceId is! String) return;
+      final controller = ref.read(
+        spaceEventsControllerProvider(serverKey, spaceId).notifier,
+      );
+      switch (event.type) {
+        case 'scheduled_event.create' || 'scheduled_event.update':
+          final next = AccordScheduledEvent.fromJson(data);
+          final previous = ref
+              .read(spaceEventsControllerProvider(serverKey, spaceId))
+              ?.where((e) => e.id == next.id)
+              .firstOrNull;
+          if (next.isActive &&
+              previous != null &&
+              !previous.isActive &&
+              previous.interested == true) {
+            unawaited(
+              showEventNotification(
+                title: 'Starting now: ${next.name}',
+                body: next.description ?? 'An event you are interested in.',
+              ),
+            );
+          }
+          if (next.status == 'scheduled' || next.isActive) {
+            controller.upsert(next);
+          } else {
+            controller.remove(next.id);
+          }
+        case 'scheduled_event.delete':
+          final id = data['id'];
+          if (id is String) controller.remove(id);
+        case 'scheduled_event.user_add' || 'scheduled_event.user_remove':
+          final eventId = data['event_id'];
+          if (eventId is String) {
+            controller.applyInterest(
+              eventId,
+              added: event.type == 'scheduled_event.user_add',
+              mine: data['user_id'] == currentUserId,
+            );
           }
       }
     }),

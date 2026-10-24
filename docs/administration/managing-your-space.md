@@ -94,3 +94,19 @@ Keep the URL secret: anyone who has it can post in that channel. Deleting the
 webhook stops the URL working; what it already posted stays. Messages from a
 webhook (or a bot) show an **APP** badge next to the name. A webhook can't
 notify `@everyone` unless the service explicitly asks to.
+
+## Events
+
+Plan things for the space — a movie night in a voice channel, a meetup
+somewhere else. The **Events** row at the top of the channel list shows how
+many are coming up, and turns red with **LIVE** while one is under way.
+
+- **Create event** (needs the Manage Events permission): pick a voice channel or
+  type a location, a name, a description, when it starts and (required for an
+  event somewhere else) when it ends, and optionally a cover image.
+- Anyone can click **Interested** — on the desktop app you get a notification
+  when it starts. **Add to calendar** saves a `.ics` file for your calendar app.
+- Events start on their own at their start time and end at their end time (or
+  12 hours later if they have none). Managers can also **Start now**, **End
+  event**, **Edit**, **Cancel event** or **Delete** from the event's menu.
+- While a voice event is live, **Join** puts you in its channel.
