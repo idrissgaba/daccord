@@ -2,6 +2,7 @@ import 'package:bonfire/features/settings/controllers/settings.dart';
 import 'package:bonfire/shared/components/settings_scaffold.dart';
 import 'package:bonfire/shared/components/section_header.dart';
 import 'package:bonfire/features/settings/models/accord_settings.dart';
+import 'package:bonfire/features/voice/services/global_key_watcher.dart';
 import 'package:bonfire/features/voice/controllers/voice.dart';
 import 'package:bonfire/features/voice/utils/afk_logic.dart';
 import 'package:bonfire/features/voice/utils/audio_output_support.dart';
@@ -100,8 +101,12 @@ class _VoiceSettingsScreenState extends ConsumerState<VoiceSettingsScreen> {
             key: const Key('push-to-talk-switch'),
             title: const Text('Push to talk'),
             subtitle: Text(
-              'Your mic only transmits while you hold the key (with the app '
-              'focused) or the talk button in the voice bar.',
+              GlobalKeyWatcher().supported
+                  ? 'Your mic only transmits while you hold the key — even '
+                        'while another app has focus — or the talk button in '
+                        'the voice bar.'
+                  : 'Your mic only transmits while you hold the key (with the '
+                        'app focused) or the talk button in the voice bar.',
               style: theme.textTheme.bodySmall!.copyWith(color: colors.gray),
             ),
             value: settings.pushToTalk,

@@ -99,6 +99,9 @@ dependencies:
   package_info_plus: ^9.0.0
   # Desktop window control — restore/persist last window size & position.
   window_manager: ^0.4.3
+  # Push-to-talk outside the app on Windows (GetAsyncKeyState). Stays on 5.x
+  # with the rest of the tree (see package_info_plus above).
+  win32: ^5.15.0
 
   file_picker: ^10.3.6
   path: ^1.9.0
