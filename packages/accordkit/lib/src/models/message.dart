@@ -41,6 +41,8 @@ class AccordMessage {
 
   /// The sticker(s) the message carries (`stickers`).
   List<AccordSticker> stickers = [];
+  /// Super reactions (`super_reactions`), counted apart from [reactions].
+  List<AccordSuperReaction> superReactions = [];
   String? webhookId;
 
   /// The display name a webhook call chose for this message only
@@ -163,6 +165,11 @@ class AccordMessage {
       ];
     }
 
+    for (final r in asList(d['super_reactions']) ?? const []) {
+      final rm = asMap(r);
+      if (rm != null) m.superReactions.add(AccordSuperReaction.fromJson(rm));
+    }
+
     final rawRef = d['reply_to'] ?? d['message_reference'];
     final refMap = asMap(rawRef);
     if (refMap != null) {
@@ -220,6 +227,9 @@ class AccordMessage {
     if (interaction != null) d['interaction'] = interaction!.toJson();
     if (stickerIds != null) d['sticker_ids'] = stickerIds;
     if (stickers.isNotEmpty) d['stickers'] = toJsonList(stickers);
+    if (superReactions.isNotEmpty) {
+      d['super_reactions'] = toJsonList(superReactions);
+    }
     if (webhookId != null) d['webhook_id'] = webhookId;
     if (webhookAuthorName != null) {
       d['webhook_author'] = {'name': webhookAuthorName};

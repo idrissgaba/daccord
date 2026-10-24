@@ -24,9 +24,13 @@ class _ReactionPill extends StatelessWidget {
     required this.onShowReactors,
     this.imageUrl,
     this.trustedMediaBaseUrl,
+    this.superReaction = false,
   });
 
   final AccordReaction reaction;
+
+  /// Drawn as a super reaction: a glowing gradient border and a sparkle.
+  final bool superReaction;
   final VoidCallback onTap;
 
   /// Long-press / right-click: reveal who reacted.
@@ -61,13 +65,34 @@ class _ReactionPill extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: mine ? colors.primary : Colors.transparent,
-              width: 1,
+              color: superReaction
+                  ? superReactionColor(colors)
+                  : (mine ? colors.primary : Colors.transparent),
+              width: superReaction ? 1.5 : 1,
             ),
+            boxShadow: superReaction
+                ? [
+                    BoxShadow(
+                      color: superReactionColor(
+                        colors,
+                      ).withValues(alpha: mine ? 0.55 : 0.3),
+                      blurRadius: 8,
+                    ),
+                  ]
+                : null,
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
+              if (superReaction) ...[
+                Icon(
+                  Icons.auto_awesome,
+                  size: 12,
+                  color: superReactionColor(colors),
+                  semanticLabel: 'Super reaction',
+                ),
+                const SizedBox(width: 3),
+              ],
               if (id != null && imageUrl != null)
                 MessageMediaGate(
                   source: imageUrl,
@@ -225,5 +250,74 @@ class _ReactorTile extends StatelessWidget {
         overflow: TextOverflow.ellipsis,
       ),
     );
+  }
+}
+
+/// The accent of super reactions.
+Color superReactionColor(BonfireThemeExtension colors) =>
+    Color.lerp(colors.primary, const Color(0xFFFFC857), 0.5)!;
+
+/// A super reaction pill that bursts (a quick pop) whenever its count grows.
+class _SuperReactionPill extends StatefulWidget {
+  const _SuperReactionPill({
+    super.key,
+    required this.superReaction,
+    required this.child,
+  });
+
+  final AccordSuperReaction superReaction;
+  final Widget Function(AccordReaction reaction) child;
+
+  @override
+  State<_SuperReactionPill> createState() => _SuperReactionPillState();
+}
+
+class _SuperReactionPillState extends State<_SuperReactionPill>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _burst = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 600),
+  );
+  late final Animation<double> _scale = TweenSequence([
+    TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.45), weight: 35),
+    TweenSequenceItem(
+      tween: Tween(
+        begin: 1.45,
+        end: 1.0,
+      ).chain(CurveTween(curve: Curves.elasticOut)),
+      weight: 65,
+    ),
+  ]).animate(_burst);
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.superReaction.me) _burst.forward(from: 0);
+  }
+
+  @override
+  void didUpdateWidget(covariant _SuperReactionPill oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.superReaction.count > oldWidget.superReaction.count) {
+      _burst.forward(from: 0);
+    }
+  }
+
+  @override
+  void dispose() {
+    _burst.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final sup = widget.superReaction;
+    final token = parseEmojiToken(sup.emoji);
+    final reaction = AccordReaction(
+      emoji: {'id': token.id, 'name': token.name},
+      count: sup.count,
+      includesMe: sup.me,
+    );
+    return ScaleTransition(scale: _scale, child: widget.child(reaction));
   }
 }

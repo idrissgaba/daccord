@@ -54,3 +54,22 @@ class AccordReaction {
     };
   }
 }
+
+/// An aggregated super reaction on a message (`super_reactions`). [emoji] is
+/// the reaction token: a unicode glyph, or `name:id` for a custom emoji.
+class AccordSuperReaction {
+  AccordSuperReaction({required this.emoji, this.count = 0, this.me = false});
+
+  final String emoji;
+  int count;
+  bool me;
+
+  factory AccordSuperReaction.fromJson(Map<String, dynamic> d) =>
+      AccordSuperReaction(
+        emoji: asString(d['emoji']),
+        count: asInt(d['count']),
+        me: asBool(d['me']),
+      );
+
+  Map<String, dynamic> toJson() => {'emoji': emoji, 'count': count, 'me': me};
+}

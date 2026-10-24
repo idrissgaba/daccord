@@ -43,3 +43,12 @@ the current one first — you can send another space's stickers too.
 Members who can manage emoji upload stickers in **Space Settings → Stickers**
 (PNG, GIF or WebP, up to 60 per space), and rename or delete them there. A
 deleted sticker shows its name in old messages.
+
+## Super Reactions
+
+A super reaction is a showier reaction: it glows, carries a sparkle and pops
+whenever someone adds one. Everyone can use them, as often as they like.
+
+- Right-click (or long-press) a message → **Super reaction**, then pick an emoji.
+- Click a super reaction to add or remove yours.
+- Super reactions are counted apart from normal reactions with the same emoji.

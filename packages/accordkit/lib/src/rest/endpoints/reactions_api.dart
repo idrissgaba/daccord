@@ -44,6 +44,22 @@ class ReactionsApi extends EndpointBase {
     return result.deserializeArray(AccordUser.fromJson);
   }
 
+  /// Adds the current user's super reaction ([emoji] as for [add]).
+  Future<RestResult> addSuper(
+      String channelId, String messageId, String emoji) {
+    final e = _encode(emoji);
+    return rest.makeRequest(
+        'PUT', '/channels/$channelId/messages/$messageId/super-reactions/$e');
+  }
+
+  /// Removes the current user's super reaction.
+  Future<RestResult> removeSuper(
+      String channelId, String messageId, String emoji) {
+    final e = _encode(emoji);
+    return rest.makeRequest('DELETE',
+        '/channels/$channelId/messages/$messageId/super-reactions/$e');
+  }
+
   /// Removes all reactions (requires manage_messages).
   Future<RestResult> removeAll(String channelId, String messageId) {
     return rest.makeRequest(
