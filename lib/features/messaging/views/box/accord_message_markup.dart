@@ -442,7 +442,11 @@ class _SpoilerState extends State<_Spoiler> {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 4),
           decoration: BoxDecoration(
-            color: _revealed ? Colors.transparent : colors.background,
+            // The pane is drawn in `background`, so a hidden spoiler needs a
+            // shade of its own to be seen at all.
+            color: _revealed
+                ? Colors.transparent
+                : Color.lerp(colors.background, colors.dirtyWhite, 0.2),
             borderRadius: BorderRadius.circular(4),
           ),
           child: Text(
