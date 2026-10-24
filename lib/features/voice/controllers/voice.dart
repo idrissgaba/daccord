@@ -8,6 +8,7 @@ import 'package:bonfire/features/server/controllers/connections.dart';
 import 'package:bonfire/features/settings/controllers/settings.dart';
 import 'package:bonfire/features/voice/controllers/voice_states.dart';
 import 'package:bonfire/features/voice/services/afk_monitor.dart';
+import 'package:bonfire/features/voice/services/global_key_watcher.dart';
 import 'package:bonfire/features/voice/services/voice_session.dart';
 import 'package:bonfire/features/voice/utils/afk_logic.dart';
 import 'package:bonfire/features/voice/utils/voice_logic.dart';
@@ -184,12 +185,21 @@ class VoiceController extends _$VoiceController {
     ) {
       _releasePushToTalk?.cancel();
       _session?.setPushToTalk(enabled);
+      _syncGlobalPushToTalk();
+    });
+    ref.listen(
+      settingsControllerProvider.select((s) => s.pushToTalkKey),
+      (_, _) => _syncGlobalPushToTalk(),
+    );
+    listenSelf((prev, next) {
+      if (prev?.isConnected != next.isConnected) _syncGlobalPushToTalk();
     });
     final keyHookAttached = _attachKeyHook();
     ref.onDispose(() {
       if (keyHookAttached) {
         HardwareKeyboard.instance.removeHandler(_onKeyEvent);
       }
+      _globalKeys.stop();
       _releasePushToTalk?.cancel();
       _afkMonitor?.dispose();
       _afkMonitor = null;
@@ -498,10 +508,28 @@ class VoiceController extends _$VoiceController {
   /// Pending close of the push-to-talk mic after the key was released.
   Timer? _releasePushToTalk;
 
-  /// Global key hook for push-to-talk. Never consumes the event, so the key
-  /// still types normally in text fields.
+  /// Watches the push-to-talk key outside the app too (Windows desktop), so it
+  /// works while a game or another app has focus.
+  final _globalKeys = GlobalKeyWatcher();
+
+  /// Watches the push-to-talk key system-wide while in a call with
+  /// push-to-talk on.
+  void _syncGlobalPushToTalk() {
+    final settings = ref.read(settingsControllerProvider);
+    if (settings.pushToTalk && state.isConnected) {
+      _globalKeys.watch(settings.pushToTalkKey, setPushToTalkPressed);
+    } else if (_globalKeys.watching) {
+      _globalKeys.stop();
+      setPushToTalkPressed(false);
+    }
+  }
+
+  /// App-wide key hook for push-to-talk. Never consumes the event, so the key
+  /// still types normally in text fields. Stands down while the key is watched
+  /// system-wide, which sees the same presses.
   bool _onKeyEvent(KeyEvent event) {
     if (event is KeyRepeatEvent || !state.isConnected) return false;
+    if (_globalKeys.watching) return false;
     final settings = ref.read(settingsControllerProvider);
     if (!settings.pushToTalk ||
         event.physicalKey.usbHidUsage != settings.pushToTalkKey) {
