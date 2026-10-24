@@ -438,6 +438,16 @@ class _AppearanceSection extends StatelessWidget {
           onChanged: controller.setConvertEmoticons,
         ),
         SwitchListTile(
+          key: const Key('settings-streamer-mode'),
+          title: const Text('Streamer mode'),
+          subtitle: const Text(
+            'Hide your notes and invite codes and silence notifications '
+            'while you stream or share your screen',
+          ),
+          value: settings.streamerMode,
+          onChanged: controller.setStreamerMode,
+        ),
+        SwitchListTile(
           title: const Text('Reduced motion'),
           subtitle: const Text('Minimise UI animations'),
           value: settings.reducedMotion,

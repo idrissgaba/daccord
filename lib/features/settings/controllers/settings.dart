@@ -288,6 +288,9 @@ class SettingsController extends _$SettingsController {
   void setCompactMode(bool enabled) =>
       _update(state.copyWith(compactMode: enabled));
 
+  void setStreamerMode(bool enabled) =>
+      _update(state.copyWith(streamerMode: enabled));
+
   void setConvertEmoticons(bool enabled) =>
       _update(state.copyWith(convertEmoticons: enabled));
 

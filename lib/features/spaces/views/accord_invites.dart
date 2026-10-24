@@ -6,6 +6,7 @@ import 'package:bonfire/shared/utils/rest_result_ext.dart';
 import 'package:bonfire/shared/utils/self_loading_list.dart';
 import 'package:bonfire/features/authentication/models/accord_auth_state.dart';
 import 'package:bonfire/features/authentication/repositories/accord_auth.dart';
+import 'package:bonfire/features/settings/controllers/settings.dart';
 import 'package:bonfire/theme/theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -370,7 +371,13 @@ class _InvitesDialogState extends ConsumerState<_InvitesDialog>
                                 }),
                               ),
                               title: Text(
-                                invite.code,
+                                ref.watch(
+                                      settingsControllerProvider.select(
+                                        (s) => s.streamerMode,
+                                      ),
+                                    )
+                                    ? '••••••••'
+                                    : invite.code,
                                 style: theme.textTheme.titleSmall,
                               ),
                               subtitle: Text(

@@ -15,6 +15,8 @@ import 'package:bonfire/shared/components/image_crop_dialog.dart';
 import 'package:bonfire/shared/components/ticker_aware_circle_avatar.dart';
 import 'package:bonfire/theme/theme.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:bonfire/features/member/views/profile_extras.dart'
+    show profileColor, profileThemePalette;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -46,6 +48,12 @@ class _ProfileEdit extends ConsumerStatefulWidget {
 class _ProfileEditState extends ConsumerState<_ProfileEdit> {
   final _displayName = TextEditingController();
   final _bio = TextEditingController();
+  final _pronouns = TextEditingController();
+
+  /// Profile theme colours (`0xRRGGBB`), null when unset.
+  int? _themePrimary;
+  int? _themeAccent;
+  bool _extrasLoaded = false;
   bool _busy = false;
   bool _loaded = false;
   String? _error;
@@ -89,6 +97,7 @@ class _ProfileEditState extends ConsumerState<_ProfileEdit> {
   void dispose() {
     _displayName.dispose();
     _bio.dispose();
+    _pronouns.dispose();
     super.dispose();
   }
 
@@ -102,7 +111,15 @@ class _ProfileEditState extends ConsumerState<_ProfileEdit> {
       _displayName.text = session.username;
     }
     final result = await client.users.getMe();
+    final extras = await client.profiles.get('@me');
     if (!mounted) return;
+    final mine = extras.data;
+    if (extras.ok && mine is AccordProfileExtras) {
+      _pronouns.text = mine.pronouns ?? '';
+      _themePrimary = mine.themePrimary;
+      _themeAccent = mine.themeAccent;
+      _extrasLoaded = true;
+    }
     final data = result.data;
     if (result.ok && data is AccordUser) {
       _displayName.text = data.displayName ?? data.username;
@@ -162,6 +179,21 @@ class _ProfileEditState extends ConsumerState<_ProfileEdit> {
     }
     final result = await client.users.updateMe(body);
     if (!mounted) return;
+    if (result.ok && _extrasLoaded) {
+      final extras = await client.profiles.updateMine({
+        'pronouns': _pronouns.text.trim(),
+        'theme_primary': _themePrimary,
+        'theme_accent': _themeAccent,
+      });
+      if (!mounted) return;
+      if (!extras.ok) {
+        setState(() {
+          _busy = false;
+          _error = extras.errorOr('Failed to save pronouns and theme');
+        });
+        return;
+      }
+    }
     setState(() => _busy = false);
     if (!result.ok) {
       setState(() => _error = result.errorOr('Failed to save profile'));
@@ -318,6 +350,29 @@ class _ProfileEditState extends ConsumerState<_ProfileEdit> {
                     hintText: 'A short bio shown on your profile',
                   ),
                 ),
+                if (_extrasLoaded) ...[
+                  const SizedBox(height: 12),
+                  TextField(
+                    key: const Key('profile-pronouns'),
+                    controller: _pronouns,
+                    enabled: !_busy,
+                    maxLength: 40,
+                    decoration: const InputDecoration(
+                      labelText: 'Pronouns',
+                      hintText: 'e.g. she/her, they/them',
+                    ),
+                  ),
+                  _ThemeColorRow(
+                    label: 'Profile theme — main colour',
+                    value: _themePrimary,
+                    onChanged: (c) => setState(() => _themePrimary = c),
+                  ),
+                  _ThemeColorRow(
+                    label: 'Profile theme — accent colour',
+                    value: _themeAccent,
+                    onChanged: (c) => setState(() => _themeAccent = c),
+                  ),
+                ],
                 const SizedBox(height: 16),
                 Align(
                   alignment: Alignment.centerLeft,
@@ -384,6 +439,70 @@ class _ProfileEditState extends ConsumerState<_ProfileEdit> {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// A row of profile theme colour swatches, plus "none".
+class _ThemeColorRow extends StatelessWidget {
+  const _ThemeColorRow({
+    required this.label,
+    required this.value,
+    required this.onChanged,
+  });
+
+  final String label;
+  final int? value;
+  final ValueChanged<int?> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = BonfireThemeExtension.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall!.copyWith(color: colors.dirtyWhite),
+          ),
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              InkWell(
+                onTap: () => onChanged(null),
+                customBorder: const CircleBorder(),
+                child: CircleAvatar(
+                  radius: 13,
+                  backgroundColor: colors.darkGray,
+                  child: Icon(
+                    value == null ? Icons.check : Icons.block,
+                    size: 14,
+                    color: colors.gray,
+                  ),
+                ),
+              ),
+              for (final color in profileThemePalette)
+                InkWell(
+                  onTap: () => onChanged(color),
+                  customBorder: const CircleBorder(),
+                  child: CircleAvatar(
+                    radius: 13,
+                    backgroundColor: profileColor(color),
+                    child: value == color
+                        ? const Icon(Icons.check, size: 14, color: Colors.white)
+                        : null,
+                  ),
+                ),
+            ],
+          ),
+        ],
       ),
     );
   }
