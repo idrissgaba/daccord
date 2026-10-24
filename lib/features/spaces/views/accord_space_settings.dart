@@ -22,6 +22,7 @@ import 'package:bonfire/features/spaces/views/accord_reports.dart';
 import 'package:bonfire/features/spaces/views/accord_role_management.dart';
 import 'package:bonfire/features/spaces/views/accord_soundboard.dart';
 import 'package:bonfire/features/spaces/views/accord_transfer_ownership.dart';
+import 'package:bonfire/features/spaces/views/welcome_screen.dart';
 import 'package:bonfire/shared/components/image_crop_dialog.dart';
 import 'package:bonfire/theme/theme.dart';
 import 'package:collection/collection.dart';
@@ -547,6 +548,15 @@ class _SpaceSettingsState extends ConsumerState<_SpaceSettings> {
               title: const Text('AutoMod'),
               subtitle: const Text('Attachment rules and moderation review'),
               onTap: () => showAutomodPanel(context, widget.spaceId),
+            ),
+          if (canManageSpace)
+            ListTile(
+              key: const Key('space-settings-welcome'),
+              leading: const Icon(Icons.waving_hand_outlined),
+              title: const Text('Welcome screen'),
+              subtitle: const Text('Greet new members and point them around'),
+              onTap: () =>
+                  showWelcomeScreenEditor(context, spaceId: widget.spaceId),
             ),
           if (canManageRoles ||
               canViewAuditLog ||

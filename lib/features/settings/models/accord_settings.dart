@@ -88,6 +88,7 @@ class AccordSettings {
     this.masterServerUrl = defaultMasterServerUrl,
     this.channelNotifications = const <String, String>{},
     this.acceptedRuleSpaces = const <String>[],
+    this.seenWelcomeScreens = const <String>[],
     this.acknowledgedNsfwChannels = const <String>[],
     this.collapsedCategories = const <String, List<String>>{},
     this.drafts = const <String, String>{},
@@ -221,6 +222,9 @@ class AccordSettings {
   /// `Config.set_rules_accepted` / `has_rules_accepted`.
   final List<String> acceptedRuleSpaces;
 
+  /// Spaces whose welcome screen has been shown, so it shows once.
+  final List<String> seenWelcomeScreens;
+
   /// Channel IDs whose age-restricted (NSFW) gate the user has confirmed.
   /// Mirrors the reference client's persisted `nsfw_ack`.
   final List<String> acknowledgedNsfwChannels;
@@ -339,6 +343,7 @@ class AccordSettings {
     String? masterServerUrl,
     Map<String, String>? channelNotifications,
     List<String>? acceptedRuleSpaces,
+    List<String>? seenWelcomeScreens,
     List<String>? acknowledgedNsfwChannels,
     Map<String, List<String>>? collapsedCategories,
     Map<String, String>? drafts,
@@ -392,6 +397,7 @@ class AccordSettings {
       masterServerUrl: masterServerUrl ?? this.masterServerUrl,
       channelNotifications: channelNotifications ?? this.channelNotifications,
       acceptedRuleSpaces: acceptedRuleSpaces ?? this.acceptedRuleSpaces,
+      seenWelcomeScreens: seenWelcomeScreens ?? this.seenWelcomeScreens,
       acknowledgedNsfwChannels:
           acknowledgedNsfwChannels ?? this.acknowledgedNsfwChannels,
       collapsedCategories: collapsedCategories ?? this.collapsedCategories,
@@ -422,6 +428,10 @@ class AccordSettings {
   /// Whether [spaceId]'s notifications are muted.
   bool isSpaceMuted(String serverKey, String spaceId) =>
       mutedSpaces.contains(ServerEntityKey(serverKey, spaceId).encoded);
+
+  /// Whether [spaceId]'s welcome screen has been shown.
+  bool isWelcomeSeen(String serverKey, String spaceId) =>
+      seenWelcomeScreens.contains(ServerEntityKey(serverKey, spaceId).encoded);
 
   /// Whether the rules interstitial for [spaceId] has been accepted.
   bool isRulesAccepted(String serverKey, String spaceId) =>
@@ -563,6 +573,7 @@ class AccordSettings {
     'masterServerUrl': masterServerUrl,
     'channelNotifications': channelNotifications,
     'acceptedRuleSpaces': acceptedRuleSpaces,
+    'seenWelcomeScreens': seenWelcomeScreens,
     'acknowledgedNsfwChannels': acknowledgedNsfwChannels,
     'collapsedCategories': collapsedCategories,
     'drafts': drafts,
@@ -639,6 +650,10 @@ class AccordSettings {
             in (json['channelNotifications'] as Map? ?? const {}).entries)
           entry.key.toString(): entry.value.toString(),
       },
+      seenWelcomeScreens: [
+        for (final e in (json['seenWelcomeScreens'] as List? ?? const []))
+          e.toString(),
+      ],
       acceptedRuleSpaces: [
         for (final e in (json['acceptedRuleSpaces'] as List? ?? const []))
           e.toString(),

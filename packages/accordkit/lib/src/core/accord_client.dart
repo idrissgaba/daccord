@@ -39,6 +39,7 @@ import '../rest/endpoints/soundboard_api.dart';
 import '../rest/endpoints/spaces_api.dart';
 import '../rest/endpoints/users_api.dart';
 import '../rest/endpoints/voice_api.dart';
+import '../rest/endpoints/welcome_screen_api.dart';
 import 'accord_config.dart';
 
 /// The top-level AccordKit entry point. Bundles the REST client, the gateway
@@ -78,6 +79,7 @@ class AccordClient {
   late final DirectoryApi directory;
   late final FederationApi federation;
   late final AutomodApi automod;
+  late final WelcomeScreenApi welcomeScreen;
 
   AccordClient({
     EncryptionKeyStore? encryptionStore,
@@ -136,6 +138,7 @@ class AccordClient {
     directory = DirectoryApi(rest);
     federation = FederationApi(rest);
     automod = AutomodApi(rest);
+    welcomeScreen = WelcomeScreenApi(rest);
 
     gateway = GatewaySocket(
       connectionFactory: connectionFactory,
