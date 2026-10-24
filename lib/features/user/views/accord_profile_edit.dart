@@ -297,121 +297,138 @@ class _ProfileEditState extends ConsumerState<_ProfileEdit> {
                   child: LoadingView(),
                 )
               else ...[
-                Center(
-                  child: Stack(
-                    children: [
-                      TickerAwareCircleAvatar(
-                        radius: 40,
-                        backgroundColor: previewBg,
-                        foregroundImage: _newAvatarBytes != null
-                            ? MemoryImage(_newAvatarBytes!)
-                            : (avatarUrl != null
-                                  ? CachedNetworkImageProvider(avatarUrl)
-                                  : null),
-                        child: (_newAvatarBytes == null && avatarUrl == null)
-                            ? Text(
-                                accordInitial(session?.username),
-                                style: TextStyle(
-                                  fontSize: 24,
-                                  color: accordOnColor(previewBg),
+                // The fields scroll; the buttons below always stay in reach.
+                Flexible(
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Center(
+                          child: Stack(
+                            children: [
+                              TickerAwareCircleAvatar(
+                                radius: 40,
+                                backgroundColor: previewBg,
+                                foregroundImage: _newAvatarBytes != null
+                                    ? MemoryImage(_newAvatarBytes!)
+                                    : (avatarUrl != null
+                                          ? CachedNetworkImageProvider(
+                                              avatarUrl,
+                                            )
+                                          : null),
+                                child:
+                                    (_newAvatarBytes == null &&
+                                        avatarUrl == null)
+                                    ? Text(
+                                        accordInitial(session?.username),
+                                        style: TextStyle(
+                                          fontSize: 24,
+                                          color: accordOnColor(previewBg),
+                                        ),
+                                      )
+                                    : null,
+                              ),
+                              Positioned(
+                                right: -4,
+                                bottom: -4,
+                                child: IconButton(
+                                  tooltip: 'Change avatar',
+                                  onPressed: _busy ? null : _pickAvatar,
+                                  icon: const Icon(Icons.camera_alt, size: 18),
+                                  style: IconButton.styleFrom(
+                                    backgroundColor: colors.darkGray,
+                                  ),
                                 ),
-                              )
-                            : null,
-                      ),
-                      Positioned(
-                        right: -4,
-                        bottom: -4,
-                        child: IconButton(
-                          tooltip: 'Change avatar',
-                          onPressed: _busy ? null : _pickAvatar,
-                          icon: const Icon(Icons.camera_alt, size: 18),
-                          style: IconButton.styleFrom(
-                            backgroundColor: colors.darkGray,
+                              ),
+                            ],
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: _displayName,
-                  enabled: !_busy,
-                  decoration: const InputDecoration(labelText: 'Display name'),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: _bio,
-                  enabled: !_busy,
-                  minLines: 3,
-                  maxLines: 6,
-                  decoration: const InputDecoration(
-                    labelText: 'Bio',
-                    hintText: 'A short bio shown on your profile',
-                  ),
-                ),
-                if (_extrasLoaded) ...[
-                  const SizedBox(height: 12),
-                  TextField(
-                    key: const Key('profile-pronouns'),
-                    controller: _pronouns,
-                    enabled: !_busy,
-                    maxLength: 40,
-                    decoration: const InputDecoration(
-                      labelText: 'Pronouns',
-                      hintText: 'e.g. she/her, they/them',
+                        const SizedBox(height: 16),
+                        TextField(
+                          controller: _displayName,
+                          enabled: !_busy,
+                          decoration: const InputDecoration(
+                            labelText: 'Display name',
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: _bio,
+                          enabled: !_busy,
+                          minLines: 3,
+                          maxLines: 6,
+                          decoration: const InputDecoration(
+                            labelText: 'Bio',
+                            hintText: 'A short bio shown on your profile',
+                          ),
+                        ),
+                        if (_extrasLoaded) ...[
+                          const SizedBox(height: 12),
+                          TextField(
+                            key: const Key('profile-pronouns'),
+                            controller: _pronouns,
+                            enabled: !_busy,
+                            maxLength: 40,
+                            decoration: const InputDecoration(
+                              labelText: 'Pronouns',
+                              hintText: 'e.g. she/her, they/them',
+                            ),
+                          ),
+                          _ThemeColorRow(
+                            label: 'Profile theme — main colour',
+                            value: _themePrimary,
+                            onChanged: (c) => setState(() => _themePrimary = c),
+                          ),
+                          _ThemeColorRow(
+                            label: 'Profile theme — accent colour',
+                            value: _themeAccent,
+                            onChanged: (c) => setState(() => _themeAccent = c),
+                          ),
+                        ],
+                        const SizedBox(height: 16),
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            'Avatar background',
+                            style: theme.textTheme.bodySmall!.copyWith(
+                              color: colors.dirtyWhite,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            ColorSwatchChip(
+                              color: accordIdColor(session?.userId ?? ''),
+                              selected: _accentColor == null,
+                              transparent: true,
+                              label: 'Transparent (auto)',
+                              onTap: _busy
+                                  ? null
+                                  : () => setState(() => _accentColor = null),
+                            ),
+                            for (final (argb, _) in avatarColorPalette)
+                              ColorSwatchChip(
+                                color: Color(argb),
+                                selected: _accentColor == argb,
+                                label: null,
+                                onTap: _busy
+                                    ? null
+                                    : () => setState(() => _accentColor = argb),
+                              ),
+                          ],
+                        ),
+                        if (_error != null) ...[
+                          const SizedBox(height: 10),
+                          InlineError(_error!, centered: false),
+                        ],
+                      ],
                     ),
                   ),
-                  _ThemeColorRow(
-                    label: 'Profile theme — main colour',
-                    value: _themePrimary,
-                    onChanged: (c) => setState(() => _themePrimary = c),
-                  ),
-                  _ThemeColorRow(
-                    label: 'Profile theme — accent colour',
-                    value: _themeAccent,
-                    onChanged: (c) => setState(() => _themeAccent = c),
-                  ),
-                ],
-                const SizedBox(height: 16),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    'Avatar background',
-                    style: theme.textTheme.bodySmall!.copyWith(
-                      color: colors.dirtyWhite,
-                    ),
-                  ),
                 ),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    ColorSwatchChip(
-                      color: accordIdColor(session?.userId ?? ''),
-                      selected: _accentColor == null,
-                      transparent: true,
-                      label: 'Transparent (auto)',
-                      onTap: _busy
-                          ? null
-                          : () => setState(() => _accentColor = null),
-                    ),
-                    for (final (argb, _) in avatarColorPalette)
-                      ColorSwatchChip(
-                        color: Color(argb),
-                        selected: _accentColor == argb,
-                        label: null,
-                        onTap: _busy
-                            ? null
-                            : () => setState(() => _accentColor = argb),
-                      ),
-                  ],
-                ),
-                if (_error != null) ...[
-                  const SizedBox(height: 10),
-                  InlineError(_error!, centered: false),
-                ],
                 const SizedBox(height: 16),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
