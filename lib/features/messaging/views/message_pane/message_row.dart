@@ -563,6 +563,8 @@ class _MessageRowState extends ConsumerState<_MessageRow> {
                           onVote: (answerId, {required remove}) =>
                               _votePoll(message.id, answerId, remove: remove),
                         ),
+                      for (final sticker in message.stickers)
+                        MessageSticker(sticker: sticker),
                       for (final attachment in message.attachments)
                         Padding(
                           padding: const EdgeInsets.only(top: 4),

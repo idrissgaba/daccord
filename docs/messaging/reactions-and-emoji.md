@@ -33,3 +33,13 @@ To insert an emoji into your message text, open the emoji picker from the compos
 ## Skin Tone
 
 You can set your preferred emoji skin tone in **App Settings > Appearance**.
+
+## Stickers
+
+Click the **sticker** button next to the emoji button in a space channel to
+send a sticker. The picker shows the stickers of every space you belong to,
+the current one first — you can send another space's stickers too.
+
+Members who can manage emoji upload stickers in **Space Settings → Stickers**
+(PNG, GIF or WebP, up to 60 per space), and rename or delete them there. A
+deleted sticker shows its name in old messages.

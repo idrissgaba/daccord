@@ -39,6 +39,7 @@ import '../rest/endpoints/reports_api.dart';
 import '../rest/endpoints/roles_api.dart';
 import '../rest/endpoints/soundboard_api.dart';
 import '../rest/endpoints/spaces_api.dart';
+import '../rest/endpoints/stickers_api.dart';
 import '../rest/endpoints/users_api.dart';
 import '../rest/endpoints/voice_api.dart';
 import '../rest/endpoints/webhooks_api.dart';
@@ -84,6 +85,7 @@ class AccordClient {
   late final WebhooksApi webhooks;
   late final InteractionsApi interactions;
   late final EventsApi events;
+  late final StickersApi stickers;
 
   AccordClient({
     EncryptionKeyStore? encryptionStore,
@@ -145,6 +147,7 @@ class AccordClient {
     webhooks = WebhooksApi(rest);
     interactions = InteractionsApi(rest);
     events = EventsApi(rest);
+    stickers = StickersApi(rest);
 
     gateway = GatewaySocket(
       connectionFactory: connectionFactory,

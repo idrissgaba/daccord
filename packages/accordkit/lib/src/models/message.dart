@@ -5,6 +5,7 @@ import 'command.dart';
 import 'embed.dart';
 import 'poll.dart';
 import 'reaction.dart';
+import 'sticker.dart';
 
 /// A message in a channel, thread, or DM.
 class AccordMessage {
@@ -37,6 +38,9 @@ class AccordMessage {
   /// The command this bot message answers, if any.
   AccordMessageInteraction? interaction;
   List<String>? stickerIds;
+
+  /// The sticker(s) the message carries (`stickers`).
+  List<AccordSticker> stickers = [];
   String? webhookId;
 
   /// The display name a webhook call chose for this message only
@@ -167,6 +171,11 @@ class AccordMessage {
       m.replyTo = rawRef;
     }
 
+    for (final s in asList(d['stickers']) ?? const []) {
+      final sm = asMap(s);
+      if (sm != null) m.stickers.add(AccordSticker.fromJson(sm));
+    }
+
     final rawStickers = asList(d['sticker_ids'] ?? d['sticker_items']);
     if (rawStickers != null) {
       m.stickerIds = [
@@ -210,6 +219,7 @@ class AccordMessage {
     if (components != null) d['components'] = components;
     if (interaction != null) d['interaction'] = interaction!.toJson();
     if (stickerIds != null) d['sticker_ids'] = stickerIds;
+    if (stickers.isNotEmpty) d['stickers'] = toJsonList(stickers);
     if (webhookId != null) d['webhook_id'] = webhookId;
     if (webhookAuthorName != null) {
       d['webhook_author'] = {'name': webhookAuthorName};
