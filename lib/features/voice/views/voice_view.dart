@@ -15,6 +15,9 @@ import 'package:bonfire/features/voice/utils/participant_display.dart';
 import 'package:bonfire/features/voice/utils/audio_output_support.dart';
 import 'package:bonfire/features/voice/views/user_volume_menu.dart';
 import 'package:bonfire/features/voice/views/voice_moderation_menu.dart';
+import 'package:bonfire/features/voice/views/stage_view.dart';
+import 'package:bonfire/features/voice/utils/stage_logic.dart';
+import 'package:bonfire/shared/utils/rest_result_ext.dart';
 import 'package:bonfire/features/voice/views/screen_share_picker.dart';
 import 'package:bonfire/features/voice/views/voice_settings_screen.dart';
 import 'package:bonfire/features/voice/views/voice_text_panel.dart';
@@ -226,7 +229,13 @@ class _VoiceChannelViewState extends ConsumerState<VoiceChannelView> {
       ),
       child: Row(
         children: [
-          Icon(Icons.volume_up, size: 18, color: colors.dirtyWhite),
+          Icon(
+            watchIsStage(ref, widget.spaceId, widget.channelId)
+                ? Icons.podcasts
+                : Icons.volume_up,
+            size: 18,
+            color: colors.dirtyWhite,
+          ),
           const SizedBox(width: 6),
           Expanded(
             child: Text(
@@ -339,12 +348,17 @@ class _ConnectedBody extends ConsumerWidget {
     required this.spaceId,
     required this.spotlightUserId,
     required this.onToggleSpotlight,
+    this.only,
   });
 
   final String channelId;
   final String? spaceId;
   final String? spotlightUserId;
   final ValueChanged<String> onToggleSpotlight;
+
+  /// Only these participants get tiles (a stage's speakers); everyone when
+  /// null. Set, the body is laid out as a plain call.
+  final Set<String>? only;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -376,9 +390,31 @@ class _ConnectedBody extends ConsumerWidget {
     final cdnUrl = ref.watchCdnUrl();
     final myId = ref.watchUserId();
     final session = ref.read(voiceControllerProvider.notifier).session;
+    final stage = watchIsStage(ref, spaceId, channelId);
+    if (stage) {
+      final speakers = stageSpeakers(states);
+      return Column(
+        children: [
+          Expanded(
+            child: speakers.isEmpty
+                ? const Center(child: Text('No one is on stage yet.'))
+                : _ConnectedBody(
+                    channelId: channelId,
+                    spaceId: spaceId,
+                    spotlightUserId: spotlightUserId,
+                    onToggleSpotlight: onToggleSpotlight,
+                    only: {for (final s in speakers) s.userId},
+                  ),
+          ),
+          StageAudiencePanel(channelId: channelId, spaceId: spaceId!),
+        ],
+      );
+    }
 
     final tiles = _buildTiles(
-      states: states,
+      states: only == null
+          ? states
+          : states.where((s) => only!.contains(s.userId)),
       members: members,
       users: users,
       cdnUrl: cdnUrl,
@@ -688,6 +724,38 @@ class _ControlBar extends ConsumerWidget {
     final colors = BonfireThemeExtension.of(context);
     final voice = ref.watch(voiceControllerProvider);
     final notifier = ref.read(voiceControllerProvider.notifier);
+    final serverKey = ref.watchActiveServerKey() ?? '';
+    final stage = watchIsStage(ref, spaceId, channelId);
+    final myId = ref.watchUserId();
+    final me = stage
+        ? ref.watch(
+            voiceStatesControllerProvider(
+              serverKey,
+            ).select((cache) => cache[channelId]?[myId]),
+          )
+        : null;
+    final inAudience = stage && (me?.suppress ?? true);
+    final stageAction = stage
+        ? stageActionFor(
+            me,
+            moderator: watchVoiceModerationRights(ref, spaceId).mute,
+          )
+        : null;
+    if (stage) {
+      ref.listen(
+        voiceStatesControllerProvider(
+          serverKey,
+        ).select((cache) => cache[channelId]?[myId]?.suppress),
+        (prev, next) {
+          if (prev == true && next == false) {
+            showInfoSnack(context, 'You’re on stage — you can speak now.');
+          }
+        },
+      );
+    }
+    final blockedReason = inAudience && !voice.serverMute && !voice.serverDeaf
+        ? stageAudienceReason
+        : voice.speakBlockedReason;
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 8),
       decoration: BoxDecoration(
@@ -699,9 +767,7 @@ class _ControlBar extends ConsumerWidget {
         children: [
           _ControlButton(
             icon: voice.selfMute || !voice.canSpeak ? Icons.mic_off : Icons.mic,
-            tooltip:
-                voice.speakBlockedReason ??
-                (voice.selfMute ? 'Unmute' : 'Mute'),
+            tooltip: blockedReason ?? (voice.selfMute ? 'Unmute' : 'Mute'),
             active: voice.selfMute || !voice.canSpeak,
             activeColor: colors.red,
             onPressed: notifier.toggleMute,
@@ -717,14 +783,45 @@ class _ControlBar extends ConsumerWidget {
             activeColor: colors.red,
             onPressed: notifier.toggleDeafen,
           ),
-          _ControlButton(
-            icon: voice.selfVideo ? Icons.videocam_off : Icons.videocam,
-            tooltip: voice.selfVideo ? 'Stop camera' : 'Camera',
-            active: voice.selfVideo,
-            activeColor: colors.green,
-            onPressed: notifier.toggleVideo,
-          ),
-          if (canShareScreen)
+          if (stageAction != null && spaceId != null)
+            _ControlButton(
+              key: const Key('stage-action'),
+              icon: switch (stageAction) {
+                StageAction.raiseHand => Icons.back_hand_outlined,
+                StageAction.lowerHand => Icons.back_hand,
+                StageAction.speak => Icons.mic_external_on,
+                StageAction.leaveStage => Icons.group,
+              },
+              tooltip: switch (stageAction) {
+                StageAction.raiseHand => 'Raise hand to speak',
+                StageAction.lowerHand => 'Lower hand',
+                StageAction.speak => 'Speak on stage',
+                StageAction.leaveStage => 'Move to audience',
+              },
+              active: stageAction == StageAction.lowerHand,
+              activeColor: colors.primary,
+              onPressed: () {
+                final update = stageUpdateFor(stageAction);
+                updateStage(
+                  context,
+                  ref,
+                  serverKey: serverKey,
+                  spaceId: spaceId!,
+                  userId: '@me',
+                  suppress: update.suppress,
+                  requestToSpeak: update.requestToSpeak,
+                );
+              },
+            ),
+          if (!inAudience)
+            _ControlButton(
+              icon: voice.selfVideo ? Icons.videocam_off : Icons.videocam,
+              tooltip: voice.selfVideo ? 'Stop camera' : 'Camera',
+              active: voice.selfVideo,
+              activeColor: colors.green,
+              onPressed: notifier.toggleVideo,
+            ),
+          if (canShareScreen && !inAudience)
             _ControlButton(
               icon: voice.selfStream
                   ? Icons.stop_screen_share
@@ -760,6 +857,7 @@ class _ControlBar extends ConsumerWidget {
 
 class _ControlButton extends StatelessWidget {
   const _ControlButton({
+    super.key,
     required this.icon,
     required this.tooltip,
     required this.active,

@@ -49,7 +49,8 @@ class _StubVoiceController extends VoiceController {
 
 class _FakeVoiceStates extends VoiceStatesController {
   @override
-  Map<String, Map<String, AccordVoiceState>> build(String serverKey) => const {};
+  Map<String, Map<String, AccordVoiceState>> build(String serverKey) =>
+      const {};
 }
 
 const _incoming = IncomingCall(
@@ -111,7 +112,8 @@ void main() {
               child: ElevatedButton(
                 onPressed: () => showDialog<void>(
                   context: context,
-                  builder: (_) => const AlertDialog(title: Text('Direct messages')),
+                  builder: (_) =>
+                      const AlertDialog(title: Text('Direct messages')),
                 ),
                 child: const Text('open'),
               ),
@@ -188,7 +190,10 @@ void main() {
   testWidgets('nothing is rendered when no call is incoming', (tester) async {
     final call = _FakeCallController(const CallState());
     await tester.pumpWidget(
-      _app(call: call, home: const Scaffold(body: Text('home'))),
+      _app(
+        call: call,
+        home: const Scaffold(body: Text('home')),
+      ),
     );
     await tester.pump();
 

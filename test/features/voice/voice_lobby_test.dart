@@ -66,9 +66,9 @@ Widget _host({
       accordAuthProvider.overrideWithValue(const AccordAuthLoggedOut()),
       settingsControllerProvider.overrideWith(_FakeSettingsController.new),
       voiceControllerProvider.overrideWith(() => voice),
-      voiceStatesControllerProvider('').overrideWith(
-        () => _FakeVoiceStates(voiceStates),
-      ),
+      voiceStatesControllerProvider(
+        '',
+      ).overrideWith(() => _FakeVoiceStates(voiceStates)),
     ],
     child: MaterialApp(
       theme: buildAppTheme(AppThemePreset.dark),
@@ -157,10 +157,7 @@ void main() {
     expect(find.text('Join Voice'), findsOneWidget);
     expect(_controlBar, findsNothing);
     // ...and the lobby says so, rather than implying we moved.
-    expect(
-      find.textContaining("You're connected to"),
-      findsOneWidget,
-    );
+    expect(find.textContaining("You're connected to"), findsOneWidget);
   });
 
   testWidgets('switching the view from a connected channel to another opens '
@@ -175,9 +172,9 @@ void main() {
         accordAuthProvider.overrideWithValue(const AccordAuthLoggedOut()),
         settingsControllerProvider.overrideWith(_FakeSettingsController.new),
         voiceControllerProvider.overrideWith(() => voice),
-        voiceStatesControllerProvider('').overrideWith(
-          () => _FakeVoiceStates(const {}),
-        ),
+        voiceStatesControllerProvider(
+          '',
+        ).overrideWith(() => _FakeVoiceStates(const {})),
       ],
       child: MaterialApp(
         theme: buildAppTheme(AppThemePreset.dark),
@@ -206,33 +203,35 @@ void main() {
     expect(find.byType(VoiceTextPanel), findsOneWidget);
   });
 
-  testWidgets('narrow layout keeps both the chat and the Join button reachable',
-      (tester) async {
-    tester.view.physicalSize = const Size(400, 800);
-    tester.view.devicePixelRatio = 1.0;
-    addTearDown(tester.view.reset);
+  testWidgets(
+    'narrow layout keeps both the chat and the Join button reachable',
+    (tester) async {
+      tester.view.physicalSize = const Size(400, 800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
 
-    final voice = _RecordingVoiceController(const VoiceConnection());
-    await tester.pumpWidget(
-      _host(
-        voice: voice,
-        channelId: 'c1',
-        voiceStates: {
-          'c1': {'u1': AccordVoiceState(userId: 'u1', channelId: 'c1')},
-        },
-      ),
-    );
-    await tester.pump();
+      final voice = _RecordingVoiceController(const VoiceConnection());
+      await tester.pumpWidget(
+        _host(
+          voice: voice,
+          channelId: 'c1',
+          voiceStates: {
+            'c1': {'u1': AccordVoiceState(userId: 'u1', channelId: 'c1')},
+          },
+        ),
+      );
+      await tester.pump();
 
-    // Below the side-panel breakpoint the chat used to replace the body
-    // outright, which would have hidden the only way to join.
-    expect(find.byType(VoiceTextPanel), findsOneWidget);
-    expect(find.text('Join Voice'), findsOneWidget);
+      // Below the side-panel breakpoint the chat used to replace the body
+      // outright, which would have hidden the only way to join.
+      expect(find.byType(VoiceTextPanel), findsOneWidget);
+      expect(find.text('Join Voice'), findsOneWidget);
 
-    await tester.tap(find.text('Join Voice'));
-    await tester.pump();
-    expect(voice.joins, [('c1', 's1')]);
-  });
+      await tester.tap(find.text('Join Voice'));
+      await tester.pump();
+      expect(voice.joins, [('c1', 's1')]);
+    },
+  );
 
   testWidgets('narrow layout fits the lobby, its note and the chat together', (
     tester,

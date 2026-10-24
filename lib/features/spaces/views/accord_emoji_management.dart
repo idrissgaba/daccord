@@ -65,15 +65,18 @@ class _EmojiManagementState extends ConsumerState<_EmojiManagement> {
     if (!mounted) return;
     setState(() => _busy = false);
     if (!result.ok) {
-      setState(
-        () => _error = result.errorOr('Failed to upload emoji'),
-      );
+      setState(() => _error = result.errorOr('Failed to upload emoji'));
       return;
     }
     final emoji = result.data;
     if (emoji is AccordEmoji) {
       ref
-          .read(accordEmojisControllerProvider(ref.readActiveServerKey() ?? '', widget.spaceId).notifier)
+          .read(
+            accordEmojisControllerProvider(
+              ref.readActiveServerKey() ?? '',
+              widget.spaceId,
+            ).notifier,
+          )
           .upsert(emoji);
     }
   }
@@ -95,15 +98,18 @@ class _EmojiManagementState extends ConsumerState<_EmojiManagement> {
     if (!mounted) return;
     setState(() => _busy = false);
     if (!result.ok) {
-      setState(
-        () => _error = result.errorOr('Failed to rename emoji'),
-      );
+      setState(() => _error = result.errorOr('Failed to rename emoji'));
       return;
     }
     final updated = result.data;
     if (updated is AccordEmoji) {
       ref
-          .read(accordEmojisControllerProvider(ref.readActiveServerKey() ?? '', widget.spaceId).notifier)
+          .read(
+            accordEmojisControllerProvider(
+              ref.readActiveServerKey() ?? '',
+              widget.spaceId,
+            ).notifier,
+          )
           .upsert(updated);
     }
   }
@@ -129,13 +135,16 @@ class _EmojiManagementState extends ConsumerState<_EmojiManagement> {
     if (!mounted) return;
     setState(() => _busy = false);
     if (!result.ok) {
-      setState(
-        () => _error = result.errorOr('Failed to delete emoji'),
-      );
+      setState(() => _error = result.errorOr('Failed to delete emoji'));
       return;
     }
     ref
-        .read(accordEmojisControllerProvider(ref.readActiveServerKey() ?? '', widget.spaceId).notifier)
+        .read(
+          accordEmojisControllerProvider(
+            ref.readActiveServerKey() ?? '',
+            widget.spaceId,
+          ).notifier,
+        )
         .remove(id);
   }
 
@@ -166,7 +175,12 @@ class _EmojiManagementState extends ConsumerState<_EmojiManagement> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = BonfireThemeExtension.of(context);
-    final emojis = ref.watch(accordEmojisControllerProvider(ref.readActiveServerKey() ?? '', widget.spaceId));
+    final emojis = ref.watch(
+      accordEmojisControllerProvider(
+        ref.readActiveServerKey() ?? '',
+        widget.spaceId,
+      ),
+    );
     final cdnUrl = ref.watchCdnUrl();
 
     return Dialog(

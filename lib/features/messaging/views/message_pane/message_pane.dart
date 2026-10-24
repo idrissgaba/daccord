@@ -71,6 +71,7 @@ import 'package:bonfire/features/spaces/controllers/spaces.dart';
 import 'package:bonfire/features/spaces/utils/message_time.dart';
 import 'package:bonfire/features/spaces/views/accord_reports.dart';
 import 'package:bonfire/features/user/controllers/accord_users.dart';
+import 'package:bonfire/features/voice/utils/stage_logic.dart';
 import 'package:bonfire/features/voice/views/voice_view.dart';
 import 'package:bonfire/shared/components/async_state_views.dart';
 import 'package:bonfire/shared/components/context_menu.dart';
@@ -403,7 +404,7 @@ class _MessagePaneState extends ConsumerState<MessagePane> {
 
     // In panel mode this pane *is* the voice view's chat panel — delegating
     // back to the voice view would recurse.
-    if (!widget.panel && channel?.type == 'voice') {
+    if (!widget.panel && isVoiceChannelType(channel?.type)) {
       return VoiceChannelView(
         channelId: channelId,
         spaceId: spaceId,

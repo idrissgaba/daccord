@@ -18,6 +18,7 @@ import 'package:bonfire/features/voice/controllers/voice.dart';
 import 'package:bonfire/features/voice/controllers/voice_states.dart';
 import 'package:bonfire/features/voice/services/voice_session.dart';
 import 'package:bonfire/features/voice/utils/voice_logic.dart';
+import 'package:bonfire/features/voice/views/stage_view.dart';
 import 'package:bonfire/features/voice/views/voice_moderation_menu.dart';
 import 'package:bonfire/features/voice/views/voice_participants.dart';
 import 'package:bonfire/theme/app_theme.dart';
@@ -482,6 +483,7 @@ void main() {
       required Map<String, AccordVoiceState> states,
       List<http.Request>? requests,
       String ownerId = 'u-self',
+      String type = 'voice',
     }) {
       final server = AccordServer.fromBaseUrl('https://accord.example.test');
       final client = AccordClient(
@@ -523,7 +525,7 @@ void main() {
           accordMembersControllerProvider('', 's1').overrideWith(_Members.new),
           accordChannelsControllerProvider('', 's1').overrideWith(
             () => _Channels([
-              AccordChannel(id: 'c1', type: 'voice', name: 'Lounge'),
+              AccordChannel(id: 'c1', type: type, name: 'Lounge'),
               AccordChannel(id: 'c2', type: 'voice', name: 'Games'),
             ]),
           ),
@@ -536,7 +538,7 @@ void main() {
         ],
         child: MaterialApp(
           theme: buildAppTheme(AppThemePreset.dark),
-          home: const Scaffold(
+          home: Scaffold(
             body: Column(
               children: [
                 VoiceParticipantList(channelId: 'c1', spaceId: 's1'),
@@ -546,6 +548,8 @@ void main() {
                   channelId: 'c1',
                   userId: 'u-other',
                 ),
+                if (type == 'stage')
+                  StageAudiencePanel(channelId: 'c1', spaceId: 's1'),
               ],
             ),
           ),
@@ -602,6 +606,38 @@ void main() {
       await tester.tap(find.byKey(const Key('voice-mod-disconnect')));
       await tester.pumpAndSettle();
       expect(jsonDecode(requests.last.body), {'channel_id': null});
+    });
+
+    testWidgets('a stage moderator invites a raised hand to speak', (
+      tester,
+    ) async {
+      final requests = <http.Request>[];
+      await tester.pumpWidget(
+        host(
+          type: 'stage',
+          states: {
+            'u-other': _vs(userId: 'u-other', suppress: true)
+              ..requestToSpeakTimestamp = '2026-10-24T10:00:00+00:00',
+          },
+          requests: requests,
+        ),
+      );
+      await tester.pump();
+      expect(find.text('AUDIENCE — 1'), findsOneWidget);
+      expect(find.byIcon(Icons.back_hand), findsOneWidget);
+
+      await tester.tap(find.text('Invite to Speak'));
+      await tester.pumpAndSettle();
+      expect(requests.last.method, 'PATCH');
+      expect(
+        requests.last.url.path,
+        endsWith('/spaces/s1/voice-states/u-other'),
+      );
+      expect(jsonDecode(requests.last.body), {'suppress': false});
+
+      await tester.tap(find.text('Invite'));
+      await tester.pumpAndSettle();
+      expect(jsonDecode(requests.last.body), {'suppress': false});
     });
 
     testWidgets('members without the rights see no moderation actions', (

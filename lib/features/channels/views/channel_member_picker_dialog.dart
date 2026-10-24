@@ -17,8 +17,7 @@ class ChannelMemberPickerDialog extends StatefulWidget {
       _ChannelMemberPickerDialogState();
 }
 
-class _ChannelMemberPickerDialogState
-    extends State<ChannelMemberPickerDialog> {
+class _ChannelMemberPickerDialogState extends State<ChannelMemberPickerDialog> {
   String _query = '';
 
   @override

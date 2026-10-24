@@ -23,7 +23,9 @@ class _MentionPopup extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = BonfireThemeExtension.of(context);
-    final members = ref.watch(accordMembersControllerProvider(ref.readActiveServerKey() ?? '', spaceId));
+    final members = ref.watch(
+      accordMembersControllerProvider(ref.readActiveServerKey() ?? '', spaceId),
+    );
     final space = ref.watch(
       spacesControllerProvider.select(
         (s) => s?.firstWhereOrNull((sp) => sp.id == spaceId),
@@ -79,9 +81,7 @@ class _MentionPopup extends ConsumerWidget {
                     ),
                     Text(
                       "@${entry.handle}",
-                      style: Theme.of(
-                        context,
-                      ).textTheme.labelSmall!.copyWith(
+                      style: Theme.of(context).textTheme.labelSmall!.copyWith(
                         color: entry.kind == _MentionEntryKind.broadcast
                             ? _composerBroadcastColor
                             : colors.gray,
