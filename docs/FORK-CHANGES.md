@@ -24,6 +24,7 @@ Material icons and existing sounds; no third-party brand assets are used.
 | Send the invite code when registering (invite-only servers) | `feature/invite-registration` | Deployed | `authentication/repositories/accord_auth.dart`, `authentication/views/accord_login.dart`, `server/views/add_server_dialog.dart` |
 | Noise suppression / echo cancellation / auto gain toggles, high quality (128 kbps) mic | `feature/voice-audio-options` | Deployed | `voice/services/voice_session.dart`, `voice/utils/voice_logic.dart`, `voice/views/voice_settings_screen.dart` |
 | Push-to-talk (rebindable key, hold-to-talk button) | `feature/push-to-talk` | Deployed | `voice/controllers/voice.dart`, `voice/services/voice_session.dart`, `voice/views/voice_bar.dart`, `voice/views/voice_settings_screen.dart` |
+| Push-to-talk outside the app (Windows desktop) | `feature/global-ptt` | Built | `voice/services/global_key_watcher*.dart`, `voice/controllers/voice.dart`, `voice/views/voice_settings_screen.dart` (adds `win32` as a direct dependency) |
 | Screen share: 4K, shared tab/screen audio, enabled in desktop browsers | `feature/screen-share-plus` | Deployed | `voice/services/voice_session.dart`, `voice/utils/audio_output_support.dart`, `voice/views/voice_bar.dart`, `voice/views/voice_view.dart` |
 | Voice messages (record from the composer, sent as audio files) | `feature/voice-messages` | Deployed | `messaging/utils/voice_message.dart`, `messaging/views/voice_message_recorder.dart`, `messaging/views/message_pane/composer.dart`, `messaging/views/inline_audio_player.dart` (adds the `record` package) |
 | Markdown: `-#` subtext and `<t:…>` dynamic timestamps | `feature/markdown-plus` | Deployed | `messaging/utils/message_timestamp.dart`, `messaging/views/box/accord_message_markup.dart` (adds `source_span`) |
@@ -50,7 +51,9 @@ Notes:
   output volume there too.
 - Shared screen audio comes from the browser (desktop Chrome/Edge). The native
   desktop app shares video only.
-- Push-to-talk listens while the app has focus (no global OS hotkey).
+- Push-to-talk works while another app has focus in the Windows desktop app
+  (`feature/global-ptt`, polling `GetAsyncKeyState` through `win32` every
+  15 ms during a call); elsewhere it listens while the app has focus.
 - Events, stickers, profile extras, the welcome screen, stages and super
   reactions need the
   server fork too; against an upstream server those panels stay empty or report
