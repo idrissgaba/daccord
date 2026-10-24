@@ -4,6 +4,7 @@ import 'package:bonfire/features/messaging/views/box/accord_markdown_box.dart';
 import 'package:bonfire/features/messaging/views/box/accord_message_markup.dart';
 import 'package:bonfire/features/messaging/views/message_media_gate.dart';
 import 'package:bonfire/theme/app_theme.dart';
+import 'package:bonfire/theme/theme.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -268,5 +269,39 @@ void main() {
       });
     }
     expect(linked, isTrue);
+  });
+
+  testWidgets('a hidden spoiler stands out from the pane until clicked', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _host(
+        AccordMarkdownBox(
+          content: 'look ||secret|| here',
+          syntaxExtensions: accordMarkupSyntaxes(const AccordMarkupContext()),
+          elementBuilders: accordMarkupBuilders(),
+        ),
+      ),
+    );
+    await tester.pump();
+    Color? boxColor() => tester
+        .widgetList<Container>(
+          find.ancestor(
+            of: find.text('secret'),
+            matching: find.byType(Container),
+          ),
+        )
+        .map((c) => (c.decoration as BoxDecoration?)?.color)
+        .firstWhere((c) => c != null, orElse: () => null);
+    final pane = BonfireThemeExtension.of(
+      tester.element(find.text('secret')),
+    ).background;
+    expect(boxColor(), isNotNull);
+    expect(boxColor(), isNot(pane));
+    expect(boxColor()!.a, greaterThan(0));
+
+    await tester.tap(find.text('secret'));
+    await tester.pump();
+    expect(boxColor(), Colors.transparent);
   });
 }
