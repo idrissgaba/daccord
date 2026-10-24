@@ -390,7 +390,7 @@ class _ConnectedBody extends ConsumerWidget {
     final cdnUrl = ref.watchCdnUrl();
     final myId = ref.watchUserId();
     final session = ref.read(voiceControllerProvider.notifier).session;
-    final stage = watchIsStage(ref, spaceId, channelId);
+    final stage = only == null && watchIsStage(ref, spaceId, channelId);
     if (stage) {
       final speakers = stageSpeakers(states);
       return Column(
