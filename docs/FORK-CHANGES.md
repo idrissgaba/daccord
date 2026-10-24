@@ -32,6 +32,11 @@ Material icons and existing sounds; no third-party brand assets are used.
 | Voice moderation: server mute/deafen, move (menu or drag), disconnect, user limits | `feature/voice-moderation` | Deployed | `voice/views/voice_moderation_menu.dart`, `voice/controllers/voice.dart`, `voice/views/voice_participants.dart`, `voice/utils/voice_logic.dart` |
 | Webhooks management, APP badge, per-message webhook names | `feature/webhooks` | Deployed | `spaces/views/accord_webhooks.dart`, `packages/accordkit/lib/src/models/webhook.dart`, `packages/accordkit/lib/src/rest/endpoints/webhooks_api.dart`, `messaging/views/message_author_header.dart` |
 | Slash commands, bot buttons and menus, ephemeral and "thinking…" answers | `feature/interactions` | Deployed | `messaging/views/command_picker.dart`, `messaging/views/message_components.dart`, `messaging/controllers/app_commands.dart`, `messaging/utils/interaction_logic.dart`, `packages/accordkit/lib/src/models/command.dart`, `packages/accordkit/lib/src/rest/endpoints/interactions_api.dart` |
+| Scheduled events (list, create, interested, live banner, `.ics` export, start notification) | `feature/scheduled-events` | Deployed | `spaces/views/space_events.dart`, `spaces/controllers/space_events.dart`, `spaces/utils/event_logic.dart`, `packages/accordkit/lib/src/models/scheduled_event.dart`, `packages/accordkit/lib/src/rest/endpoints/events_api.dart` |
+| Stickers (picker, send, manage per space) | `feature/stickers` | Deployed | `messaging/views/stickers.dart`, `messaging/controllers/space_stickers.dart`, `messaging/views/message_pane/composer.dart`, `packages/accordkit/lib/src/models/sticker.dart`, `packages/accordkit/lib/src/rest/endpoints/stickers_api.dart` |
+| Profile extras: pronouns, profile theme colours, private notes, streamer mode | `feature/profile-extras` | Deployed | `member/views/profile_extras.dart`, `member/controllers/profile_extras.dart`, `settings/models/accord_settings.dart`, `packages/accordkit/lib/src/models/profile_extras.dart`, `packages/accordkit/lib/src/rest/endpoints/profiles_api.dart` |
+| Welcome screen (shown once per space, editor in space settings) | `feature/welcome-screen` | Deployed | `spaces/views/welcome_screen.dart`, `settings/models/accord_settings.dart`, `packages/accordkit/lib/src/models/welcome_screen.dart`, `packages/accordkit/lib/src/rest/endpoints/welcome_screen_api.dart` |
+| Stage channels (audience, raise hand, invite to speak) | `feature/stage-channels` | Deployed | `voice/views/stage_view.dart`, `voice/utils/stage_logic.dart`, `voice/views/voice_view.dart`, `voice/views/voice_moderation_menu.dart`, `packages/accordkit/lib/src/models/voice_state.dart` |
 
 Paths are under `lib/features/` unless they start with `packages/`.
 
@@ -45,6 +50,9 @@ Notes:
 - Shared screen audio comes from the browser (desktop Chrome/Edge). The native
   desktop app shares video only.
 - Push-to-talk listens while the app has focus (no global OS hotkey).
+- Events, stickers, profile extras, the welcome screen and stages need the
+  server fork too; against an upstream server those panels stay empty or report
+  the server's error.
 - Polls, mark unread and voice moderation need the server fork; against an
   upstream server the poll button fails with the server's error and the
   moderation actions are refused.
