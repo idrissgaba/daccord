@@ -6,6 +6,7 @@ import 'package:bonfire/features/user/controllers/accord_users.dart';
 import 'package:bonfire/features/voice/controllers/voice.dart';
 import 'package:bonfire/features/voice/controllers/voice_states.dart';
 import 'package:bonfire/features/voice/utils/participant_display.dart';
+import 'package:bonfire/features/voice/views/stage_view.dart';
 import 'package:bonfire/features/voice/views/voice_settings_screen.dart';
 import 'package:bonfire/shared/utils/client_access.dart';
 import 'package:bonfire/theme/theme.dart';
@@ -115,6 +116,7 @@ class VoiceLobbyBody extends ConsumerWidget {
     final selfMute = ref.watch(
       voiceControllerProvider.select((v) => v.selfMute),
     );
+    final stage = watchIsStage(ref, spaceId, channelId);
 
     final joinButton = FilledButton.icon(
       style: FilledButton.styleFrom(backgroundColor: colors.green),
@@ -149,7 +151,7 @@ class VoiceLobbyBody extends ConsumerWidget {
         Row(
           children: [
             Icon(
-              Icons.volume_up,
+              stage ? Icons.podcasts : Icons.volume_up,
               size: compact ? 18 : 20,
               color: colors.primary,
             ),
@@ -204,15 +206,22 @@ class VoiceLobbyBody extends ConsumerWidget {
           spacing: 8,
           runSpacing: 8,
           children: [
-            _PreJoinChip(
-              icon: selfMute ? Icons.mic_off : Icons.mic,
-              label: selfMute ? 'Joining muted' : 'Microphone will be live',
-            ),
-            const _PreJoinChip(
-              icon: Icons.videocam_off,
-              label: 'Camera starts off',
-            ),
-            if (!kIsWeb)
+            if (stage)
+              const _PreJoinChip(
+                icon: Icons.groups,
+                label: 'You join the audience',
+              )
+            else ...[
+              _PreJoinChip(
+                icon: selfMute ? Icons.mic_off : Icons.mic,
+                label: selfMute ? 'Joining muted' : 'Microphone will be live',
+              ),
+              const _PreJoinChip(
+                icon: Icons.videocam_off,
+                label: 'Camera starts off',
+              ),
+            ],
+            if (!kIsWeb && !stage)
               const _PreJoinChip(
                 icon: Icons.screen_share_outlined,
                 label: 'Screen share available',
@@ -221,7 +230,10 @@ class VoiceLobbyBody extends ConsumerWidget {
         ),
         SizedBox(height: compact ? 10 : 16),
         Text(
-          compact
+          stage
+              ? 'You listen from the audience. Raise your hand to ask to '
+                    'speak; a stage moderator can invite you up.'
+              : compact
               ? 'Turn your camera on or share a screen once you are in.'
               : 'Joining connects you to the call. Once in, you can mute, turn '
                     'your camera on, share a screen, and chat alongside the '
