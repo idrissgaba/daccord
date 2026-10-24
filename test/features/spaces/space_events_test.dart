@@ -53,6 +53,7 @@ class _Channels extends AccordChannelsController {
   @override
   List<AccordChannel>? build(String serverKey, String spaceId) => [
     AccordChannel(id: 'v1', type: 'voice', name: 'Lounge'),
+    AccordChannel(id: 'st1', type: 'stage', name: 'Talks'),
   ];
 }
 
@@ -254,5 +255,12 @@ void main() {
     );
     expect(find.text('Interested'), findsOneWidget);
     expect(find.text('2 interested'), findsOneWidget);
+
+    // Stages can host events too.
+    await tester.tap(find.byKey(const Key('event-create')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(DropdownButtonFormField<String>));
+    await tester.pumpAndSettle();
+    expect(find.text('Talks'), findsWidgets);
   });
 }

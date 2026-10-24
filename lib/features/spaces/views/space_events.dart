@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:accordkit/accordkit.dart';
+import 'package:bonfire/features/voice/utils/stage_logic.dart';
 import 'package:bonfire/features/channels/controllers/accord_channels.dart';
 import 'package:bonfire/features/member/utils/permissions.dart';
 import 'package:bonfire/features/spaces/controllers/space_events.dart';
@@ -619,7 +620,7 @@ class _EventEditorDialogState extends ConsumerState<EventEditorDialog> {
                   ),
                 ) ??
                 const <AccordChannel>[])
-            .where((c) => c.type == 'voice')
+            .where((c) => isVoiceChannelType(c.type))
             .toList();
     return AlertDialog(
       title: Text(widget.existing == null ? 'Create event' : 'Edit event'),
