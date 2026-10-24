@@ -77,8 +77,12 @@ bool get isBackgroundConnectionAvailable =>
     debugBackgroundConnectionAvailable ??
     (!isAppStoreBuild && UniversalPlatform.isAndroid);
 
-/// `owner/repo` whose GitHub Releases drive the in-app update checker.
+/// The upstream project's `owner/repo`: issues, docs and credits.
 const String kGithubRepo = 'DaccordProject/daccord';
+
+/// `owner/repo` whose GitHub Releases drive the in-app update checker. This
+/// fork's own, so an upstream release never replaces the fork's build.
+const String kUpdateRepo = 'idrissgaba/daccord';
 
 /// Public website surfaces used by in-app support and policy links.
 const String kDaccordWebsiteUrl = 'https://www.daccord.gg';
@@ -88,12 +92,12 @@ const String kDaccordPrivacyPolicyUrl = '$kDaccordWebsiteUrl/privacy.html';
 /// Universal Link prefix; parsed by `ServerUri.parseDeepLink`.
 const String kUniversalLinkBase = '$kDaccordWebsiteUrl/open';
 
-/// GitHub REST endpoint for the latest published release of [kGithubRepo].
+/// GitHub REST endpoint for the latest published release of [kUpdateRepo].
 const String kGithubLatestReleaseUrl =
-    'https://api.github.com/repos/$kGithubRepo/releases/latest';
+    'https://api.github.com/repos/$kUpdateRepo/releases/latest';
 
-/// GitHub REST endpoint for the release tagged `v[version]` of [kGithubRepo].
+/// GitHub REST endpoint for the release tagged `v[version]` of [kUpdateRepo].
 /// Used for the running build's notes, since `/releases/latest` may already
 /// have moved on after a self-update.
 String kGithubReleaseByTagUrl(String version) =>
-    'https://api.github.com/repos/$kGithubRepo/releases/tags/v$version';
+    'https://api.github.com/repos/$kUpdateRepo/releases/tags/v$version';
