@@ -46,7 +46,8 @@ class _LobbyVoiceController extends VoiceController {
 
 class _NoVoiceStates extends VoiceStatesController {
   @override
-  Map<String, Map<String, AccordVoiceState>> build(String serverKey) => const {};
+  Map<String, Map<String, AccordVoiceState>> build(String serverKey) =>
+      const {};
 }
 
 Map<String, dynamic> _message() => {
@@ -174,8 +175,11 @@ void main() {
     expect(find.byTooltip('Message actions'), findsNothing);
     // …and the message keeps essentially the whole row to itself meanwhile.
     expect(
-      tester.getSize(find.descendant(of: row, matching: find.byType(Column))
-          .first).width,
+      tester
+          .getSize(
+            find.descendant(of: row, matching: find.byType(Column)).first,
+          )
+          .width,
       greaterThan(180),
     );
 

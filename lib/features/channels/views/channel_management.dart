@@ -13,6 +13,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 const _channelTypes = <({String value, String label, IconData icon})>[
   (value: 'text', label: 'Text', icon: Icons.tag),
   (value: 'voice', label: 'Voice', icon: Icons.volume_up),
+  (value: 'stage', label: 'Stage', icon: Icons.podcasts),
   (value: 'forum', label: 'Forum', icon: Icons.forum),
   (value: 'announcement', label: 'Announcement', icon: Icons.campaign),
   (value: 'arcade', label: 'Arcade', icon: Icons.sports_esports_outlined),

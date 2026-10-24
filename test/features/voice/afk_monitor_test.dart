@@ -19,7 +19,8 @@ void main() {
       WidgetTester tester,
       AfkMonitor monitor,
       List<bool> changes,
-    ) body,
+    )
+    body,
   ) {
     testWidgets(description, (tester) async {
       final changes = <bool>[];

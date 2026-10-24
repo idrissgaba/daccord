@@ -76,3 +76,18 @@ for voice, video and screen sharing. Leave and rejoin to apply it to a current
 call. The option is off by default, can add latency, and requires the server's
 LiveKit deployment to provide reachable TURN. Failed relay connections report an
 error and do not fall back to direct media. See [network privacy](../privacy-network.md).
+
+## Stage Channels
+
+A **Stage** (create it like any channel, type **Stage**) is a voice channel
+with an audience, for talks, shows and Q&As.
+
+- Everyone joins in the **audience**: you can listen, but your microphone,
+  camera and screen share are off.
+- Press the **hand** button to ask to speak; press it again to lower your hand.
+- Stage moderators (members who can **Mute Members**) see raised hands first
+  in the audience list and press **Invite** to bring someone up. From a
+  speaker's menu they can **Move to Audience**; they can also step up
+  themselves with **Speak on stage**.
+- A speaker leaves the stage with **Move to audience**. Rejoining the channel
+  always starts in the audience.

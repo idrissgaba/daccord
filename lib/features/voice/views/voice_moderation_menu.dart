@@ -4,6 +4,8 @@ import 'package:bonfire/features/channels/controllers/accord_channels.dart';
 import 'package:bonfire/features/member/utils/permissions.dart';
 import 'package:bonfire/features/spaces/controllers/spaces.dart';
 import 'package:bonfire/features/voice/controllers/voice_states.dart';
+import 'package:bonfire/features/voice/utils/stage_logic.dart';
+import 'package:bonfire/features/voice/views/stage_view.dart';
 import 'package:bonfire/shared/utils/rest_result_ext.dart';
 import 'package:bonfire/theme/theme.dart';
 import 'package:collection/collection.dart';
@@ -65,7 +67,8 @@ List<AccordChannel> voiceMoveTargets(
   String currentChannelId,
 ) => [
   for (final channel in channels)
-    if (channel.type == 'voice' && channel.id != currentChannelId) channel,
+    if (isVoiceChannelType(channel.type) && channel.id != currentChannelId)
+      channel,
 ];
 
 /// A participant a moderator is dragging to another voice channel.
@@ -169,6 +172,12 @@ class _VoiceModerationPanelState extends ConsumerState<VoiceModerationPanel> {
         widget.serverKey,
       ).select((cache) => cache[widget.channelId]?[widget.userId]),
     );
+    final stage = watchIsStage(
+      ref,
+      widget.spaceId,
+      widget.channelId,
+      serverKey: widget.serverKey,
+    );
     final targets = rights.move
         ? voiceMoveTargets(
             ref.watch(
@@ -197,6 +206,31 @@ class _VoiceModerationPanelState extends ConsumerState<VoiceModerationPanel> {
                 ? null
                 : (value) => _update({'mute': value ?? false}),
           ),
+        if (rights.mute && stage && voiceState != null)
+          ListTile(
+            key: const Key('voice-mod-stage'),
+            dense: true,
+            enabled: !_busy,
+            leading: Icon(
+              voiceState.suppress ? Icons.mic_external_on : Icons.group,
+              size: 18,
+            ),
+            title: Text(
+              voiceState.suppress ? 'Invite to Speak' : 'Move to Audience',
+            ),
+            onTap: () async {
+              setState(() => _busy = true);
+              await updateStage(
+                context,
+                ref,
+                serverKey: widget.serverKey,
+                spaceId: widget.spaceId,
+                userId: widget.userId,
+                suppress: !voiceState.suppress,
+              );
+              if (mounted) setState(() => _busy = false);
+            },
+          ),
         if (rights.deafen)
           CheckboxListTile(
             key: const Key('voice-mod-deafen'),
@@ -220,7 +254,13 @@ class _VoiceModerationPanelState extends ConsumerState<VoiceModerationPanel> {
                   value: channel.id,
                   child: Row(
                     children: [
-                      Icon(Icons.volume_up, size: 16, color: colors.gray),
+                      Icon(
+                        channel.type == 'stage'
+                            ? Icons.podcasts
+                            : Icons.volume_up,
+                        size: 16,
+                        color: colors.gray,
+                      ),
                       const SizedBox(width: 8),
                       Flexible(
                         child: Text(

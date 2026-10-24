@@ -70,6 +70,7 @@ import 'package:bonfire/shared/utils/rest_result_ext.dart';
 import 'package:bonfire/shared/utils/text_prompt_dialog.dart';
 import 'package:bonfire/features/voice/controllers/voice.dart';
 import 'package:bonfire/features/voice/controllers/voice_states.dart';
+import 'package:bonfire/features/voice/utils/stage_logic.dart';
 import 'package:bonfire/features/voice/utils/voice_logic.dart'
     show isVoiceDoubleTap, voiceOccupancyLabel;
 import 'package:bonfire/features/voice/views/voice_bar.dart';

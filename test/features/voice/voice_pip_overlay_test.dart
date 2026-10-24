@@ -36,7 +36,8 @@ class _StubVoiceController extends VoiceController {
 
 class _FakeVoiceStates extends VoiceStatesController {
   @override
-  Map<String, Map<String, AccordVoiceState>> build(String serverKey) => const {};
+  Map<String, Map<String, AccordVoiceState>> build(String serverKey) =>
+      const {};
 }
 
 class _FakeDmChannels extends DmChannelsController {
@@ -108,9 +109,9 @@ Widget _dialogHost({required _StubVoiceController voice}) {
       settingsControllerProvider.overrideWith(_FakeSettingsController.new),
       voiceControllerProvider.overrideWith(() => voice),
       voiceStatesControllerProvider('').overrideWith(_FakeVoiceStates.new),
-      dmChannelsControllerProvider('').overrideWith(
-        () => _FakeDmChannels([_dm]),
-      ),
+      dmChannelsControllerProvider(
+        '',
+      ).overrideWith(() => _FakeDmChannels([_dm])),
     ],
     child: MaterialApp(
       theme: buildAppTheme(AppThemePreset.dark),

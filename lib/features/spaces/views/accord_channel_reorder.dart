@@ -255,6 +255,8 @@ class _ChannelReorderState extends ConsumerState<_ChannelReorder> {
                                         ? Icons.sports_esports_outlined
                                         : entry.channel.type == 'voice'
                                         ? Icons.volume_up
+                                        : entry.channel.type == 'stage'
+                                        ? Icons.podcasts
                                         : (entry.channel.type == 'forum'
                                               ? Icons.forum
                                               : Icons.tag)),
@@ -293,6 +295,8 @@ class _ChannelReorderState extends ConsumerState<_ChannelReorder> {
                                         ? Icons.sports_esports_outlined
                                         : entry.channel.type == 'voice'
                                         ? Icons.volume_up
+                                        : entry.channel.type == 'stage'
+                                        ? Icons.podcasts
                                         : (entry.channel.type == 'forum'
                                               ? Icons.forum
                                               : Icons.tag)),

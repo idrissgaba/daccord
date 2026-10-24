@@ -53,6 +53,23 @@ class VoiceApi extends EndpointBase {
     return rest.makeRequest('POST', '/channels/$channelId/call/cancel');
   }
 
+  /// Stage controls for [userId] (`@me` for yourself) in [spaceId]: raise or
+  /// lower your hand ([requestToSpeak]), bring someone up to speak or send
+  /// them back to the audience ([suppress]). On success [RestResult.data] is
+  /// the updated [AccordVoiceState].
+  Future<RestResult> updateStage(String spaceId, String userId,
+      {bool? suppress, bool? requestToSpeak}) async {
+    final result = await rest.makeRequest(
+      'PATCH',
+      '/spaces/$spaceId/voice-states/$userId',
+      body: {
+        if (suppress != null) 'suppress': suppress,
+        if (requestToSpeak != null) 'request_to_speak': requestToSpeak,
+      },
+    );
+    return result.deserialize(AccordVoiceState.fromJson);
+  }
+
   /// Lists available voice regions for a space.
   Future<RestResult> listRegions(String spaceId) {
     return rest.makeRequest('GET', '/spaces/$spaceId/voice-regions');

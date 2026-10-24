@@ -158,7 +158,7 @@ class _ChannelTileState extends ConsumerState<_ChannelTile> {
   /// succession can't be mistaken for a double-click.
   DateTime? _lastTapAt;
 
-  bool get _isVoice => widget.channel.type == 'voice';
+  bool get _isVoice => isVoiceChannelType(widget.channel.type);
 
   bool get _connectedHere =>
       ref.read(voiceControllerProvider).channelId == widget.channel.id;
@@ -221,6 +221,8 @@ class _ChannelTileState extends ConsumerState<_ChannelTile> {
     switch (widget.channel.type) {
       case 'voice':
         return Icons.volume_up;
+      case 'stage':
+        return Icons.podcasts;
       case 'forum':
         return Icons.forum;
       case 'announcement':
@@ -236,7 +238,7 @@ class _ChannelTileState extends ConsumerState<_ChannelTile> {
   Widget build(BuildContext context) {
     final colors = BonfireThemeExtension.of(context);
     final channel = widget.channel;
-    final isVoice = channel.type == 'voice';
+    final isVoice = isVoiceChannelType(channel.type);
     final enabled =
         isVoice ||
         channel.type == 'arcade' ||

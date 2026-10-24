@@ -7,7 +7,8 @@ int parseChannelPosition(AccordChannel c) => asInt(c.position);
 /// Sorting the parts ensures the signature is order-independent.
 String channelListSignature(List<AccordChannel> channels) {
   final parts = [
-    for (final c in channels) '${c.id}:${c.parentId}:${parseChannelPosition(c)}',
+    for (final c in channels)
+      '${c.id}:${c.parentId}:${parseChannelPosition(c)}',
   ]..sort();
   return parts.join(',');
 }

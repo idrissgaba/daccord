@@ -14,6 +14,9 @@ class AccordVoiceState {
   bool selfVideo;
   bool suppress;
 
+  /// When this stage audience member raised their hand, or null.
+  String? requestToSpeakTimestamp;
+
   AccordVoiceState({
     this.userId = '',
     this.spaceId,
@@ -26,6 +29,7 @@ class AccordVoiceState {
     this.selfStream = false,
     this.selfVideo = false,
     this.suppress = false,
+    this.requestToSpeakTimestamp,
   });
 
   factory AccordVoiceState.fromJson(Map<String, dynamic> d) {
@@ -41,6 +45,7 @@ class AccordVoiceState {
       selfStream: asBool(d['self_stream']),
       selfVideo: asBool(d['self_video']),
       suppress: asBool(d['suppress']),
+      requestToSpeakTimestamp: asStringOrNull(d['request_to_speak_timestamp']),
     );
   }
 
@@ -58,6 +63,9 @@ class AccordVoiceState {
     };
     if (spaceId != null) d['space_id'] = spaceId;
     if (channelId != null) d['channel_id'] = channelId;
+    if (requestToSpeakTimestamp != null) {
+      d['request_to_speak_timestamp'] = requestToSpeakTimestamp;
+    }
     return d;
   }
 }

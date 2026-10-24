@@ -217,6 +217,7 @@ class _ChannelPermissionsDialogState
     final all = AccordPermission.all();
     switch (widget.channel.type) {
       case 'voice':
+      case 'stage':
         return all.where((p) => !_textOnlyPerms.contains(p)).toList();
       case 'text':
       case 'announcement':

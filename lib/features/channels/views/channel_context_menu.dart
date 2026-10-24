@@ -13,6 +13,8 @@ IconData _glyphFor(String? type) {
   switch (type) {
     case 'voice':
       return Icons.volume_up;
+    case 'stage':
+      return Icons.podcasts;
     case 'forum':
       return Icons.forum;
     case 'announcement':
