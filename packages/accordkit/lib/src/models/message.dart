@@ -32,6 +32,9 @@ class AccordMessage {
   int flags;
   Object? components;
   List<String>? stickerIds;
+
+  /// Super reactions (`super_reactions`), counted apart from [reactions].
+  List<AccordSuperReaction> superReactions = [];
   String? webhookId;
   String? threadId;
   int replyCount;
@@ -141,6 +144,11 @@ class AccordMessage {
       ];
     }
 
+    for (final r in asList(d['super_reactions']) ?? const []) {
+      final rm = asMap(r);
+      if (rm != null) m.superReactions.add(AccordSuperReaction.fromJson(rm));
+    }
+
     final rawRef = d['reply_to'] ?? d['message_reference'];
     final refMap = asMap(rawRef);
     if (refMap != null) {
@@ -188,6 +196,9 @@ class AccordMessage {
     if (replyTo != null) d['reply_to'] = replyTo;
     if (components != null) d['components'] = components;
     if (stickerIds != null) d['sticker_ids'] = stickerIds;
+    if (superReactions.isNotEmpty) {
+      d['super_reactions'] = toJsonList(superReactions);
+    }
     if (webhookId != null) d['webhook_id'] = webhookId;
     if (threadId != null) d['thread_id'] = threadId;
     if (replyCount > 0) d['reply_count'] = replyCount;

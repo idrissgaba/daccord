@@ -399,6 +399,12 @@ class AccordMessagesController extends _$AccordMessagesController {
   }
 
   void updateMessage(AccordMessage message) {
+    // Edits don't carry super reactions; they're kept in sync by their own
+    // events.
+    final previous = state?.firstWhereOrNull((m) => m.id == message.id);
+    if (message.superReactions.isEmpty && previous != null) {
+      message.superReactions = previous.superReactions;
+    }
     _history.update(message);
     final next = state?.replaceById(message, (m) => m.id);
     if (next != null) state = next;
@@ -409,6 +415,67 @@ class AccordMessagesController extends _$AccordMessagesController {
     final current = state;
     if (current == null) return;
     state = current.removeById(messageId, (m) => m.id);
+  }
+
+  // ── Super reactions ────────────────────────────────────────────────────────
+
+  /// Applies a super reaction change: a `super_reaction.*` event, or our own
+  /// optimistic toggle (whose echo is then a no-op).
+  void applySuperReaction(
+    String messageId,
+    String emoji, {
+    required bool added,
+    required bool isOwn,
+  }) {
+    final current = state;
+    final message = current?.firstWhereOrNull((m) => m.id == messageId);
+    if (current == null || message == null) return;
+    final list = [...message.superReactions];
+    final i = list.indexWhere((r) => r.emoji == emoji);
+    final next = applySuperReactionChange(
+      i < 0 ? null : list[i],
+      emoji,
+      added: added,
+      isOwn: isOwn,
+    );
+    if (identical(next, i < 0 ? null : list[i])) return;
+    if (i < 0) {
+      list.add(next!);
+    } else if (next == null) {
+      list.removeAt(i);
+    } else {
+      list[i] = next;
+    }
+    message.superReactions = list;
+    state = [...current];
+  }
+
+  /// Adds or removes our super reaction [emoji] (a reaction token), reverting
+  /// on failure. Returns null on success, or why it failed.
+  Future<String?> toggleSuperReaction(
+    AccordClient client,
+    String messageId,
+    String emoji,
+  ) async {
+    final message = state?.firstWhereOrNull((m) => m.id == messageId);
+    if (message == null) return null;
+    final adding =
+        !(message.superReactions
+                .firstWhereOrNull((r) => r.emoji == emoji)
+                ?.me ??
+            false);
+    applySuperReaction(messageId, emoji, added: adding, isOwn: true);
+    final result = adding
+        ? await client.reactions.addSuper(channelId, messageId, emoji)
+        : await client.reactions.removeSuper(channelId, messageId, emoji);
+    if (!ref.mounted) return null;
+    if (!result.ok) {
+      applySuperReaction(messageId, emoji, added: !adding, isOwn: true);
+      return result.errorMessageOr(
+        adding ? 'Failed to super react.' : 'Failed to remove super reaction.',
+      );
+    }
+    return null;
   }
 
   // ── Reactions ──────────────────────────────────────────────────────────────
@@ -791,4 +858,32 @@ class AccordMessagesController extends _$AccordMessagesController {
     if (id != null && id.isNotEmpty) return name;
     return resolveEmojiGlyph(parseEmojiToken(name).name);
   }
+}
+
+/// One super reaction aggregate after a change: [current] itself when nothing
+/// changes (our own echo), null once it's gone.
+AccordSuperReaction? applySuperReactionChange(
+  AccordSuperReaction? current,
+  String emoji, {
+  required bool added,
+  required bool isOwn,
+}) {
+  if (added) {
+    if (current == null) {
+      return AccordSuperReaction(emoji: emoji, count: 1, me: isOwn);
+    }
+    if (isOwn && current.me) return current;
+    return AccordSuperReaction(
+      emoji: emoji,
+      count: current.count + 1,
+      me: current.me || isOwn,
+    );
+  }
+  if (current == null || (isOwn && !current.me)) return current;
+  if (current.count <= 1) return null;
+  return AccordSuperReaction(
+    emoji: emoji,
+    count: current.count - 1,
+    me: isOwn ? false : current.me,
+  );
 }

@@ -257,6 +257,29 @@ class _MessageRowState extends ConsumerState<_MessageRow> {
     if (error != null && mounted) showInfoSnack(context, error);
   }
 
+  Future<void> _toggleSuperReaction(String messageId, String emoji) async {
+    final client = _client;
+    if (client == null) return;
+    final error = await ref
+        .read(
+          accordMessagesControllerProvider(
+            ref.readActiveServerKey() ?? '',
+            widget.channelId,
+          ).notifier,
+        )
+        .toggleSuperReaction(client, messageId, emoji);
+    if (error != null && mounted) showInfoSnack(context, error);
+  }
+
+  Future<void> _openSuperReactionPicker(String messageId) async {
+    final pick = await showAccordEmojiPicker(context, spaceId: widget.spaceId);
+    if (pick == null || !mounted) return;
+    final token = pick.id == null
+        ? resolveEmojiGlyph(pick.name)
+        : '${pick.name}:${pick.id}';
+    await _toggleSuperReaction(messageId, token);
+  }
+
   Future<void> _openReactionPicker(String messageId) async {
     final pick = await showAccordEmojiPicker(context, spaceId: widget.spaceId);
     if (pick == null || !mounted) return;
@@ -554,7 +577,8 @@ class _MessageRowState extends ConsumerState<_MessageRow> {
                           (message.flags & (1 << 2)) == 0)
                         for (final embed in message.embeds)
                           AccordEmbedBox(embed: embed, cdnUrl: cdnUrl),
-                      if ((message.reactions ?? const []).isNotEmpty)
+                      if ((message.reactions ?? const []).isNotEmpty ||
+                          message.superReactions.isNotEmpty)
                         _buildReactions(message, theme, colors, cdnUrl),
                       if (message.replyCount > 0)
                         _buildThreadChip(message, theme, colors),
@@ -611,6 +635,11 @@ class _MessageRowState extends ConsumerState<_MessageRow> {
         label: 'Add reaction',
         icon: Icons.add_reaction_outlined,
         onSelected: () => _openReactionPicker(message.id),
+      ),
+      AccordMenuEntry(
+        label: 'Super reaction',
+        icon: Icons.auto_awesome,
+        onSelected: () => _openSuperReactionPicker(message.id),
       ),
       AccordMenuEntry(
         label: 'Reply',
@@ -725,7 +754,21 @@ class _MessageRowState extends ConsumerState<_MessageRow> {
         spacing: 4,
         runSpacing: 4,
         children: [
-          for (final reaction in message.reactions!)
+          for (final sup in message.superReactions)
+            _SuperReactionPill(
+              key: ValueKey('super-${sup.emoji}'),
+              superReaction: sup,
+              child: (reaction) => _ReactionPill(
+                reaction: reaction,
+                superReaction: true,
+                imageUrl: _reactionEmojiUrl(reaction, customEmoji, cdnUrl),
+                trustedMediaBaseUrl: cdnUrl,
+                onTap: () => _toggleSuperReaction(messageId, sup.emoji),
+                onShowReactors: () =>
+                    _toggleSuperReaction(messageId, sup.emoji),
+              ),
+            ),
+          for (final reaction in message.reactions ?? const <AccordReaction>[])
             _ReactionPill(
               reaction: reaction,
               imageUrl: _reactionEmojiUrl(reaction, customEmoji, cdnUrl),

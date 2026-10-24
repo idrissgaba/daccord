@@ -33,3 +33,12 @@ To insert an emoji into your message text, open the emoji picker from the compos
 ## Skin Tone
 
 You can set your preferred emoji skin tone in **App Settings > Appearance**.
+
+## Super Reactions
+
+A super reaction is a showier reaction: it glows, carries a sparkle and pops
+whenever someone adds one. Everyone can use them, as often as they like.
+
+- Right-click (or long-press) a message → **Super reaction**, then pick an emoji.
+- Click a super reaction to add or remove yours.
+- Super reactions are counted apart from normal reactions with the same emoji.

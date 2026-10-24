@@ -460,6 +460,34 @@ void bindMessageEvents(
     client.onReactionRemove.listen((d) => applyReactionEvent(d, added: false)),
   );
   subs.add(
+    client.onRawEvent.listen((event) {
+      final added = switch (event.type) {
+        'super_reaction.add' => true,
+        'super_reaction.remove' => false,
+        _ => null,
+      };
+      if (added == null || !isActive()) return;
+      final channelId = event.data['channel_id']?.toString();
+      final messageId = event.data['message_id']?.toString();
+      final emoji = event.data['emoji']?.toString() ?? '';
+      if (channelId == null || messageId == null || emoji.isEmpty) return;
+      if (!activeMessageChannels.contains((
+        serverKey: serverKey,
+        channelId: channelId,
+      ))) {
+        return;
+      }
+      ref
+          .read(accordMessagesControllerProvider(serverKey, channelId).notifier)
+          .applySuperReaction(
+            messageId,
+            emoji,
+            added: added,
+            isOwn: isSelf(event.data['user_id']?.toString()),
+          );
+    }),
+  );
+  subs.add(
     client.onReactionClear.listen((data) {
       if (!isActive()) return;
       final channelId = data['channel_id']?.toString();
