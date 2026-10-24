@@ -293,6 +293,8 @@ class _ChannelListState extends ConsumerState<_ChannelList> {
               ],
             ),
           ),
+          if (id != null)
+            WelcomeScreenGate(spaceId: id, onOpenChannel: onSelect),
           if (bannerUrl != null)
             CachedNetworkImage(
               imageUrl: bannerUrl,

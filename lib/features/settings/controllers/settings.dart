@@ -462,6 +462,14 @@ class SettingsController extends _$SettingsController {
     _update(state.copyWith(recentEmoji: next));
   }
 
+  void markWelcomeSeen(String serverKey, String spaceId) {
+    final key = ServerEntityKey(serverKey, spaceId).encoded;
+    if (state.seenWelcomeScreens.contains(key)) return;
+    _update(
+      state.copyWith(seenWelcomeScreens: [...state.seenWelcomeScreens, key]),
+    );
+  }
+
   void acceptRules(String serverKey, String spaceId) {
     final key = ServerEntityKey(serverKey, spaceId).encoded;
     if (state.acceptedRuleSpaces.contains(key)) return;

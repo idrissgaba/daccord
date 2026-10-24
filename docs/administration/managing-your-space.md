@@ -68,6 +68,14 @@ You can set per-channel permission overrides for specific roles:
 2. Go to Permissions.
 3. Add a role and set permissions to **Allow**, **Inherit**, or **Deny** for each permission.
 
+## Welcome Screen
+
+Open **Welcome screen** in space settings (needs Manage Space) to greet members
+the first time they open the space. Write a short description and recommend up
+to five channels, each with an emoji and a reason to go there. Turn on **Show
+to new members** to enable it. Each member sees it once; tapping a recommended
+channel opens it.
+
 ## Invites
 
 See [Invites](invites.md) for details on inviting people to your server.

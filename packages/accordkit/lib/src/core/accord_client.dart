@@ -44,6 +44,7 @@ import '../rest/endpoints/stickers_api.dart';
 import '../rest/endpoints/users_api.dart';
 import '../rest/endpoints/voice_api.dart';
 import '../rest/endpoints/webhooks_api.dart';
+import '../rest/endpoints/welcome_screen_api.dart';
 import 'accord_config.dart';
 
 /// The top-level AccordKit entry point. Bundles the REST client, the gateway
@@ -88,6 +89,7 @@ class AccordClient {
   late final EventsApi events;
   late final StickersApi stickers;
   late final ProfilesApi profiles;
+  late final WelcomeScreenApi welcomeScreen;
 
   AccordClient({
     EncryptionKeyStore? encryptionStore,
@@ -151,6 +153,7 @@ class AccordClient {
     events = EventsApi(rest);
     stickers = StickersApi(rest);
     profiles = ProfilesApi(rest);
+    welcomeScreen = WelcomeScreenApi(rest);
 
     gateway = GatewaySocket(
       connectionFactory: connectionFactory,

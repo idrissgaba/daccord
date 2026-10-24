@@ -110,6 +110,7 @@ class AccordSettings {
     this.userVolumes = const <String, int>{},
     this.locallyMutedUsers = const <String>[],
     this.acceptedRuleSpaces = const <String>[],
+    this.seenWelcomeScreens = const <String>[],
     this.acknowledgedNsfwChannels = const <String>[],
     this.collapsedCategories = const <String, List<String>>{},
     this.drafts = const <String, String>{},
@@ -281,6 +282,9 @@ class AccordSettings {
   /// `Config.set_rules_accepted` / `has_rules_accepted`.
   final List<String> acceptedRuleSpaces;
 
+  /// Spaces whose welcome screen has been shown, so it shows once.
+  final List<String> seenWelcomeScreens;
+
   /// Channel IDs whose age-restricted (NSFW) gate the user has confirmed.
   /// Mirrors the reference client's persisted `nsfw_ack`.
   final List<String> acknowledgedNsfwChannels;
@@ -413,6 +417,7 @@ class AccordSettings {
     Map<String, int>? userVolumes,
     List<String>? locallyMutedUsers,
     List<String>? acceptedRuleSpaces,
+    List<String>? seenWelcomeScreens,
     List<String>? acknowledgedNsfwChannels,
     Map<String, List<String>>? collapsedCategories,
     Map<String, String>? drafts,
@@ -480,6 +485,7 @@ class AccordSettings {
       userVolumes: userVolumes ?? this.userVolumes,
       locallyMutedUsers: locallyMutedUsers ?? this.locallyMutedUsers,
       acceptedRuleSpaces: acceptedRuleSpaces ?? this.acceptedRuleSpaces,
+      seenWelcomeScreens: seenWelcomeScreens ?? this.seenWelcomeScreens,
       acknowledgedNsfwChannels:
           acknowledgedNsfwChannels ?? this.acknowledgedNsfwChannels,
       collapsedCategories: collapsedCategories ?? this.collapsedCategories,
@@ -511,6 +517,10 @@ class AccordSettings {
   /// Whether [spaceId]'s notifications are muted.
   bool isSpaceMuted(String serverKey, String spaceId) =>
       mutedSpaces.contains(ServerEntityKey(serverKey, spaceId).encoded);
+
+  /// Whether [spaceId]'s welcome screen has been shown.
+  bool isWelcomeSeen(String serverKey, String spaceId) =>
+      seenWelcomeScreens.contains(ServerEntityKey(serverKey, spaceId).encoded);
 
   /// Whether the rules interstitial for [spaceId] has been accepted.
   bool isRulesAccepted(String serverKey, String spaceId) =>
@@ -687,6 +697,7 @@ class AccordSettings {
     'userVolumes': userVolumes,
     'locallyMutedUsers': locallyMutedUsers,
     'acceptedRuleSpaces': acceptedRuleSpaces,
+    'seenWelcomeScreens': seenWelcomeScreens,
     'acknowledgedNsfwChannels': acknowledgedNsfwChannels,
     'collapsedCategories': collapsedCategories,
     'drafts': drafts,
@@ -784,6 +795,10 @@ class AccordSettings {
       },
       locallyMutedUsers: [
         for (final e in (json['locallyMutedUsers'] as List? ?? const []))
+          e.toString(),
+      ],
+      seenWelcomeScreens: [
+        for (final e in (json['seenWelcomeScreens'] as List? ?? const []))
           e.toString(),
       ],
       acceptedRuleSpaces: [

@@ -45,6 +45,8 @@ import 'package:bonfire/features/spaces/views/accord_search.dart';
 import 'package:bonfire/features/spaces/views/space_events.dart';
 import 'package:bonfire/features/member/views/profile_extras.dart'
     show StreamerModeBar;
+import 'package:bonfire/features/spaces/views/welcome_screen.dart'
+    show WelcomeScreenGate;
 import 'package:bonfire/features/spaces/views/rail_draggable.dart';
 import 'package:bonfire/features/user/views/self_status_button.dart';
 import 'package:bonfire/features/user/views/accord_direct_messages.dart';

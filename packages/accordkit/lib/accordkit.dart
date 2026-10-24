@@ -41,6 +41,7 @@ export 'src/rest/endpoints/stickers_api.dart';
 export 'src/rest/endpoints/users_api.dart';
 export 'src/rest/endpoints/voice_api.dart';
 export 'src/rest/endpoints/webhooks_api.dart';
+export 'src/rest/endpoints/welcome_screen_api.dart';
 
 // Gateway
 export 'src/gateway/gateway_connection.dart';
@@ -82,6 +83,7 @@ export 'src/models/user.dart';
 export 'src/models/voice_server_update.dart';
 export 'src/models/voice_state.dart';
 export 'src/models/webhook.dart';
+export 'src/models/welcome_screen.dart';
 
 // Utils
 export 'src/utils/cdn.dart';
