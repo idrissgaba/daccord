@@ -37,6 +37,7 @@ Material icons and existing sounds; no third-party brand assets are used.
 | Profile extras: pronouns, profile theme colours, private notes, streamer mode | `feature/profile-extras` | Deployed | `member/views/profile_extras.dart`, `member/controllers/profile_extras.dart`, `settings/models/accord_settings.dart`, `packages/accordkit/lib/src/models/profile_extras.dart`, `packages/accordkit/lib/src/rest/endpoints/profiles_api.dart` |
 | Welcome screen (shown once per space, editor in space settings) | `feature/welcome-screen` | Deployed | `spaces/views/welcome_screen.dart`, `settings/models/accord_settings.dart`, `packages/accordkit/lib/src/models/welcome_screen.dart`, `packages/accordkit/lib/src/rest/endpoints/welcome_screen_api.dart` |
 | Stage channels (audience, raise hand, invite to speak) | `feature/stage-channels` | Deployed | `voice/views/stage_view.dart`, `voice/utils/stage_logic.dart`, `voice/views/voice_view.dart`, `voice/views/voice_moderation_menu.dart`, `packages/accordkit/lib/src/models/voice_state.dart` |
+| Super reactions (glowing, animated, unlimited) | `feature/super-reactions` | Deployed | `messaging/views/message_pane/reactions.dart`, `messaging/views/message_pane/message_row.dart`, `messaging/controllers/accord_messages.dart`, `events/services/accord_message_events.dart`, `packages/accordkit/lib/src/models/reaction.dart`, `packages/accordkit/lib/src/rest/endpoints/reactions_api.dart` |
 
 Paths are under `lib/features/` unless they start with `packages/`.
 
@@ -50,7 +51,8 @@ Notes:
 - Shared screen audio comes from the browser (desktop Chrome/Edge). The native
   desktop app shares video only.
 - Push-to-talk listens while the app has focus (no global OS hotkey).
-- Events, stickers, profile extras, the welcome screen and stages need the
+- Events, stickers, profile extras, the welcome screen, stages and super
+  reactions need the
   server fork too; against an upstream server those panels stay empty or report
   the server's error.
 - Polls, mark unread and voice moderation need the server fork; against an
