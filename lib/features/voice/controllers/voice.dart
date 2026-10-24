@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:accordkit/accordkit.dart';
 import 'package:bonfire/features/authentication/repositories/accord_auth.dart';
+import 'package:bonfire/features/channels/controllers/accord_channels.dart';
 import 'package:bonfire/features/events/controllers/presence.dart';
 import 'package:bonfire/features/notifications/services/sound.dart';
 import 'package:bonfire/features/server/controllers/connections.dart';
@@ -42,6 +43,7 @@ class VoiceConnection {
     this.serverMute = false,
     this.serverDeaf = false,
     this.suppressed = false,
+    this.stage = false,
   });
 
   final String? channelId;
@@ -79,8 +81,11 @@ class VoiceConnection {
   /// A moderator deafened us (the server sends us nothing, takes nothing).
   final bool serverDeaf;
 
-  /// The channel denies us `speak`.
+  /// The channel denies us `speak` — or, on a stage, we're in the audience.
   final bool suppressed;
+
+  /// The channel is a stage.
+  final bool stage;
 
   bool get isConnected => channelId != null;
 
@@ -92,6 +97,7 @@ class VoiceConnection {
     serverMute: serverMute,
     serverDeaf: serverDeaf,
     suppressed: suppressed,
+    stage: stage,
   );
 
   VoiceConnection copyWith({
@@ -111,6 +117,7 @@ class VoiceConnection {
     bool? serverMute,
     bool? serverDeaf,
     bool? suppressed,
+    bool? stage,
   }) {
     return VoiceConnection(
       channelId: channelId ?? this.channelId,
@@ -128,6 +135,7 @@ class VoiceConnection {
       serverMute: serverMute ?? this.serverMute,
       serverDeaf: serverDeaf ?? this.serverDeaf,
       suppressed: suppressed ?? this.suppressed,
+      stage: stage ?? this.stage,
     );
   }
 }
@@ -345,6 +353,7 @@ class VoiceController extends _$VoiceController {
       serverMute: info.voiceState?.mute ?? false,
       serverDeaf: info.voiceState?.deaf ?? false,
       suppressed: info.voiceState?.suppress ?? false,
+      stage: _isStage(serverKey, spaceId, channelId),
     );
     final settings = ref.read(settingsControllerProvider);
     // Flag the live call *before* the media session comes up, so no chime can
@@ -563,6 +572,11 @@ class VoiceController extends _$VoiceController {
       serverMute: flags?.mute ?? false,
       serverDeaf: flags?.deaf ?? false,
       suppressed: flags?.suppress ?? false,
+      stage: _isStage(
+        state.serverKey,
+        info.spaceId.isEmpty ? null : info.spaceId,
+        info.channelId,
+      ),
       clearError: true,
     );
     _reconnectAttempted = false;
@@ -626,6 +640,15 @@ class VoiceController extends _$VoiceController {
     soundManager.voiceSessionActive = false;
     state = const VoiceConnection();
     _syncAfk();
+  }
+
+  bool _isStage(String? serverKey, String? spaceId, String? channelId) {
+    if (serverKey == null || spaceId == null) return false;
+    return ref
+            .read(accordChannelsControllerProvider(serverKey, spaceId))
+            ?.firstWhereOrNull((c) => c.id == channelId)
+            ?.type ==
+        'stage';
   }
 
   VoiceSession _buildSession() => VoiceSession()

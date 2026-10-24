@@ -753,9 +753,7 @@ class _ControlBar extends ConsumerWidget {
         },
       );
     }
-    final blockedReason = inAudience && !voice.serverMute && !voice.serverDeaf
-        ? stageAudienceReason
-        : voice.speakBlockedReason;
+    final blockedReason = voice.speakBlockedReason;
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 8),
       decoration: BoxDecoration(

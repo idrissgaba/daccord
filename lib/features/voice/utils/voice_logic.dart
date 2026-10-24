@@ -5,6 +5,7 @@ library;
 import 'package:bonfire/features/settings/models/accord_settings.dart';
 import 'package:bonfire/features/voice/services/voice_session.dart'
     show VoiceSessionState;
+import 'package:bonfire/features/voice/utils/stage_logic.dart';
 import 'package:livekit_client/livekit_client.dart'
     show AudioCaptureOptions, AudioEncoding, AudioPublishOptions;
 
@@ -231,9 +232,11 @@ String? voiceSpeakBlockedReason({
   required bool serverMute,
   required bool serverDeaf,
   required bool suppressed,
+  bool stage = false,
 }) {
   if (serverDeaf) return 'A moderator has deafened you.';
   if (serverMute) return 'A moderator has muted you.';
+  if (suppressed && stage) return stageAudienceReason;
   if (suppressed) return "You don't have permission to speak in this channel.";
   return null;
 }

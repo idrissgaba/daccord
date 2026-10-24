@@ -1,5 +1,6 @@
 import 'package:accordkit/accordkit.dart';
 import 'package:bonfire/features/voice/utils/stage_logic.dart';
+import 'package:bonfire/features/voice/utils/voice_logic.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 AccordVoiceState _vs(String userId, {bool suppress = true, String? hand}) =>
@@ -69,6 +70,27 @@ void main() {
         userId: 'u',
       ).toJson().containsKey('request_to_speak_timestamp'),
       isFalse,
+    );
+  });
+
+  test('the audience is told to raise a hand, not that it lacks the right', () {
+    expect(
+      voiceSpeakBlockedReason(
+        serverMute: false,
+        serverDeaf: false,
+        suppressed: true,
+        stage: true,
+      ),
+      stageAudienceReason,
+    );
+    expect(
+      voiceSpeakBlockedReason(
+        serverMute: true,
+        serverDeaf: false,
+        suppressed: true,
+        stage: true,
+      ),
+      'A moderator has muted you.',
     );
   });
 }
