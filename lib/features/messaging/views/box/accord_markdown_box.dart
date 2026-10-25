@@ -42,6 +42,7 @@ class AccordMarkdownBox extends StatelessWidget {
       enableFootnote: false,
       enableImageSize: false,
       selectable: shouldUseDesktopLayout(context),
+      contextMenuBuilder: MessageTextMenuScope.builderOf(context),
       enableKbd: false,
       syntaxExtensions: syntaxExtensions,
       elementBuilders: elementBuilders,
@@ -74,4 +75,48 @@ class AccordMarkdownBox extends StatelessWidget {
       },
     );
   }
+}
+
+/// Opens a message's own context menu when its text is right-clicked (or
+/// long-pressed), the way chat apps do, instead of the bare Copy / Select all
+/// toolbar. [onContextMenu] gets where to open and, when text is selected, a
+/// callback that copies it.
+class MessageTextMenuScope extends InheritedWidget {
+  const MessageTextMenuScope({
+    super.key,
+    required this.onContextMenu,
+    required super.child,
+  });
+
+  final void Function(Offset position, VoidCallback? copySelection)
+  onContextMenu;
+
+  static bool _opening = false;
+
+  static SelectableRegionContextMenuBuilder? builderOf(BuildContext context) {
+    final scope = context
+        .dependOnInheritedWidgetOfExactType<MessageTextMenuScope>();
+    if (scope == null) return null;
+    return (context, state) {
+      final copy = state.contextMenuButtonItems
+          .where((item) => item.type == ContextMenuButtonType.copy)
+          .firstOrNull
+          ?.onPressed;
+      final anchor = state.contextMenuAnchors.primaryAnchor;
+      // The toolbar can be built more than once for one right-click; open the
+      // menu once.
+      if (!_opening) {
+        _opening = true;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _opening = false;
+          state.hideToolbar();
+          scope.onContextMenu(anchor, copy);
+        });
+      }
+      return const SizedBox.shrink();
+    };
+  }
+
+  @override
+  bool updateShouldNotify(MessageTextMenuScope oldWidget) => false;
 }

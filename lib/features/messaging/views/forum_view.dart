@@ -21,10 +21,10 @@ enum ForumSort { latestActivity, newest, mostReplies }
 
 extension on ForumSort {
   String get label => switch (this) {
-        ForumSort.latestActivity => 'Latest activity',
-        ForumSort.newest => 'Newest',
-        ForumSort.mostReplies => 'Most replies',
-      };
+    ForumSort.latestActivity => 'Latest activity',
+    ForumSort.newest => 'Newest',
+    ForumSort.mostReplies => 'Most replies',
+  };
 }
 
 /// A forum channel's body: a traditional forum board of top-level posts (each a
@@ -80,8 +80,12 @@ class _ForumChannelViewState extends ConsumerState<ForumChannelView> {
 
   AccordClient? get _client => ref.accordClient;
 
-  ForumPostsController get _postsNotifier =>
-      ref.read(forumPostsControllerProvider(ref.readActiveServerKey() ?? '', widget.channelId).notifier);
+  ForumPostsController get _postsNotifier => ref.read(
+    forumPostsControllerProvider(
+      ref.readActiveServerKey() ?? '',
+      widget.channelId,
+    ).notifier,
+  );
 
   Future<void> _reload() async {
     final client = _client;
@@ -214,10 +218,12 @@ class _ForumChannelViewState extends ConsumerState<ForumChannelView> {
           onSelected: () => _deletePost(post),
         ),
     ];
-    showAccordContextMenu(context,
-        entries: entries,
-        globalPosition: position,
-        title: resolveForumPostTitle(post));
+    showAccordContextMenu(
+      context,
+      entries: entries,
+      globalPosition: position,
+      title: resolveForumPostTitle(post),
+    );
   }
 
   @override
@@ -235,7 +241,12 @@ class _ForumChannelViewState extends ConsumerState<ForumChannelView> {
         onClose: (result) => _onThreadClosed(openPost, result),
       );
     }
-    final posts = ref.watch(forumPostsControllerProvider(ref.readActiveServerKey() ?? '', widget.channelId));
+    final posts = ref.watch(
+      forumPostsControllerProvider(
+        ref.readActiveServerKey() ?? '',
+        widget.channelId,
+      ),
+    );
     // Compute once and capture in the itemBuilder closure so the sort is not
     // re-run O(n) times as items scroll into view.
     final sorted = posts == null ? const <AccordMessage>[] : _sorted(posts);
@@ -252,33 +263,35 @@ class _ForumChannelViewState extends ConsumerState<ForumChannelView> {
               child: posts == null
                   ? const LoadingView()
                   : posts.isEmpty
-                      ? Center(
-                          child: Text('No posts yet',
-                              style: theme.textTheme.bodyMedium))
-                      : RefreshIndicator(
-                          onRefresh: _reload,
-                          child: ListView.separated(
-                            padding: const EdgeInsets.fromLTRB(12, 12, 12, 88),
-                            itemCount: sorted.length,
-                            separatorBuilder: (_, _) =>
-                                const SizedBox(height: 8),
-                            itemBuilder: (context, index) {
-                              final post = sorted[index];
-                              return _PostRow(
-                                // Keyed by post id so rows follow their post
-                                // across re-sorts and insertions rather than
-                                // their list slot (see #198). The row's
-                                // callbacks already capture [post] explicitly.
-                                key: ValueKey(post.id),
-                                post: post,
-                                colors: colors,
-                                spaceId: widget.spaceId,
-                                onTap: () => _openPost(post),
-                                onMenu: (pos) => _showPostMenu(post, pos),
-                              );
-                            },
-                          ),
-                        ),
+                  ? Center(
+                      child: Text(
+                        'No posts yet',
+                        style: theme.textTheme.bodyMedium,
+                      ),
+                    )
+                  : RefreshIndicator(
+                      onRefresh: _reload,
+                      child: ListView.separated(
+                        padding: const EdgeInsets.fromLTRB(12, 12, 12, 88),
+                        itemCount: sorted.length,
+                        separatorBuilder: (_, _) => const SizedBox(height: 8),
+                        itemBuilder: (context, index) {
+                          final post = sorted[index];
+                          return _PostRow(
+                            // Keyed by post id so rows follow their post
+                            // across re-sorts and insertions rather than
+                            // their list slot (see #198). The row's
+                            // callbacks already capture [post] explicitly.
+                            key: ValueKey(post.id),
+                            post: post,
+                            colors: colors,
+                            spaceId: widget.spaceId,
+                            onTap: () => _openPost(post),
+                            onMenu: (pos) => _showPostMenu(post, pos),
+                          );
+                        },
+                      ),
+                    ),
             ),
           ],
         ),
@@ -317,9 +330,10 @@ class _SortBar extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
       child: Row(
         children: [
-          Text('$count ${count == 1 ? 'post' : 'posts'}',
-              style: theme.textTheme.labelMedium!
-                  .copyWith(color: colors.gray)),
+          Text(
+            '$count ${count == 1 ? 'post' : 'posts'}',
+            style: theme.textTheme.labelMedium!.copyWith(color: colors.gray),
+          ),
           const Spacer(),
           Icon(Icons.sort, size: 16, color: colors.gray),
           const SizedBox(width: 6),
@@ -371,16 +385,36 @@ class _PostRow extends ConsumerWidget {
     final authorId = post.authorId;
     final member = spaceId == null
         ? null
-        : ref.watch(accordMembersControllerProvider(ref.readActiveServerKey() ?? '', spaceId!)
-            .select((m) => m?[authorId]));
-    final user =
-        ref.watch(accordUsersControllerProvider(ref.readActiveServerKey() ?? '').select((m) => m[authorId]));
-    final ensure = ref.read(accordUsersControllerProvider(ref.readActiveServerKey() ?? '').notifier).ensure;
+        : ref.watch(
+            accordMembersControllerProvider(
+              ref.readActiveServerKey() ?? '',
+              spaceId!,
+            ).select((m) => m?[authorId]),
+          );
+    final user = ref.watch(
+      accordUsersControllerProvider(
+        ref.readActiveServerKey() ?? '',
+      ).select((m) => m[authorId]),
+    );
+    final ensure = ref
+        .read(
+          accordUsersControllerProvider(
+            ref.readActiveServerKey() ?? '',
+          ).notifier,
+        )
+        .ensure;
     final cdnUrl = ref.watchCdnUrl();
-    final author =
-        accordAuthorNameOf(authorId, member: member, user: user, ensure: ensure);
-    final avatarUrl =
-        accordAuthorAvatarUrlOf(member: member, user: user, cdnUrl: cdnUrl);
+    final author = accordAuthorNameOf(
+      authorId,
+      member: member,
+      user: user,
+      ensure: ensure,
+    );
+    final avatarUrl = accordAuthorAvatarUrlOf(
+      member: member,
+      user: user,
+      cdnUrl: cdnUrl,
+    );
     final avatarBg = accordAvatarColor(member?.user ?? user, authorId);
     final initial = accordInitial(author);
     final replies = post.replyCount;
@@ -415,31 +449,42 @@ class _PostRow extends ConsumerWidget {
                       Row(
                         children: [
                           if (post.pinned) ...[
-                            Icon(Icons.push_pin,
-                                size: 14, color: colors.primary),
+                            Icon(
+                              Icons.push_pin,
+                              size: 14,
+                              color: colors.primary,
+                            ),
                             const SizedBox(width: 4),
                           ],
                           Expanded(
-                            child: Text(resolveForumPostTitle(post),
-                                style: theme.textTheme.titleSmall,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis),
+                            child: Text(
+                              resolveForumPostTitle(post),
+                              style: theme.textTheme.titleSmall,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
                         ],
                       ),
                       const SizedBox(height: 4),
-                      Text(_metaLine(author),
-                          style: theme.textTheme.labelMedium!
-                              .copyWith(color: colors.gray),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis),
+                      Text(
+                        _metaLine(author),
+                        style: theme.textTheme.labelMedium!.copyWith(
+                          color: colors.gray,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                       if (post.content.isNotEmpty) ...[
                         const SizedBox(height: 4),
-                        Text(post.content,
-                            style: theme.textTheme.bodySmall!
-                                .copyWith(color: colors.gray),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis),
+                        Text(
+                          post.content,
+                          style: theme.textTheme.bodySmall!.copyWith(
+                            color: colors.gray,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ],
                     ],
                   ),
@@ -458,8 +503,11 @@ class _PostRow extends ConsumerWidget {
                             : box.localToGlobal(box.size.center(Offset.zero));
                         onMenu(pos);
                       },
-                      icon: Icon(Icons.more_horiz,
-                          size: 18, color: colors.gray),
+                      icon: Icon(
+                        Icons.more_horiz,
+                        size: 18,
+                        color: colors.gray,
+                      ),
                     ),
                     if (replies > 0)
                       Padding(
@@ -467,12 +515,18 @@ class _PostRow extends ConsumerWidget {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.forum_outlined,
-                                size: 14, color: colors.gray),
+                            Icon(
+                              Icons.forum_outlined,
+                              size: 14,
+                              color: colors.gray,
+                            ),
                             const SizedBox(width: 4),
-                            Text('$replies',
-                                style: theme.textTheme.labelMedium!
-                                    .copyWith(color: colors.gray)),
+                            Text(
+                              '$replies',
+                              style: theme.textTheme.labelMedium!.copyWith(
+                                color: colors.gray,
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -501,10 +555,9 @@ class _PostRow extends ConsumerWidget {
 String resolveForumPostTitle(AccordMessage post) {
   final title = post.title;
   if (title is String && title.trim().isNotEmpty) return title.trim();
-  final firstLine = post.content.split('\n').firstWhere(
-        (l) => l.trim().isNotEmpty,
-        orElse: () => '',
-      );
+  final firstLine = post.content
+      .split('\n')
+      .firstWhere((l) => l.trim().isNotEmpty, orElse: () => '');
   if (firstLine.trim().isNotEmpty) return firstLine.trim();
   return 'Untitled post';
 }

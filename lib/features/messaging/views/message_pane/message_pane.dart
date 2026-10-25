@@ -8,6 +8,8 @@ library;
 import 'package:bonfire/features/automod/views/block_attachment_dialog.dart';
 
 import 'dart:async';
+import 'package:bonfire/features/messaging/views/box/accord_markdown_box.dart'
+    show MessageTextMenuScope;
 import 'package:bonfire/features/messaging/views/private_chat_security.dart';
 import 'package:bonfire/features/messaging/views/encrypted_attachment.dart';
 import 'dart:convert';

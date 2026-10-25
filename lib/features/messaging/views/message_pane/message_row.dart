@@ -96,7 +96,11 @@ class _MessageRow extends ConsumerStatefulWidget {
 }
 
 class _MessageRowState extends ConsumerState<_MessageRow> {
-  bool _hovered = false;
+  /// Hover drives only the action bar and the gutter clock. It is a notifier,
+  /// not state: rebuilding the whole row on every hover change rebuilt the
+  /// selectable text, which drops its selection and closes the Copy menu the
+  /// moment the pointer moves from the text onto that menu.
+  final _hover = ValueNotifier<bool>(false);
 
   /// Whether the row's "⋯" actions menu is open. Only meaningful when [narrow],
   /// where the action bar is mounted on hover alone — see [_menuStateChanged].
@@ -122,6 +126,7 @@ class _MessageRowState extends ConsumerState<_MessageRow> {
 
   @override
   void dispose() {
+    _hover.dispose();
     _editController?.dispose();
     super.dispose();
   }
@@ -413,222 +418,239 @@ class _MessageRowState extends ConsumerState<_MessageRow> {
     // into a narrow column. Omit them on mobile so the content uses the full
     // row width. On desktop they render inline at the end of the row, or —
     // when [narrow] — floated over it (see [_FloatingActionsOverlay]).
-    final hoverActions =
-        _editing || widget.selecting || !shouldUseDesktopLayout(context)
-        ? null
-        : _HoverActions(
-            // Floated (see below), the bar is only built while hovered, so it
-            // doesn't need to fade itself out.
-            visible: widget.narrow || _hovered,
-            onReact: () => _openReactionPicker(message.id),
-            onReply: widget.onReply,
-            onThread: () => _openThread(message),
-            canEdit: widget.isOwn,
-            canDelete: widget.isOwn || widget.canManageMessages,
-            canPin: widget.canManageMessages,
-            canReport: !widget.isOwn,
-            pinned: message.pinned,
-            onEdit: () => _startEdit(message),
-            onDelete: () => _delete(message.id),
-            onBlock:
-                (widget.canManageMessages || ref.readIsAdmin()) &&
-                    message.attachments.isNotEmpty &&
-                    (message.spaceId != null || ref.readIsAdmin())
-                ? () => _blockFiles(message)
-                : null,
-            onTogglePin: () => _togglePin(message.id, pinned: message.pinned),
-            onReport: () => _report(message),
-            onMenuStateChanged: _menuStateChanged,
-          );
+    final showHoverActions =
+        !(_editing || widget.selecting || !shouldUseDesktopLayout(context));
+    Widget hoverActionsFor(bool hovered) => _HoverActions(
+      // Floated (see below), the bar is only built while hovered, so it
+      // doesn't need to fade itself out.
+      visible: widget.narrow || hovered,
+      onReact: () => _openReactionPicker(message.id),
+      onReply: widget.onReply,
+      onThread: () => _openThread(message),
+      canEdit: widget.isOwn,
+      canDelete: widget.isOwn || widget.canManageMessages,
+      canPin: widget.canManageMessages,
+      canReport: !widget.isOwn,
+      pinned: message.pinned,
+      onEdit: () => _startEdit(message),
+      onDelete: () => _delete(message.id),
+      onBlock:
+          (widget.canManageMessages || ref.readIsAdmin()) &&
+              message.attachments.isNotEmpty &&
+              (message.spaceId != null || ref.readIsAdmin())
+          ? () => _blockFiles(message)
+          : null,
+      onTogglePin: () => _togglePin(message.id, pinned: message.pinned),
+      onReport: () => _report(message),
+      onMenuStateChanged: _menuStateChanged,
+    );
     return MouseRegion(
-      onEnter: (_) => setState(() => _hovered = true),
-      onExit: (_) => setState(() => _hovered = false),
-      child: _FloatingActionsOverlay(
-        // In the voice chat panel an inline action bar would leave the message
-        // a few dozen pixels of width, so the bar floats over the row's
-        // top-right corner instead — and only while hovered, so it never covers
-        // the text or swallows a click. `_menuOpen` extends that past the
-        // hover: the actions menu's barrier ends the hover, and unmounting the
-        // button mid-menu loses the selection (see [_menuStateChanged]).
-        actions:
-            widget.narrow &&
-                (_hovered || _menuOpen) &&
-                !isEphemeralMessage(message)
-            ? hoverActions
-            : null,
-        child: GestureDetector(
-          // Opaque so the whole row is hit-testable: on mobile a plain-text
-          // message renders as a bare RichText with no recognisers, and the
-          // surrounding Container is transparent, so with the default
-          // `deferToChild` a long-press over the text hits nothing and never
-          // fires. Only the avatar (which paints a background) responded before.
-          behavior: HitTestBehavior.opaque,
-          onLongPressStart: widget.selecting || isEphemeralMessage(message)
-              ? null
-              : (d) => _showActionsMenu(message, d.globalPosition),
-          onSecondaryTapUp: widget.selecting || isEphemeralMessage(message)
-              ? null
-              : (d) => _showActionsMenu(message, d.globalPosition),
-          onTap: widget.selecting ? widget.onToggleSelected : null,
-          child: Container(
-            padding: widget.mentionsMe
-                ? EdgeInsets.fromLTRB(13, topGap, 6, bottomGap)
-                : EdgeInsets.only(top: topGap, bottom: bottomGap),
-            decoration: widget.selected
-                ? BoxDecoration(color: colors.primary.withValues(alpha: 0.14))
-                : widget.mentionsMe
-                ? BoxDecoration(
-                    color: colors.primary.withValues(alpha: 0.08),
-                    border: Border(
-                      left: BorderSide(color: colors.primary, width: 3),
+      onEnter: (_) => _hover.value = true,
+      onExit: (_) => _hover.value = false,
+      child: ValueListenableBuilder<bool>(
+        valueListenable: _hover,
+        builder: (context, hovered, content) => _FloatingActionsOverlay(
+          // In the voice chat panel an inline action bar would leave the message
+          // a few dozen pixels of width, so the bar floats over the row's
+          // top-right corner instead — and only while hovered, so it never covers
+          // the text or swallows a click. `_menuOpen` extends that past the
+          // hover: the actions menu's barrier ends the hover, and unmounting the
+          // button mid-menu loses the selection (see [_menuStateChanged]).
+          actions:
+              showHoverActions &&
+                  widget.narrow &&
+                  (hovered || _menuOpen) &&
+                  !isEphemeralMessage(message)
+              ? hoverActionsFor(hovered)
+              : null,
+          child: content!,
+        ),
+        child: MessageTextMenuScope(
+          onContextMenu: (position, copy) {
+            if (widget.selecting || isEphemeralMessage(message)) return;
+            _showActionsMenu(message, position, copy);
+          },
+          child: GestureDetector(
+            // Opaque so the whole row is hit-testable: on mobile a plain-text
+            // message renders as a bare RichText with no recognisers, and the
+            // surrounding Container is transparent, so with the default
+            // `deferToChild` a long-press over the text hits nothing and never
+            // fires. Only the avatar (which paints a background) responded before.
+            behavior: HitTestBehavior.opaque,
+            onLongPressStart: widget.selecting || isEphemeralMessage(message)
+                ? null
+                : (d) => _showActionsMenu(message, d.globalPosition),
+            onSecondaryTapUp: widget.selecting || isEphemeralMessage(message)
+                ? null
+                : (d) => _showActionsMenu(message, d.globalPosition),
+            onTap: widget.selecting ? widget.onToggleSelected : null,
+            child: Container(
+              padding: widget.mentionsMe
+                  ? EdgeInsets.fromLTRB(13, topGap, 6, bottomGap)
+                  : EdgeInsets.only(top: topGap, bottom: bottomGap),
+              decoration: widget.selected
+                  ? BoxDecoration(color: colors.primary.withValues(alpha: 0.14))
+                  : widget.mentionsMe
+                  ? BoxDecoration(
+                      color: colors.primary.withValues(alpha: 0.08),
+                      border: Border(
+                        left: BorderSide(color: colors.primary, width: 3),
+                      ),
+                    )
+                  : null,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (widget.selecting) ...[
+                    Checkbox(
+                      value: widget.selected,
+                      onChanged: (_) => widget.onToggleSelected(),
                     ),
-                  )
-                : null,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (widget.selecting) ...[
-                  Checkbox(
-                    value: widget.selected,
-                    onChanged: (_) => widget.onToggleSelected(),
-                  ),
-                  const SizedBox(width: 4),
-                ],
-                if (widget.grouped)
-                  _GutterTimestamp(
-                    width: avatarRadius * 2,
-                    visible: _hovered,
-                    clock: _clock,
-                    fullTime: _fullTime,
-                  )
-                else
-                  _MaybeTappable(
-                    enabled: tappable,
-                    onTap: openPopout,
-                    onLongPressStart: userMenuEnabled
-                        ? (d) => _openUserMenu(d.globalPosition)
-                        : null,
-                    onSecondaryTapUp: userMenuEnabled
-                        ? (d) => _openUserMenu(d.globalPosition)
-                        : null,
-                    child: AccordMemberAvatar(
-                      avatarUrl: avatarUrl,
-                      initial: _initial,
-                      radius: avatarRadius,
-                      backgroundColor: avatarBg,
-                      initialStyle: theme.textTheme.titleSmall,
+                    const SizedBox(width: 4),
+                  ],
+                  if (widget.grouped)
+                    ValueListenableBuilder<bool>(
+                      valueListenable: _hover,
+                      builder: (_, hovered, _) => _GutterTimestamp(
+                        width: avatarRadius * 2,
+                        visible: hovered,
+                        clock: _clock,
+                        fullTime: _fullTime,
+                      ),
+                    )
+                  else
+                    _MaybeTappable(
+                      enabled: tappable,
+                      onTap: openPopout,
+                      onLongPressStart: userMenuEnabled
+                          ? (d) => _openUserMenu(d.globalPosition)
+                          : null,
+                      onSecondaryTapUp: userMenuEnabled
+                          ? (d) => _openUserMenu(d.globalPosition)
+                          : null,
+                      child: AccordMemberAvatar(
+                        avatarUrl: avatarUrl,
+                        initial: _initial,
+                        radius: avatarRadius,
+                        backgroundColor: avatarBg,
+                        initialStyle: theme.textTheme.titleSmall,
+                      ),
                     ),
-                  ),
-                SizedBox(width: gutter),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      if (widget.spaceId == null && message.type == 'default')
-                        Text(
-                          message.isEncrypted
-                              ? (message.encryptionError == null
-                                    ? 'End-to-end encrypted'
-                                    : 'Encryption could not be verified')
-                              : 'Unencrypted history',
-                          style: theme.textTheme.labelSmall,
-                        ),
-                      if (message.replyTo != null)
-                        _buildReplyPreview(message, colors),
-                      if (message.interaction case final interaction?)
-                        MessageInteractionHeader(
-                          interaction: interaction,
-                          serverKey: ref.readActiveServerKey() ?? '',
-                          spaceId: widget.spaceId,
-                        ),
-                      if (!widget.grouped)
-                        MessageAuthorHeader(
-                          name: _authorName,
-                          nameColor: widget.nameColor,
-                          // A long name must ellipsize rather than push the
-                          // timestamp out of a narrow row.
-                          ellipsizeName: true,
-                          onNameTap: tappable ? openPopout : null,
-                          onNameLongPressStart: userMenuEnabled
-                              ? (d) => _openUserMenu(d.globalPosition)
-                              : null,
-                          onNameSecondaryTapUp: userMenuEnabled
-                              ? (d) => _openUserMenu(d.globalPosition)
-                              : null,
-                          pinned: message.pinned,
-                          origin: _authorOrigin,
-                          time: _time,
-                          timeTooltip: _fullTime,
-                          edited: message.editedAt != null,
-                          appBadge:
-                              message.webhookId != null ||
-                              (widget.author?.user?.bot ??
-                                  widget.authorUser?.bot ??
-                                  false),
-                        ),
-                      if (_editing)
-                        _buildEditor(theme, colors)
-                      else if (isLoadingMessage(message))
-                        MessageThinking(botName: _authorName)
-                      else if (message.type == 'member_join' ||
-                          message.content.isNotEmpty)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 2),
-                          child: MessageBody(
-                            message: message,
-                            authorName: _authorName,
+                  SizedBox(width: gutter),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (widget.spaceId == null && message.type == 'default')
+                          Text(
+                            message.isEncrypted
+                                ? (message.encryptionError == null
+                                      ? 'End-to-end encrypted'
+                                      : 'Encryption could not be verified')
+                                : 'Unencrypted history',
+                            style: theme.textTheme.labelSmall,
+                          ),
+                        if (message.replyTo != null)
+                          _buildReplyPreview(message, colors),
+                        if (message.interaction case final interaction?)
+                          MessageInteractionHeader(
+                            interaction: interaction,
+                            serverKey: ref.readActiveServerKey() ?? '',
                             spaceId: widget.spaceId,
                           ),
-                        ),
-                      if (message.poll case final poll?)
-                        PollView(
-                          poll: poll,
-                          onVote: (answerId, {required remove}) =>
-                              _votePoll(message.id, answerId, remove: remove),
-                        ),
-                      for (final sticker in message.stickers)
-                        MessageSticker(sticker: sticker),
-                      for (final attachment in message.attachments)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 4),
-                          child: _buildAttachment(attachment, cdnUrl, theme),
-                        ),
-                      for (final upload in pendingUploads)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 4),
-                          child: _PendingAttachmentTile(upload: upload),
-                        ),
-                      if (ref.watch(
-                            settingsControllerProvider.select(
-                              (s) => s.showEmbeds,
+                        if (!widget.grouped)
+                          MessageAuthorHeader(
+                            name: _authorName,
+                            nameColor: widget.nameColor,
+                            // A long name must ellipsize rather than push the
+                            // timestamp out of a narrow row.
+                            ellipsizeName: true,
+                            onNameTap: tappable ? openPopout : null,
+                            onNameLongPressStart: userMenuEnabled
+                                ? (d) => _openUserMenu(d.globalPosition)
+                                : null,
+                            onNameSecondaryTapUp: userMenuEnabled
+                                ? (d) => _openUserMenu(d.globalPosition)
+                                : null,
+                            pinned: message.pinned,
+                            origin: _authorOrigin,
+                            time: _time,
+                            timeTooltip: _fullTime,
+                            edited: message.editedAt != null,
+                            appBadge:
+                                message.webhookId != null ||
+                                (widget.author?.user?.bot ??
+                                    widget.authorUser?.bot ??
+                                    false),
+                          ),
+                        if (_editing)
+                          _buildEditor(theme, colors)
+                        else if (isLoadingMessage(message))
+                          MessageThinking(botName: _authorName)
+                        else if (message.type == 'member_join' ||
+                            message.content.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 2),
+                            child: MessageBody(
+                              message: message,
+                              authorName: _authorName,
+                              spaceId: widget.spaceId,
                             ),
-                          ) &&
-                          (message.flags & (1 << 2)) == 0)
-                        for (final embed in message.embeds)
-                          AccordEmbedBox(embed: embed, cdnUrl: cdnUrl),
-                      if (message.components != null)
-                        MessageComponentsView(message: message),
-                      if (isEphemeralMessage(message))
-                        EphemeralFooter(
-                          onDismiss: () => ref
-                              .read(
-                                accordMessagesControllerProvider(
-                                  ref.readActiveServerKey() ?? '',
-                                  widget.channelId,
-                                ).notifier,
-                              )
-                              .removeMessage(message.id),
-                        ),
-                      if ((message.reactions ?? const []).isNotEmpty ||
-                          message.superReactions.isNotEmpty)
-                        _buildReactions(message, theme, colors, cdnUrl),
-                      if (message.replyCount > 0)
-                        _buildThreadChip(message, theme, colors),
-                    ],
+                          ),
+                        if (message.poll case final poll?)
+                          PollView(
+                            poll: poll,
+                            onVote: (answerId, {required remove}) =>
+                                _votePoll(message.id, answerId, remove: remove),
+                          ),
+                        for (final sticker in message.stickers)
+                          MessageSticker(sticker: sticker),
+                        for (final attachment in message.attachments)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: _buildAttachment(attachment, cdnUrl, theme),
+                          ),
+                        for (final upload in pendingUploads)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: _PendingAttachmentTile(upload: upload),
+                          ),
+                        if (ref.watch(
+                              settingsControllerProvider.select(
+                                (s) => s.showEmbeds,
+                              ),
+                            ) &&
+                            (message.flags & (1 << 2)) == 0)
+                          for (final embed in message.embeds)
+                            AccordEmbedBox(embed: embed, cdnUrl: cdnUrl),
+                        if (message.components != null)
+                          MessageComponentsView(message: message),
+                        if (isEphemeralMessage(message))
+                          EphemeralFooter(
+                            onDismiss: () => ref
+                                .read(
+                                  accordMessagesControllerProvider(
+                                    ref.readActiveServerKey() ?? '',
+                                    widget.channelId,
+                                  ).notifier,
+                                )
+                                .removeMessage(message.id),
+                          ),
+                        if ((message.reactions ?? const []).isNotEmpty ||
+                            message.superReactions.isNotEmpty)
+                          _buildReactions(message, theme, colors, cdnUrl),
+                        if (message.replyCount > 0)
+                          _buildThreadChip(message, theme, colors),
+                      ],
+                    ),
                   ),
-                ),
-                if (hoverActions != null && !widget.narrow) hoverActions,
-              ],
+                  if (showHoverActions && !widget.narrow)
+                    ValueListenableBuilder<bool>(
+                      valueListenable: _hover,
+                      builder: (_, hovered, _) => hoverActionsFor(hovered),
+                    ),
+                ],
+              ),
             ),
           ),
         ),
@@ -740,11 +762,21 @@ class _MessageRowState extends ConsumerState<_MessageRow> {
   /// [message] is captured when the menu opens: the entries' callbacks only run
   /// once the menu has closed (an await), by which point the row may already be
   /// bound to a different message.
-  void _showActionsMenu(AccordMessage message, [Offset? position]) {
+  void _showActionsMenu(
+    AccordMessage message, [
+    Offset? position,
+    VoidCallback? copySelection,
+  ]) {
     if (_editing) return;
     final canDelete = widget.isOwn || widget.canManageMessages;
     final canReport = !widget.isOwn;
     final entries = <AccordMenuEntry>[
+      if (copySelection != null)
+        AccordMenuEntry(
+          label: 'Copy selection',
+          icon: Icons.content_copy,
+          onSelected: copySelection,
+        ),
       AccordMenuEntry(
         label: 'Add reaction',
         icon: Icons.add_reaction_outlined,
