@@ -33,7 +33,31 @@ import 'package:livekit_client/livekit_client.dart' as lk;
 /// Presents the voice channel full-screen as its own route, rendering
 /// [VoiceChannelView] in [VoiceChannelView.fullScreen] mode so its header
 /// shows a "minimize" button that pops back.
+/// How many full-screen voice views are open. While one is, the views under
+/// it (and the PiP) stop rendering video: flutter_webrtc on Windows crashes
+/// when one track feeds two renderers and one of them is torn down.
+final voiceFullScreenOpen = ValueNotifier<int>(0);
+
 Future<void> showFullScreenVoice(
+  BuildContext context, {
+  required String channelId,
+  required String? spaceId,
+  required String? channelName,
+}) async {
+  voiceFullScreenOpen.value += 1;
+  try {
+    await _pushFullScreenVoice(
+      context,
+      channelId: channelId,
+      spaceId: spaceId,
+      channelName: channelName,
+    );
+  } finally {
+    voiceFullScreenOpen.value -= 1;
+  }
+}
+
+Future<void> _pushFullScreenVoice(
   BuildContext context, {
   required String channelId,
   required String? spaceId,
@@ -164,6 +188,7 @@ class _VoiceChannelViewState extends ConsumerState<VoiceChannelView> {
         ? _ConnectedBody(
             channelId: widget.channelId,
             spaceId: widget.spaceId,
+            fullScreen: widget.fullScreen,
             spotlightUserId: _spotlightUserId,
             onToggleSpotlight: (userId) => setState(
               () =>
@@ -349,7 +374,12 @@ class _ConnectedBody extends ConsumerWidget {
     required this.spotlightUserId,
     required this.onToggleSpotlight,
     this.only,
+    this.fullScreen = false,
   });
+
+  /// This is the full-screen view, the one that keeps rendering video while
+  /// it is open (see [voiceFullScreenOpen]).
+  final bool fullScreen;
 
   final String channelId;
   final String? spaceId;
@@ -404,6 +434,7 @@ class _ConnectedBody extends ConsumerWidget {
                     spotlightUserId: spotlightUserId,
                     onToggleSpotlight: onToggleSpotlight,
                     only: {for (final s in speakers) s.userId},
+                    fullScreen: fullScreen,
                   ),
           ),
           StageAudiencePanel(channelId: channelId, spaceId: spaceId!),
@@ -437,6 +468,7 @@ class _ConnectedBody extends ConsumerWidget {
     final moderation = watchVoiceModerationRights(ref, spaceId);
     Widget tileWidget(_Tile t) => _VideoTile(
       key: ValueKey('${t.userId}:${t.isScreen}'),
+      fullScreen: fullScreen,
       tile: t,
       speaking: speaking.contains(t.userId),
       spotlighted: spotlightUserId == t.userId,
@@ -494,12 +526,13 @@ class _ConnectedBody extends ConsumerWidget {
         cdnUrl: cdnUrl,
         ensure: ensure,
       );
-      VideoTrack? camera;
-      if (vs.selfVideo && session != null) {
-        camera = isMe
-            ? session.localCameraTrack
-            : session.remoteCameraTrack(vs.userId);
-      }
+      // Follow LiveKit's tracks, not just the voice-state flags: a flag that
+      // lags (or never arrives) used to hide a live camera or screen share.
+      final VideoTrack? camera = session == null
+          ? null
+          : isMe
+          ? session.localCameraTrack
+          : session.remoteCameraTrack(vs.userId);
       tiles.add(
         _Tile(
           userId: vs.userId,
@@ -512,10 +545,12 @@ class _ConnectedBody extends ConsumerWidget {
               vs.selfMute || vs.selfDeaf || vs.mute || vs.deaf || vs.suppress,
         ),
       );
-      if (vs.selfStream && session != null) {
-        final screen = isMe
-            ? session.localScreenTrack
-            : session.remoteScreenTrack(vs.userId);
+      final VideoTrack? screen = session == null
+          ? null
+          : isMe
+          ? session.localScreenTrack
+          : session.remoteScreenTrack(vs.userId);
+      if (screen != null || (vs.selfStream && session != null)) {
         tiles.add(
           _Tile(
             userId: vs.userId,
@@ -620,8 +655,10 @@ class _VideoTile extends StatelessWidget {
     required this.spotlighted,
     required this.onDoubleTap,
     this.onOpenVolume,
+    this.fullScreen = false,
   });
 
+  final bool fullScreen;
   final _Tile tile;
   final bool speaking;
   final bool spotlighted;
@@ -657,11 +694,17 @@ class _VideoTile extends StatelessWidget {
           fit: StackFit.expand,
           children: [
             if (tile.track != null)
-              lk.VideoTrackRenderer(
-                tile.track!,
-                fit: tile.isScreen
-                    ? lk.VideoViewFit.contain
-                    : lk.VideoViewFit.cover,
+              ValueListenableBuilder<int>(
+                valueListenable: voiceFullScreenOpen,
+                builder: (context, openFullScreen, _) =>
+                    fullScreen || openFullScreen == 0
+                    ? lk.VideoTrackRenderer(
+                        tile.track!,
+                        fit: tile.isScreen
+                            ? lk.VideoViewFit.contain
+                            : lk.VideoViewFit.cover,
+                      )
+                    : const Center(child: Icon(Icons.fullscreen, size: 32)),
               )
             else
               Center(

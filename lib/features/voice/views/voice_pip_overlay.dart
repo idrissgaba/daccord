@@ -5,7 +5,7 @@ import 'package:bonfire/features/voice/controllers/call.dart';
 import 'package:bonfire/features/voice/controllers/voice.dart';
 import 'package:bonfire/features/voice/controllers/voice_states.dart';
 import 'package:bonfire/features/voice/views/voice_view.dart'
-    show showFullScreenVoice;
+    show showFullScreenVoice, voiceFullScreenOpen;
 import 'package:bonfire/theme/theme.dart';
 import 'package:collection/collection.dart' show IterableExtension;
 import 'package:flutter/material.dart';
@@ -57,6 +57,22 @@ class _VoicePipOverlayState extends ConsumerState<VoicePipOverlay> {
   static const double _w = 200;
   static const double _h = 124;
   static const double _margin = 12;
+
+  @override
+  void initState() {
+    super.initState();
+    voiceFullScreenOpen.addListener(_onFullScreenChanged);
+  }
+
+  @override
+  void dispose() {
+    voiceFullScreenOpen.removeListener(_onFullScreenChanged);
+    super.dispose();
+  }
+
+  void _onFullScreenChanged() {
+    if (mounted) setState(() {});
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -172,6 +188,9 @@ class _VoicePipOverlayState extends ConsumerState<VoicePipOverlay> {
   Widget? _preview() {
     final override = widget.previewBuilder;
     if (override != null) return override();
+    // A full-screen call view is rendering the video; a second renderer on
+    // the same track crashes flutter_webrtc on Windows.
+    if (voiceFullScreenOpen.value > 0) return null;
     final track = _firstVideoTrack();
     if (track == null) return null;
     return lk.VideoTrackRenderer(track, fit: lk.VideoViewFit.contain);
