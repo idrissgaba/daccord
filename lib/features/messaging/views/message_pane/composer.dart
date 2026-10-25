@@ -804,8 +804,9 @@ class _ComposerState extends ConsumerState<_Composer> {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 8),
           decoration: BoxDecoration(
-            color: colors.darkGray,
-            borderRadius: BorderRadius.circular(12),
+            // A shade lighter than the chat, so the box reads as a field.
+            color: Color.lerp(colors.background, colors.dirtyWhite, 0.05),
+            borderRadius: BorderRadius.circular(8),
             border: Border.all(
               color: _dragging ? colors.primary : Colors.transparent,
             ),

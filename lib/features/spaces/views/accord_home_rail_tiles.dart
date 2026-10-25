@@ -222,57 +222,94 @@ class _SpaceIcon extends ConsumerWidget {
                 )
                 ?.isUnreachable ??
             false);
-    final radius = BorderRadius.circular(selected ? 16 : 24);
     // No Tooltip here: in the rail, [RailDraggable] owns the name tooltip (its
     // long-press trigger must not compete with the drag / menu gesture), and
     // the other host — the hidden-servers sheet — prints the name beside it.
     return Center(
-      child: GestureDetector(
-        onTap: onTap,
-        child: Stack(
-          clipBehavior: Clip.none,
-          children: [
-            Opacity(
-              opacity: unreachable ? 0.4 : 1.0,
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 120),
-                width: 48,
-                height: 48,
-                clipBehavior: Clip.antiAlias,
-                decoration: BoxDecoration(
-                  color: selected ? colors.primary : colors.darkGray,
-                  borderRadius: radius,
-                ),
-                alignment: Alignment.center,
-                child: _SpaceIconImage(space: space, cdnUrl: cdnUrl),
-              ),
-            ),
-            if (mentions > 0)
-              Positioned(
-                right: -4,
-                top: -2,
-                child: _MentionBadge(count: mentions),
-              )
-            else if (hasUnread)
-              Positioned(
-                left: -4,
-                top: 18,
-                child: Container(
-                  width: 8,
-                  height: 12,
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.horizontal(
-                      right: Radius.circular(4),
+      child: _Hover(
+        builder: (hovered) {
+          // Round at rest, rounded-square when hovered or selected; a white
+          // pill at the rail edge says unread (short), hovered (medium) or
+          // selected (tall).
+          final radius = BorderRadius.circular(selected || hovered ? 16 : 24);
+          final pillHeight = selected
+              ? 40.0
+              : hovered
+              ? 20.0
+              : hasUnread
+              ? 8.0
+              : 0.0;
+          return GestureDetector(
+            onTap: onTap,
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Positioned(
+                  left: -16,
+                  top: (48 - pillHeight) / 2,
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 150),
+                    width: 8,
+                    height: pillHeight,
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.horizontal(
+                        right: Radius.circular(4),
+                      ),
                     ),
                   ),
                 ),
-              ),
-          ],
-        ),
+                Opacity(
+                  opacity: unreachable ? 0.4 : 1.0,
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 150),
+                    width: 48,
+                    height: 48,
+                    clipBehavior: Clip.antiAlias,
+                    decoration: BoxDecoration(
+                      color: selected || hovered
+                          ? colors.primary
+                          : colors.background,
+                      borderRadius: radius,
+                    ),
+                    alignment: Alignment.center,
+                    child: _SpaceIconImage(space: space, cdnUrl: cdnUrl),
+                  ),
+                ),
+                if (mentions > 0)
+                  Positioned(
+                    right: -4,
+                    bottom: -2,
+                    child: _MentionBadge(count: mentions),
+                  ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }
+}
+
+/// Rebuilds [builder] with whether the pointer is over it.
+class _Hover extends StatefulWidget {
+  const _Hover({required this.builder});
+
+  final Widget Function(bool hovered) builder;
+
+  @override
+  State<_Hover> createState() => _HoverState();
+}
+
+class _HoverState extends State<_Hover> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) => MouseRegion(
+    onEnter: (_) => setState(() => _hovered = true),
+    onExit: (_) => setState(() => _hovered = false),
+    child: widget.builder(_hovered),
+  );
 }
 
 /// Image and initials shared by ordinary rail tiles and folder miniatures.

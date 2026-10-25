@@ -463,7 +463,16 @@ class _MessageRowState extends ConsumerState<_MessageRow> {
                   !isEphemeralMessage(message)
               ? hoverActionsFor(hovered)
               : null,
-          child: content!,
+          // A faint highlight under the hovered message. Only this box
+          // repaints: the message itself is passed through untouched.
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: hovered && shouldUseDesktopLayout(context)
+                  ? Color.lerp(colors.background, colors.darkGray, 0.18)
+                  : Colors.transparent,
+            ),
+            child: content!,
+          ),
         ),
         child: MessageTextMenuScope(
           onContextMenu: (position, copy) {

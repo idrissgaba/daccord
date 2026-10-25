@@ -419,7 +419,13 @@ class VoiceController extends _$VoiceController {
 
   void setMute(bool muted) {
     _afkMonitor?.markActivity();
-    if (!state.isConnected) return;
+    // Outside a call the choice is kept for the next join, as in other voice
+    // chat apps.
+    if (!state.isConnected) {
+      state = state.copyWith(selfMute: muted);
+      soundManager.play(muted ? 'mute' : 'unmute');
+      return;
+    }
     state = state.copyWith(selfMute: muted);
     soundManager.play(muted ? 'mute' : 'unmute');
     _sendVoiceStateUpdate();
@@ -479,7 +485,11 @@ class VoiceController extends _$VoiceController {
 
   void setDeafen(bool deafened) {
     _afkMonitor?.markActivity();
-    if (!state.isConnected) return;
+    if (!state.isConnected) {
+      state = state.copyWith(selfDeaf: deafened);
+      soundManager.play(deafened ? 'deafen' : 'undeafen');
+      return;
+    }
     _session?.setDeafened(deafened);
     state = state.copyWith(selfDeaf: deafened);
     soundManager.play(deafened ? 'deafen' : 'undeafen');
