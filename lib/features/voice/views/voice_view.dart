@@ -364,6 +364,11 @@ class _Tile {
   final VideoTrack? track;
   final bool isScreen;
   final bool muted;
+
+  /// Which tile is spotlighted: a person has a camera tile and, while
+  /// sharing, a screen tile — by user id alone the camera tile won, so
+  /// opening someone's screen share showed their avatar instead.
+  String get spotlightKey => '$userId:${isScreen ? 'screen' : 'camera'}';
 }
 
 /// The in-call body: the video grid (or spotlight + strip).
@@ -471,8 +476,8 @@ class _ConnectedBody extends ConsumerWidget {
       fullScreen: fullScreen,
       tile: t,
       speaking: speaking.contains(t.userId),
-      spotlighted: spotlightUserId == t.userId,
-      onDoubleTap: () => onToggleSpotlight(t.userId),
+      spotlighted: spotlightUserId == t.spotlightKey,
+      onDoubleTap: () => onToggleSpotlight(t.spotlightKey),
       onOpenVolume: serverKey == null || (t.userId == myId && !moderation.any)
           ? null
           : (position) => showUserVolumeMenu(
@@ -489,8 +494,8 @@ class _ConnectedBody extends ConsumerWidget {
 
     // Spotlight a chosen tile (or any active screen-share) above a strip.
     final spotlightIdx = spotlightUserId != null
-        ? tiles.indexWhere((t) => t.userId == spotlightUserId)
-        : tiles.indexWhere((t) => t.isScreen);
+        ? tiles.indexWhere((t) => t.spotlightKey == spotlightUserId)
+        : _defaultSpotlight(tiles, myId);
     if (spotlightIdx >= 0 && tiles.length > 1) {
       return _SpotlightLayout(
         spotlight: tiles[spotlightIdx],
@@ -932,4 +937,11 @@ class _ControlButton extends StatelessWidget {
       ),
     );
   }
+}
+
+/// The tile spotlighted when nobody picked one: someone else's screen share
+/// first (what you came to watch), then your own.
+int _defaultSpotlight(List<_Tile> tiles, String? myId) {
+  final theirs = tiles.indexWhere((t) => t.isScreen && t.userId != myId);
+  return theirs >= 0 ? theirs : tiles.indexWhere((t) => t.isScreen);
 }
