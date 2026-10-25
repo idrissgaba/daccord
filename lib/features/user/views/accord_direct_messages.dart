@@ -493,3 +493,77 @@ class _DirectMessagesDialogState extends ConsumerState<_DirectMessagesDialog>
     );
   }
 }
+
+/// Add / cancel / accept / remove friend for [user], in step with the current
+/// relationship (fetched on open, refreshed after each change). Hidden for
+/// blocked users and while loading.
+class FriendActionButton extends ConsumerStatefulWidget {
+  const FriendActionButton({super.key, required this.user});
+
+  final AccordUser user;
+
+  @override
+  ConsumerState<FriendActionButton> createState() => _FriendActionButtonState();
+}
+
+class _FriendActionButtonState extends ConsumerState<FriendActionButton> {
+  int? _type;
+  bool _loaded = false;
+  bool _busy = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final client = ref.accordClient;
+    if (client == null) return;
+    final result = await client.users.listRelationships();
+    if (!mounted) return;
+    int? type;
+    final data = result.data;
+    if (data is List) {
+      for (final item in data.whereType<AccordRelationship>()) {
+        if (item.user?.id == widget.user.id) type = item.type;
+      }
+    }
+    setState(() {
+      _type = type;
+      _loaded = result.ok;
+    });
+  }
+
+  Future<void> _change() async {
+    setState(() => _busy = true);
+    await _changeDmRelationship(context, ref, widget.user, _type);
+    if (!mounted) return;
+    setState(() => _busy = false);
+    await _load();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_loaded || _type == _Rel.blocked) return const SizedBox.shrink();
+    final colors = BonfireThemeExtension.of(context);
+    final (label, icon) = switch (_type) {
+      _Rel.friend => ('Remove friend', Icons.person_remove_outlined),
+      _Rel.pendingIn => ('Accept friend request', Icons.person_add_alt_1),
+      _Rel.pendingOut => (
+        'Cancel friend request',
+        Icons.person_remove_outlined,
+      ),
+      _ => ('Add friend', Icons.person_add_outlined),
+    };
+    return TextButton.icon(
+      key: const Key('profile-friend-action'),
+      onPressed: _busy ? null : _change,
+      style: TextButton.styleFrom(
+        foregroundColor: _type == _Rel.friend ? colors.red : colors.green,
+      ),
+      icon: Icon(icon, size: 18),
+      label: Text(label),
+    );
+  }
+}
