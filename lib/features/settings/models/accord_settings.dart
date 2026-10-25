@@ -126,6 +126,7 @@ class AccordSettings {
     this.lastChannelId = '',
     this.compactMode = false,
     this.showEmbeds = true,
+    this.closeToTray = true,
     this.convertEmoticons = true,
     this.streamerMode = false,
     this.reducedMotion = false,
@@ -342,6 +343,10 @@ class AccordSettings {
   /// Local display preference, independent of message suppression flags.
   final bool showEmbeds;
 
+  /// Desktop: the close button hides Daccord to the system tray instead of
+  /// quitting.
+  final bool closeToTray;
+
   /// Whether text emoticons (`:)`, `<3`, `xD`, …) are replaced with the
   /// matching emoji when a message is sent or edited. On by default, matching
   /// Discord; see `applyEmoticons` in the messaging feature.
@@ -433,6 +438,7 @@ class AccordSettings {
     String? lastChannelId,
     bool? compactMode,
     bool? showEmbeds,
+    bool? closeToTray,
     bool? convertEmoticons,
     bool? streamerMode,
     bool? reducedMotion,
@@ -502,6 +508,7 @@ class AccordSettings {
       lastChannelId: lastChannelId ?? this.lastChannelId,
       compactMode: compactMode ?? this.compactMode,
       showEmbeds: showEmbeds ?? this.showEmbeds,
+      closeToTray: closeToTray ?? this.closeToTray,
       convertEmoticons: convertEmoticons ?? this.convertEmoticons,
       streamerMode: streamerMode ?? this.streamerMode,
       reducedMotion: reducedMotion ?? this.reducedMotion,
@@ -713,6 +720,7 @@ class AccordSettings {
     'lastChannelId': lastChannelId,
     'compactMode': compactMode,
     'showEmbeds': showEmbeds,
+    'closeToTray': closeToTray,
     'convertEmoticons': convertEmoticons,
     'streamerMode': streamerMode,
     'reducedMotion': reducedMotion,
@@ -837,6 +845,7 @@ class AccordSettings {
       lastChannelId: (json['lastChannelId'] as String?) ?? '',
       compactMode: json['compactMode'] as bool? ?? false,
       showEmbeds: json['showEmbeds'] as bool? ?? true,
+      closeToTray: json['closeToTray'] as bool? ?? true,
       convertEmoticons: json['convertEmoticons'] as bool? ?? true,
       streamerMode: json['streamerMode'] as bool? ?? false,
       reducedMotion: json['reducedMotion'] as bool? ?? false,

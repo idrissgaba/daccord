@@ -99,6 +99,8 @@ dependencies:
   package_info_plus: ^9.0.0
   # Desktop window control — restore/persist last window size & position.
   window_manager: ^0.4.3
+  # Close to the system tray instead of quitting (desktop), like other chat apps.
+  tray_manager: ^0.2.4
   # Push-to-talk outside the app on Windows (GetAsyncKeyState). Stays on 5.x
   # with the rest of the tree (see package_info_plus above).
   win32: ^5.15.0

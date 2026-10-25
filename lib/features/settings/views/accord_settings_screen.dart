@@ -1,3 +1,4 @@
+import 'package:universal_platform/universal_platform.dart';
 import 'package:bonfire/features/authentication/models/accord_auth_state.dart';
 import 'package:bonfire/features/authentication/models/accord_session.dart';
 import 'package:bonfire/shared/components/color_swatch_chip.dart';
@@ -417,6 +418,17 @@ class _AppearanceSection extends StatelessWidget {
             ],
           ),
         ),
+        if (UniversalPlatform.isWindows || UniversalPlatform.isLinux)
+          SwitchListTile(
+            key: const Key('settings-close-to-tray'),
+            title: const Text('Minimize to tray when closing'),
+            subtitle: const Text(
+              'The close button keeps Daccord running in the system tray; '
+              'quit from the tray icon',
+            ),
+            value: settings.closeToTray,
+            onChanged: controller.setCloseToTray,
+          ),
         SwitchListTile(
           title: const Text('Show embeds and link previews'),
           subtitle: const Text(
