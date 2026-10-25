@@ -46,11 +46,18 @@ class VoiceAudioOptions {
     voiceIsolation: noiseSuppression,
   );
 
-  /// Publish options for the microphone track. High quality also disables DTX,
-  /// which would otherwise cut the quiet passages of music.
+  /// Bitrate for ordinary voice: 64 kbps Opus, what other voice chat apps
+  /// default to. LiveKit's own default is its 24–32 kbps speech preset, which
+  /// sounds noticeably muffled next to them.
+  static const AudioEncoding voiceEncoding = AudioEncoding(maxBitrate: 64000);
+
+  /// Publish options for the microphone track. Voice keeps DTX (silence costs
+  /// nothing) and adds RED, which resends audio redundantly so lost packets
+  /// don't cut words. High quality also disables DTX, which would otherwise
+  /// cut the quiet passages of music.
   AudioPublishOptions get publishOptions => highQuality
       ? const AudioPublishOptions(encoding: highQualityEncoding, dtx: false)
-      : const AudioPublishOptions();
+      : const AudioPublishOptions(encoding: voiceEncoding, red: true);
 
   @override
   bool operator ==(Object other) =>
