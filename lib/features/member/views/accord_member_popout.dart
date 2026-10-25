@@ -507,6 +507,15 @@ class _MemberPopoutState extends ConsumerState<_MemberPopout> {
                 ),
                 Align(
                   alignment: Alignment.centerLeft,
+                  child: FriendActionButton(
+                    user:
+                        member?.user ??
+                        cachedUser ??
+                        AccordUser(id: widget.userId),
+                  ),
+                ),
+                Align(
+                  alignment: Alignment.centerLeft,
                   child: TextButton.icon(
                     onPressed: _busy ? null : _report,
                     style: TextButton.styleFrom(foregroundColor: colors.red),
