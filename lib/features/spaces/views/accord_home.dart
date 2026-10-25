@@ -78,6 +78,8 @@ import 'package:bonfire/features/voice/views/voice_moderation_menu.dart'
     show VoiceMoveDrag, moveVoiceParticipant;
 import 'package:bonfire/features/voice/views/voice_participants.dart';
 import 'package:bonfire/features/voice/views/voice_pip_overlay.dart';
+import 'package:bonfire/features/voice/views/voice_view.dart'
+    show voiceViewExpanded;
 import 'package:bonfire/theme/theme.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
@@ -133,6 +135,11 @@ class _AccordHomeScreenState extends ConsumerState<AccordHomeScreen> {
   String? _rulesCheckedSpaceId;
   // Member-list visibility, toggled by the user and by the MCP `navigate` group.
   bool _memberListVisible = true;
+
+  /// The layout in force when the voice view went full screen, kept while it
+  /// stays so: the screen getting wider must not switch layouts, which would
+  /// rebuild the voice view (and its video renderers) from scratch.
+  HomeLayout? _expandedLayout;
 
   // Live channel-list width while the user drags the divider; null when not
   // dragging (the persisted [AccordSettings.channelListWidth] is used instead).
@@ -649,28 +656,38 @@ class _AccordHomeScreenState extends ConsumerState<AccordHomeScreen> {
     // [membersButton] is the escape hatch for the medium layout, where the
     // roster has been pushed into the end drawer to keep the message column
     // readable; the wide layout keeps it inline and passes false.
-    Widget messageArea({required bool membersButton}) => Column(
-      children: [
-        Row(
+    Widget messageArea({required bool membersButton, bool expanded = false}) =>
+        Column(
           children: [
-            Expanded(child: _TabStrip(onSelect: _selectTab)),
-            if (membersButton)
-              IconButton(
-                tooltip: 'Members',
-                icon: Icon(Icons.people_alt_outlined, color: colors.dirtyWhite),
-                onPressed: () => _scaffoldKey.currentState?.openEndDrawer(),
+            if (expanded)
+              const SizedBox.shrink()
+            else
+              Row(
+                children: [
+                  Expanded(child: _TabStrip(onSelect: _selectTab)),
+                  if (membersButton)
+                    IconButton(
+                      tooltip: 'Members',
+                      icon: Icon(
+                        Icons.people_alt_outlined,
+                        color: colors.dirtyWhite,
+                      ),
+                      onPressed: () =>
+                          _scaffoldKey.currentState?.openEndDrawer(),
+                    ),
+                ],
               ),
+            Expanded(
+              child: MessagePane(
+                channel: channels?.firstWhereOrNull(
+                  (c) => c.id == shownChannelId,
+                ),
+                channelId: shownChannelId,
+                spaceId: effectiveSpaceId,
+              ),
+            ),
           ],
-        ),
-        Expanded(
-          child: MessagePane(
-            channel: channels?.firstWhereOrNull((c) => c.id == shownChannelId),
-            channelId: shownChannelId,
-            spaceId: effectiveSpaceId,
-          ),
-        ),
-      ],
-    );
+        );
 
     final pip = VoicePipOverlay(
       shownChannelId: shownChannelId,
@@ -689,167 +706,185 @@ class _AccordHomeScreenState extends ConsumerState<AccordHomeScreen> {
           )
         : null;
 
-    final body = LayoutBuilder(
-      builder: (context, constraints) {
-        // Panes are kept or dropped by the width they'd leave the message
-        // column, not by a device breakpoint — see [resolveHomeLayout].
-        final savedWidth = ref.watch(
-          settingsControllerProvider.select((s) => s.channelListWidth),
-        );
-        final layout = resolveHomeLayout(
-          width: constraints.maxWidth,
-          preferredChannelListWidth: _dragChannelWidth ?? savedWidth,
-        );
-        if (layout.showsSidebarInline) {
-          final channelWidth = layout.channelListWidth;
-          final panes = Stack(
-            children: [
-              Row(
-                children: [
-                  rail,
-                  SizedBox(
-                    width: channelWidth,
-                    child: channelList(inDrawer: false),
-                  ),
-                  _ChannelListResizeHandle(
-                    onDragDelta: (dx) => setState(() {
-                      _dragChannelWidth = (channelWidth + dx).clamp(
-                        AccordSettings.minChannelListWidth,
-                        AccordSettings.maxChannelListWidth,
-                      );
-                    }),
-                    onDragEnd: () {
-                      final width = _dragChannelWidth;
-                      if (width != null) {
-                        ref
-                            .read(settingsControllerProvider.notifier)
-                            .setChannelListWidth(width);
-                      }
-                      setState(() => _dragChannelWidth = null);
-                    },
-                  ),
-                  Expanded(
-                    child: messageArea(
-                      membersButton:
-                          hasMembers && !layout.showsMemberListInline,
-                    ),
-                  ),
-                  if (layout.showsMemberListInline &&
-                      hasMembers &&
-                      _memberListVisible)
-                    AccordMemberList(spaceId: effectiveSpaceId),
-                ],
-              ),
-              pip,
-            ],
+    final body = ValueListenableBuilder<bool>(
+      valueListenable: voiceViewExpanded,
+      builder: (context, expanded, _) => LayoutBuilder(
+        builder: (context, constraints) {
+          // Panes are kept or dropped by the width they'd leave the message
+          // column, not by a device breakpoint — see [resolveHomeLayout].
+          final savedWidth = ref.watch(
+            settingsControllerProvider.select((s) => s.channelListWidth),
           );
-          if (layout.showsMemberListInline) return panes;
-          // Medium: the roster is an end drawer, so this half of the tree needs
-          // its own Scaffold to host it.
-          return Scaffold(
-            key: _scaffoldKey,
-            backgroundColor: colors.background,
-            endDrawer: memberEndDrawer(),
-            body: panes,
+          final resolved = resolveHomeLayout(
+            width: constraints.maxWidth,
+            preferredChannelListWidth: _dragChannelWidth ?? savedWidth,
           );
-        }
-        // Narrow: rail + channel list move into a drawer, members into an
-        // end-drawer, so the message pane keeps full width instead of
-        // overflowing.
-        //
-        // Wrap in [PopScope] so Android's left-edge back swipe (which shares the
-        // same edge as the swipe-to-open-sidebar gesture) steps through / opens
-        // the drawers instead of popping the route (#125).
-        return PopScope(
-          canPop: false,
-          onPopInvokedWithResult: (didPop, _) {
-            if (didPop) return;
-            final scaffold = _scaffoldKey.currentState;
-            if (scaffold == null) return;
-            if (scaffold.isEndDrawerOpen) {
-              scaffold.closeEndDrawer();
-            } else if (scaffold.isDrawerOpen) {
-              scaffold.closeDrawer();
-            } else {
-              scaffold.openDrawer();
-            }
-          },
-          child: Scaffold(
-            key: _scaffoldKey,
-            backgroundColor: colors.background,
-            drawerEdgeDragWidth: 48,
-            drawer: Drawer(
-              width: 292,
-              backgroundColor: colors.background,
-              child: SafeArea(
-                child: Row(
-                  children: [
-                    rail,
-                    Expanded(child: channelList(inDrawer: true)),
-                  ],
-                ),
-              ),
-            ),
-            endDrawer: memberEndDrawer(),
-            body: Stack(
+          // Full-screen voice: freeze the layout and hide everything around
+          // the message pane, keeping every widget in its place.
+          if (expanded) {
+            _expandedLayout ??= resolved;
+          } else {
+            _expandedLayout = null;
+          }
+          final layout = _expandedLayout ?? resolved;
+          if (layout.showsSidebarInline) {
+            final channelWidth = layout.channelListWidth;
+            final panes = Stack(
               children: [
-                // Inset the mobile chrome below the OS status bar / nav bar.
-                // The pip overlay stays outside so it can use the full screen.
-                //
-                // [DrawerSwipeArea] extends swipe-to-open past the edge strip
-                // `drawerEdgeDragWidth` covers, without stealing horizontal
-                // drags from the tab strip or the voice rails (#125).
-                DrawerSwipeArea(
-                  scaffoldKey: _scaffoldKey,
-                  child: SafeArea(
-                    child: Column(
-                      children: [
-                        Row(
-                          children: [
-                            OnboardingAnchor(
-                              anchor: OnboardingAnchorId.navMenu,
-                              child: IconButton(
-                                tooltip: 'Channels',
-                                icon: Icon(
-                                  Icons.menu,
-                                  color: colors.dirtyWhite,
-                                ),
-                                onPressed: () =>
-                                    _scaffoldKey.currentState?.openDrawer(),
-                              ),
-                            ),
-                            Expanded(child: _TabStrip(onSelect: _selectTab)),
-                            if (hasMembers)
-                              IconButton(
-                                tooltip: 'Members',
-                                icon: Icon(
-                                  Icons.people_alt_outlined,
-                                  color: colors.dirtyWhite,
-                                ),
-                                onPressed: () =>
-                                    _scaffoldKey.currentState?.openEndDrawer(),
-                              ),
-                          ],
-                        ),
-                        Expanded(
-                          child: MessagePane(
-                            channel: channels?.firstWhereOrNull(
-                              (c) => c.id == shownChannelId,
-                            ),
-                            channelId: shownChannelId,
-                            spaceId: effectiveSpaceId,
-                          ),
-                        ),
-                      ],
+                Row(
+                  children: [
+                    if (expanded) const SizedBox.shrink() else rail,
+                    SizedBox(
+                      width: expanded ? 0 : channelWidth,
+                      child: expanded
+                          ? const SizedBox.shrink()
+                          : channelList(inDrawer: false),
                     ),
-                  ),
+                    if (expanded)
+                      const SizedBox.shrink()
+                    else
+                      _ChannelListResizeHandle(
+                        onDragDelta: (dx) => setState(() {
+                          _dragChannelWidth = (channelWidth + dx).clamp(
+                            AccordSettings.minChannelListWidth,
+                            AccordSettings.maxChannelListWidth,
+                          );
+                        }),
+                        onDragEnd: () {
+                          final width = _dragChannelWidth;
+                          if (width != null) {
+                            ref
+                                .read(settingsControllerProvider.notifier)
+                                .setChannelListWidth(width);
+                          }
+                          setState(() => _dragChannelWidth = null);
+                        },
+                      ),
+                    Expanded(
+                      child: messageArea(
+                        membersButton:
+                            hasMembers && !layout.showsMemberListInline,
+                        expanded: expanded,
+                      ),
+                    ),
+                    if (!expanded &&
+                        layout.showsMemberListInline &&
+                        hasMembers &&
+                        _memberListVisible)
+                      AccordMemberList(spaceId: effectiveSpaceId),
+                  ],
                 ),
                 pip,
               ],
+            );
+            if (layout.showsMemberListInline) return panes;
+            // Medium: the roster is an end drawer, so this half of the tree needs
+            // its own Scaffold to host it.
+            return Scaffold(
+              key: _scaffoldKey,
+              backgroundColor: colors.background,
+              endDrawer: memberEndDrawer(),
+              body: panes,
+            );
+          }
+          // Narrow: rail + channel list move into a drawer, members into an
+          // end-drawer, so the message pane keeps full width instead of
+          // overflowing.
+          //
+          // Wrap in [PopScope] so Android's left-edge back swipe (which shares the
+          // same edge as the swipe-to-open-sidebar gesture) steps through / opens
+          // the drawers instead of popping the route (#125).
+          return PopScope(
+            canPop: false,
+            onPopInvokedWithResult: (didPop, _) {
+              if (didPop) return;
+              final scaffold = _scaffoldKey.currentState;
+              if (scaffold == null) return;
+              if (scaffold.isEndDrawerOpen) {
+                scaffold.closeEndDrawer();
+              } else if (scaffold.isDrawerOpen) {
+                scaffold.closeDrawer();
+              } else {
+                scaffold.openDrawer();
+              }
+            },
+            child: Scaffold(
+              key: _scaffoldKey,
+              backgroundColor: colors.background,
+              drawerEdgeDragWidth: 48,
+              drawer: Drawer(
+                width: 292,
+                backgroundColor: colors.background,
+                child: SafeArea(
+                  child: Row(
+                    children: [
+                      rail,
+                      Expanded(child: channelList(inDrawer: true)),
+                    ],
+                  ),
+                ),
+              ),
+              endDrawer: memberEndDrawer(),
+              body: Stack(
+                children: [
+                  // Inset the mobile chrome below the OS status bar / nav bar.
+                  // The pip overlay stays outside so it can use the full screen.
+                  //
+                  // [DrawerSwipeArea] extends swipe-to-open past the edge strip
+                  // `drawerEdgeDragWidth` covers, without stealing horizontal
+                  // drags from the tab strip or the voice rails (#125).
+                  DrawerSwipeArea(
+                    scaffoldKey: _scaffoldKey,
+                    child: SafeArea(
+                      child: Column(
+                        children: [
+                          Row(
+                            children: [
+                              OnboardingAnchor(
+                                anchor: OnboardingAnchorId.navMenu,
+                                child: IconButton(
+                                  tooltip: 'Channels',
+                                  icon: Icon(
+                                    Icons.menu,
+                                    color: colors.dirtyWhite,
+                                  ),
+                                  onPressed: () =>
+                                      _scaffoldKey.currentState?.openDrawer(),
+                                ),
+                              ),
+                              Expanded(child: _TabStrip(onSelect: _selectTab)),
+                              if (hasMembers)
+                                IconButton(
+                                  tooltip: 'Members',
+                                  icon: Icon(
+                                    Icons.people_alt_outlined,
+                                    color: colors.dirtyWhite,
+                                  ),
+                                  onPressed: () => _scaffoldKey.currentState
+                                      ?.openEndDrawer(),
+                                ),
+                            ],
+                          ),
+                          Expanded(
+                            child: MessagePane(
+                              channel: channels?.firstWhereOrNull(
+                                (c) => c.id == shownChannelId,
+                              ),
+                              channelId: shownChannelId,
+                              spaceId: effectiveSpaceId,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  pip,
+                ],
+              ),
             ),
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
 
     return Column(

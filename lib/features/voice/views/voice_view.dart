@@ -25,6 +25,10 @@ import 'package:bonfire/shared/components/horizontal_wheel_scroll.dart';
 import 'package:bonfire/theme/theme.dart';
 import 'package:bonfire/features/member/views/accord_member_avatar.dart';
 import 'package:bonfire/features/voice/views/voice_lobby.dart';
+import 'package:flutter/services.dart';
+import 'package:universal_platform/universal_platform.dart';
+import 'package:window_manager/window_manager.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:livekit_client/livekit_client.dart' show VideoTrack;
@@ -33,6 +37,46 @@ import 'package:livekit_client/livekit_client.dart' as lk;
 /// Presents the voice channel full-screen as its own route, rendering
 /// [VoiceChannelView] in [VoiceChannelView.fullScreen] mode so its header
 /// shows a "minimize" button that pops back.
+/// Whether the voice view in the message pane fills the window. Full screen
+/// happens in place — the home screen hides everything around the view —
+/// rather than by pushing a second view: building a second set of video
+/// renderers (and tearing one down) crashes the Flutter engine on Windows.
+final voiceViewExpanded = ValueNotifier<bool>(false);
+
+/// Expands the voice view to fill the window (and the screen, on desktop), or
+/// restores it.
+Future<void> setVoiceViewExpanded(bool expanded) async {
+  if (voiceViewExpanded.value == expanded) return;
+  voiceViewExpanded.value = expanded;
+  // Esc leaves full screen wherever keyboard focus is.
+  if (expanded) {
+    HardwareKeyboard.instance.addHandler(_escapeExitsFullScreen);
+  } else {
+    HardwareKeyboard.instance.removeHandler(_escapeExitsFullScreen);
+  }
+  if (_hasDesktopWindow) {
+    try {
+      await windowManager.setFullScreen(expanded);
+    } catch (e) {
+      debugPrint('Voice full screen failed: $e');
+    }
+  }
+}
+
+bool _escapeExitsFullScreen(KeyEvent event) {
+  if (event is! KeyDownEvent || event.logicalKey != LogicalKeyboardKey.escape) {
+    return false;
+  }
+  setVoiceViewExpanded(false);
+  return true;
+}
+
+bool get _hasDesktopWindow =>
+    !kIsWeb &&
+    (UniversalPlatform.isWindows ||
+        UniversalPlatform.isLinux ||
+        UniversalPlatform.isMacOS);
+
 /// How many full-screen voice views are open. While one is, the views under
 /// it (and the PiP) stop rendering video: flutter_webrtc on Windows crashes
 /// when one track feeds two renderers and one of them is torn down.
@@ -108,6 +152,11 @@ class VoiceChannelView extends ConsumerStatefulWidget {
 class _VoiceChannelViewState extends ConsumerState<VoiceChannelView> {
   String? _spotlightUserId;
 
+  /// One global key per video tile of this view, so a tile moving between the
+  /// grid and the spotlight is moved, not rebuilt: rebuilding tears down and
+  /// recreates its video renderer, which crashes the engine on Windows.
+  final _tileKeys = <String, GlobalKey>{};
+
   /// Whether the voice text-chat panel is open. Defaults open in full-screen and
   /// in the lobby, and closed for a call already in progress in the narrower
   /// message-pane presentation; the header toggle then wins until the view
@@ -122,6 +171,16 @@ class _VoiceChannelViewState extends ConsumerState<VoiceChannelView> {
     final connectedHere =
         ref.read(voiceControllerProvider).channelId == widget.channelId;
     return widget.fullScreen || !connectedHere;
+  }
+
+  @override
+  void dispose() {
+    // Leaving the voice view (another channel, another space) ends full
+    // screen; scheduled because the home screen rebuilds on it.
+    if (!widget.fullScreen && voiceViewExpanded.value) {
+      Future.microtask(() => setVoiceViewExpanded(false));
+    }
+    super.dispose();
   }
 
   @override
@@ -186,6 +245,7 @@ class _VoiceChannelViewState extends ConsumerState<VoiceChannelView> {
   Widget _body(bool connectedHere) {
     final primary = connectedHere
         ? _ConnectedBody(
+            tileKeys: _tileKeys,
             channelId: widget.channelId,
             spaceId: widget.spaceId,
             fullScreen: widget.fullScreen,
@@ -278,26 +338,41 @@ class _VoiceChannelViewState extends ConsumerState<VoiceChannelView> {
               color: _chatOpen ? colors.primary : colors.dirtyWhite,
             ),
           ),
-          IconButton(
-            tooltip: widget.fullScreen ? 'Exit full screen' : 'Full screen',
-            onPressed: () {
-              if (widget.fullScreen) {
-                Navigator.of(context).maybePop();
-              } else {
-                showFullScreenVoice(
-                  context,
-                  channelId: widget.channelId,
-                  spaceId: widget.spaceId,
-                  channelName: widget.channelName,
-                );
-              }
-            },
-            icon: Icon(
-              widget.fullScreen ? Icons.fullscreen_exit : Icons.fullscreen,
-              size: 20,
-              color: colors.dirtyWhite,
+          if (widget.fullScreen || _isDmCall)
+            IconButton(
+              tooltip: widget.fullScreen ? 'Exit full screen' : 'Full screen',
+              onPressed: () {
+                if (widget.fullScreen) {
+                  Navigator.of(context).maybePop();
+                } else {
+                  showFullScreenVoice(
+                    context,
+                    channelId: widget.channelId,
+                    spaceId: widget.spaceId,
+                    channelName: widget.channelName,
+                  );
+                }
+              },
+              icon: Icon(
+                widget.fullScreen ? Icons.fullscreen_exit : Icons.fullscreen,
+                size: 20,
+                color: colors.dirtyWhite,
+              ),
+            )
+          else
+            ValueListenableBuilder<bool>(
+              valueListenable: voiceViewExpanded,
+              builder: (context, expanded, _) => IconButton(
+                key: const Key('voice-full-screen'),
+                tooltip: expanded ? 'Exit full screen (Esc)' : 'Full screen',
+                onPressed: () => setVoiceViewExpanded(!expanded),
+                icon: Icon(
+                  expanded ? Icons.fullscreen_exit : Icons.fullscreen,
+                  size: 20,
+                  color: colors.dirtyWhite,
+                ),
+              ),
             ),
-          ),
         ],
       ),
     );
@@ -374,6 +449,7 @@ class _Tile {
 /// The in-call body: the video grid (or spotlight + strip).
 class _ConnectedBody extends ConsumerWidget {
   const _ConnectedBody({
+    required this.tileKeys,
     required this.channelId,
     required this.spaceId,
     required this.spotlightUserId,
@@ -385,6 +461,9 @@ class _ConnectedBody extends ConsumerWidget {
   /// This is the full-screen view, the one that keeps rendering video while
   /// it is open (see [voiceFullScreenOpen]).
   final bool fullScreen;
+
+  /// The owning view's tile keys (see `_VoiceChannelViewState._tileKeys`).
+  final Map<String, GlobalKey> tileKeys;
 
   final String channelId;
   final String? spaceId;
@@ -434,6 +513,7 @@ class _ConnectedBody extends ConsumerWidget {
             child: speakers.isEmpty
                 ? const Center(child: Text('No one is on stage yet.'))
                 : _ConnectedBody(
+                    tileKeys: tileKeys,
                     channelId: channelId,
                     spaceId: spaceId,
                     spotlightUserId: spotlightUserId,
@@ -472,7 +552,7 @@ class _ConnectedBody extends ConsumerWidget {
     final serverKey = ref.readActiveServerKey();
     final moderation = watchVoiceModerationRights(ref, spaceId);
     Widget tileWidget(_Tile t) => _VideoTile(
-      key: ValueKey('${t.userId}:${t.isScreen}'),
+      key: tileKeys.putIfAbsent(t.spotlightKey, GlobalKey.new),
       fullScreen: fullScreen,
       tile: t,
       speaking: speaking.contains(t.userId),
