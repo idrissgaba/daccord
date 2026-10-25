@@ -121,7 +121,8 @@ class VoiceSession {
   VideoTrack? _videoTrackOf(Participant? participant, TrackSource source) {
     if (participant == null) return null;
     for (final pub in participant.videoTrackPublications) {
-      if (pub.source == source) {
+      // A muted track (camera turned off) has no frames: show the avatar.
+      if (pub.source == source && !pub.muted) {
         final track = pub.track;
         if (track is VideoTrack) return track;
       }
@@ -793,6 +794,14 @@ class VoiceSession {
         onTracksChanged?.call();
       })
       ..on<TrackUnsubscribedEvent>((_) => onTracksChanged?.call())
+      // A camera turned off and back on is muted/unmuted, not re-subscribed;
+      // without these the tile kept showing the avatar until something else
+      // changed.
+      ..on<TrackMutedEvent>((_) => onTracksChanged?.call())
+      ..on<TrackUnmutedEvent>((_) => onTracksChanged?.call())
+      ..on<TrackPublishedEvent>((_) => onTracksChanged?.call())
+      ..on<TrackUnpublishedEvent>((_) => onTracksChanged?.call())
+      ..on<TrackStreamStateUpdatedEvent>((_) => onTracksChanged?.call())
       ..on<LocalTrackPublishedEvent>((_) => onTracksChanged?.call())
       ..on<LocalTrackUnpublishedEvent>((_) => onTracksChanged?.call())
       ..on<ParticipantConnectedEvent>((_) => onTracksChanged?.call())
