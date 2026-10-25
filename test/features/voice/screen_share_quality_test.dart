@@ -103,7 +103,7 @@ void main() {
       const settings = AccordSettings(
         videoResolution: 0, // 854x480 camera
         videoFps: 15,
-        screenShareResolution: 1, // 1920x1080 share
+        screenShareResolution: 2, // 1920x1080 share
         screenShareFps: 60,
       );
       final h = _harness(settings);

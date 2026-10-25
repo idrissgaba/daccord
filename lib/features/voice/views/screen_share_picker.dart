@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:bonfire/features/settings/controllers/settings.dart';
+import 'package:bonfire/features/settings/models/accord_settings.dart';
 import 'package:bonfire/features/voice/controllers/voice.dart';
 import 'package:bonfire/shared/components/dialog_title_bar.dart';
 import 'package:bonfire/theme/theme.dart';
@@ -202,6 +204,10 @@ class _ScreenShareSourceDialogState extends State<_ScreenShareSourceDialog>
                       ],
                     ),
             ),
+            const Padding(
+              padding: EdgeInsets.fromLTRB(20, 4, 20, 0),
+              child: ShareQualityRow(),
+            ),
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
               child: Row(
@@ -285,6 +291,63 @@ class _SourceTile extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Stream quality picked right before sharing, as in other voice chat apps:
+/// resolution and frame rate (the same settings as Voice & Video).
+class ShareQualityRow extends ConsumerWidget {
+  const ShareQualityRow({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final settings = ref.watch(settingsControllerProvider);
+    final controller = ref.read(settingsControllerProvider.notifier);
+    final colors = BonfireThemeExtension.of(context);
+    final label = Theme.of(
+      context,
+    ).textTheme.labelSmall?.copyWith(color: colors.gray);
+    return Wrap(
+      spacing: 16,
+      runSpacing: 8,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        Text('QUALITY', style: label),
+        SegmentedButton<int>(
+          key: const Key('share-quality'),
+          showSelectedIcon: false,
+          segments: [
+            for (
+              var i = 0;
+              i < AccordSettings.screenShareResolutionLabels.length;
+              i++
+            )
+              ButtonSegment(
+                value: i,
+                label: Text(
+                  AccordSettings.screenShareResolutionLabels[i]
+                      .split(' ')
+                      .first,
+                ),
+              ),
+          ],
+          selected: {settings.screenShareResolution},
+          onSelectionChanged: (v) =>
+              controller.setScreenShareResolution(v.first),
+        ),
+        Text('FRAME RATE', style: label),
+        SegmentedButton<int>(
+          key: const Key('share-fps'),
+          showSelectedIcon: false,
+          segments: [
+            for (final fps in AccordSettings.screenShareFpsOptions)
+              ButtonSegment(value: fps, label: Text('$fps')),
+          ],
+          selected: {settings.screenShareFps},
+          onSelectionChanged: (v) => controller.setScreenShareFps(v.first),
+        ),
+      ],
     );
   }
 }

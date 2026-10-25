@@ -13,11 +13,7 @@ import 'package:http/testing.dart';
 
 /// Hosts [ConnectionsScreen] against a client whose
 /// `GET /users/@me/connections` answers [status] with [body].
-Widget _host({
-  required int status,
-  String body = '{}',
-  bool embedded = false,
-}) {
+Widget _host({required int status, String body = '{}', bool embedded = false}) {
   final server = AccordServer.fromBaseUrl('https://accord.example.test');
   final client = AccordClient(
     token: 'test-token',

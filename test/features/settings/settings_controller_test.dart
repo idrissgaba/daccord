@@ -447,7 +447,7 @@ void main() {
       controllerOf(c)
         ..setVideoResolution(2)
         ..setVideoFps(30)
-        ..setScreenShareResolution(0)
+        ..setScreenShareResolution(1)
         ..setScreenShareFps(60);
       final s = stateOf(c);
       expect(s.videoResolution, 2);

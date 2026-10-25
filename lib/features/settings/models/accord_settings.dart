@@ -37,8 +37,9 @@ class AccordSettings {
   static const List<int> videoFpsOptions = [15, 30, 60];
 
   /// Screen-share capture resolution labels, indexed by [screenShareResolution].
-  /// Separate from the camera ladder: 480p makes shared UI text unreadable.
+  /// 480p is there for weak uplinks; shared text is hard to read at it.
   static const List<String> screenShareResolutionLabels = [
+    '480p',
     '720p',
     '1080p',
     '1440p',
@@ -50,7 +51,7 @@ class AccordSettings {
 
   /// Default screen-share resolution index (720p): roughly half the pixel rate
   /// of 1080p60, so most machines and links can sustain it at 60 fps.
-  static const int defaultScreenShareResolution = 0;
+  static const int defaultScreenShareResolution = 1;
 
   /// Default screen-share frame rate; see [screenShareFps].
   static const int defaultScreenShareFps = 60;
@@ -178,7 +179,7 @@ class AccordSettings {
   final int videoFps;
 
   /// Screen-share capture resolution index into [screenShareResolutionLabels]
-  /// (0 = 720p, 1 = 1080p, 2 = 1440p, 3 = 2160p), independent of
+  /// (0 = 480p, 1 = 720p, 2 = 1080p, 3 = 1440p, 4 = 2160p), independent of
   /// [videoResolution].
   final int screenShareResolution;
 
@@ -592,11 +593,13 @@ class AccordSettings {
   /// [screenShareResolution].
   (int, int) get screenShareDimensions {
     switch (screenShareResolution) {
-      case 1:
-        return (1920, 1080);
+      case 0:
+        return (854, 480);
       case 2:
-        return (2560, 1440);
+        return (1920, 1080);
       case 3:
+        return (2560, 1440);
+      case 4:
         return (3840, 2160);
       default:
         return (1280, 720);
@@ -632,9 +635,10 @@ class AccordSettings {
   /// rates scale sub-linearly: less-correlated frames each cost more.
   int get screenShareBitrate {
     final base = switch (screenShareResolution) {
-      1 => 6000000, // 1080p60
-      2 => 9000000, // 1440p60
-      3 => 16000000, // 2160p60
+      0 => 1500000, // 480p60
+      2 => 6000000, // 1080p60
+      3 => 9000000, // 1440p60
+      4 => 16000000, // 2160p60
       _ => 3000000, // 720p60
     };
     final scale = screenShareFps <= 15
@@ -678,7 +682,7 @@ class AccordSettings {
     'sfxVolume': sfxVolume,
     'videoResolution': videoResolution,
     'videoFps': videoFps,
-    'screenShareResolution': screenShareResolution,
+    'screenShareQuality': screenShareResolution,
     'screenShareFps': screenShareFps,
     'screenShareMotionPriority': screenShareMotionPriority,
     'audioInputDeviceId': audioInputDeviceId,
@@ -746,12 +750,7 @@ class AccordSettings {
       videoFps: (json['videoFps'] as num?)?.toInt() ?? 30,
       // Missing screen-share keys use the motion-friendly defaults, not the
       // camera values.
-      screenShareResolution:
-          (json['screenShareResolution'] as num?)?.toInt().clamp(
-            0,
-            screenShareResolutionLabels.length - 1,
-          ) ??
-          defaultScreenShareResolution,
+      screenShareResolution: _screenShareQualityFrom(json),
       screenShareFps:
           screenShareFpsOptions.contains(
             (json['screenShareFps'] as num?)?.toInt(),
@@ -875,4 +874,15 @@ class AccordSettings {
           defaultChannelListWidth,
     );
   }
+}
+
+/// The saved screen-share quality. `screenShareQuality` indexes the ladder
+/// with 480p at 0; the older `screenShareResolution` started at 720p, one step
+/// up. Out-of-range values are clamped; nothing saved gives the default.
+int _screenShareQualityFrom(Map json) {
+  final current = (json['screenShareQuality'] as num?)?.toInt();
+  final legacy = (json['screenShareResolution'] as num?)?.toInt();
+  final index = current ?? (legacy == null ? null : legacy + 1);
+  if (index == null) return AccordSettings.defaultScreenShareResolution;
+  return index.clamp(0, AccordSettings.screenShareResolutionLabels.length - 1);
 }
