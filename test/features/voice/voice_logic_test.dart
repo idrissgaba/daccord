@@ -81,7 +81,8 @@ void main() {
       expect(capture.echoCancellation, isTrue);
       expect(capture.autoGainControl, isTrue);
       expect(capture.voiceIsolation, isTrue);
-      expect(audio.publishOptions.encoding, isNull);
+      expect(audio.publishOptions.encoding?.maxBitrate, 64000);
+      expect(audio.publishOptions.red, isTrue);
       expect(audio.publishOptions.dtx, isTrue);
     });
 
