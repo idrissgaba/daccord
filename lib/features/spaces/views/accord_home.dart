@@ -48,7 +48,7 @@ import 'package:bonfire/features/member/views/profile_extras.dart'
 import 'package:bonfire/features/spaces/views/welcome_screen.dart'
     show WelcomeScreenGate;
 import 'package:bonfire/features/spaces/views/rail_draggable.dart';
-import 'package:bonfire/features/user/views/self_status_button.dart';
+import 'package:bonfire/features/user/views/user_panel.dart';
 import 'package:bonfire/features/user/views/accord_direct_messages.dart';
 import 'package:bonfire/features/settings/controllers/settings.dart';
 import 'package:bonfire/features/settings/models/accord_settings.dart';
@@ -613,23 +613,27 @@ class _AccordHomeScreenState extends ConsumerState<AccordHomeScreen> {
     final shownSpaceId = effectiveSpaceId;
     final colors = BonfireThemeExtension.of(context);
 
+    void switchAccount() => context.push('/switcher');
+    void openSettings() => context.push('/settings');
+    Future<void> logout() async {
+      if (!await confirmLogout(context)) return;
+      if (!context.mounted) return;
+      ref.read(accordAuthProvider.notifier).logout();
+    }
+
     final rail = OnboardingAnchor(
       anchor: OnboardingAnchorId.spaceRail,
       child: _SpaceRail(
         selectedSpaceId: effectiveSpaceId,
         onSelect: _selectSpace,
         onAddServer: () => showAddServerDialog(context),
-        onSwitchAccount: () => context.push('/switcher'),
-        onOpenSettings: () => context.push('/settings'),
-        onLogout: () async {
-          if (!await confirmLogout(context)) return;
-          if (!context.mounted) return;
-          ref.read(accordAuthProvider.notifier).logout();
-        },
+        onSwitchAccount: switchAccount,
+        onOpenSettings: openSettings,
+        onLogout: logout,
       ),
     );
 
-    Widget channelList({required bool inDrawer}) => OnboardingAnchor(
+    Widget channelListBody({required bool inDrawer}) => OnboardingAnchor(
       anchor: OnboardingAnchorId.channelList,
       child: _ChannelList(
         spaceId: effectiveSpaceId,
@@ -651,6 +655,17 @@ class _AccordHomeScreenState extends ConsumerState<AccordHomeScreen> {
                 if (inDrawer) _scaffoldKey.currentState?.closeDrawer();
               },
       ),
+    );
+
+    Widget channelList({required bool inDrawer}) => Column(
+      children: [
+        Expanded(child: channelListBody(inDrawer: inDrawer)),
+        UserPanel(
+          onOpenSettings: openSettings,
+          onSwitchAccount: switchAccount,
+          onLogout: logout,
+        ),
+      ],
     );
 
     // [membersButton] is the escape hatch for the medium layout, where the

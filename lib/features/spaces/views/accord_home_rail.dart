@@ -218,7 +218,7 @@ class _SpaceRail extends ConsumerWidget {
 
     return Container(
       width: 72,
-      color: colors.background,
+      color: colors.darkGray,
       child: Column(
         children: [
           Expanded(
@@ -227,30 +227,12 @@ class _SpaceRail extends ConsumerWidget {
               children: railItems,
             ),
           ),
+          // Status, account switching, settings and log out live in the user
+          // panel at the foot of the channel column.
           IconButton(
             tooltip: 'Explore public spaces',
             onPressed: () => showAccordDiscovery(context),
-            icon: Icon(Icons.explore, size: 22, color: colors.dirtyWhite),
-          ),
-          const SelfStatusButton(),
-          IconButton(
-            tooltip: 'Switch account',
-            onPressed: onSwitchAccount,
-            icon: Icon(
-              Icons.switch_account,
-              color: colors.dirtyWhite,
-              size: 20,
-            ),
-          ),
-          IconButton(
-            tooltip: 'Settings',
-            onPressed: onOpenSettings,
-            icon: Icon(Icons.settings, color: colors.dirtyWhite, size: 20),
-          ),
-          IconButton(
-            tooltip: 'Log out',
-            onPressed: onLogout,
-            icon: Icon(Icons.logout, color: colors.dirtyWhite, size: 20),
+            icon: Icon(Icons.explore, size: 22, color: colors.green),
           ),
           const SizedBox(height: 8),
         ],

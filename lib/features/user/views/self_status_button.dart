@@ -18,7 +18,13 @@ const _statusOptions = <({String value, String label, IconData icon})>[
 /// status over the gateway and optimistically updates the local presence cache
 /// so the dot reflects the choice immediately.
 class SelfStatusButton extends ConsumerWidget {
-  const SelfStatusButton({super.key});
+  const SelfStatusButton({super.key, this.child, this.extras = const []});
+
+  /// What to show in place of the bare status dot (e.g. avatar and name).
+  final Widget? child;
+
+  /// More entries below the statuses (account switching, log out).
+  final List<SelfStatusExtra> extras;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -39,6 +45,10 @@ class SelfStatusButton extends ConsumerWidget {
     return PopupMenuButton<String>(
       tooltip: customStatus ?? 'Set status',
       onSelected: (value) {
+        if (value.startsWith(_extraPrefix)) {
+          extras[int.parse(value.substring(_extraPrefix.length))].onSelected();
+          return;
+        }
         switch (value) {
           case _customValue:
             _showCustomStatusDialog(context, ref, userId, status, customStatus);
@@ -86,10 +96,36 @@ class SelfStatusButton extends ConsumerWidget {
               ],
             ),
           ),
+        if (extras.isNotEmpty) const PopupMenuDivider(),
+        for (var i = 0; i < extras.length; i++)
+          PopupMenuItem(
+            value: '$_extraPrefix$i',
+            child: Row(
+              children: [
+                Icon(
+                  extras[i].icon,
+                  size: 16,
+                  color: extras[i].destructive ? colors.red : colors.gray,
+                ),
+                const SizedBox(width: 10),
+                Text(
+                  extras[i].label,
+                  style: extras[i].destructive
+                      ? TextStyle(color: colors.red)
+                      : null,
+                ),
+              ],
+            ),
+          ),
       ],
-      icon: Icon(Icons.circle, size: 16, color: dotColor),
+      icon: child == null
+          ? Icon(Icons.circle, size: 16, color: dotColor)
+          : null,
+      child: child,
     );
   }
+
+  static const String _extraPrefix = '__extra__';
 
   static const String _customValue = '__custom__';
   static const String _clearCustomValue = '__clear_custom__';
@@ -263,4 +299,19 @@ class _CustomStatusDialogState extends State<_CustomStatusDialog> {
       ],
     );
   }
+}
+
+/// An extra entry of the status menu (see [SelfStatusButton.extras]).
+class SelfStatusExtra {
+  const SelfStatusExtra({
+    required this.label,
+    required this.icon,
+    required this.onSelected,
+    this.destructive = false,
+  });
+
+  final String label;
+  final IconData icon;
+  final VoidCallback onSelected;
+  final bool destructive;
 }

@@ -53,8 +53,7 @@ class BonfireThemeExtension extends ThemeExtension<BonfireThemeExtension> {
   }
 
   @override
-  BonfireThemeExtension lerp(
-      covariant BonfireThemeExtension? other, double t) {
+  BonfireThemeExtension lerp(covariant BonfireThemeExtension? other, double t) {
     if (other == null) return this;
     return BonfireThemeExtension(
       foreground: Color.lerp(foreground, other.foreground, t)!,

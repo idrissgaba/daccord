@@ -28,16 +28,19 @@ enum AppThemePreset {
 /// dirtyWhite←text_body, gray←text_muted, primary←accent, red←error,
 /// green←success, yellow←warning.
 const Map<AppThemePreset, BonfireThemeExtension> _palettes = {
+  // Three surfaces, darkest to lightest: server rail (darkGray), channel and
+  // member columns (foreground), chat (background) — the layering familiar
+  // from other voice chat apps.
   AppThemePreset.dark: BonfireThemeExtension(
-    background: Color(0xFF27292C),
-    foreground: Color(0xFF2C2E34),
-    dirtyWhite: Color(0xFFD5D9DF),
-    gray: Color(0xFF939BA3),
-    darkGray: Color(0xFF1E1F23),
-    primary: Color(0xFF5764F1),
-    red: Color(0xFFEC4245),
-    green: Color(0xFF43B06D),
-    yellow: Color(0xFFFFD833),
+    background: Color(0xFF313338),
+    foreground: Color(0xFF2B2D31),
+    dirtyWhite: Color(0xFFDBDEE1),
+    gray: Color(0xFF949BA4),
+    darkGray: Color(0xFF1E1F22),
+    primary: Color(0xFF5865F2),
+    red: Color(0xFFF23F43),
+    green: Color(0xFF23A55A),
+    yellow: Color(0xFFF0B232),
   ),
   // AMOLED variant of [dark]: pure-black base, same accent/text tokens.
   AppThemePreset.midnight: BonfireThemeExtension(
