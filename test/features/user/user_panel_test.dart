@@ -52,6 +52,9 @@ void main() {
       ),
     );
     await tester.pump();
+    // Our own user isn't cached yet: the signed-in name shows, not the id.
+    expect(find.text('alice'), findsWidgets);
+    expect(find.text('u1'), findsNothing);
     expect(find.byIcon(Icons.mic), findsOneWidget);
 
     await tester.tap(find.byKey(const Key('user-panel-mute')));
