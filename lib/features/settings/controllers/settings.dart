@@ -1,5 +1,6 @@
 import 'dart:math';
 
+import 'package:bonfire/shared/utils/desktop_tray.dart';
 import 'package:bonfire/features/profiles/services/profile_store.dart';
 import 'package:bonfire/features/settings/models/accord_settings.dart';
 import 'package:bonfire/features/spaces/models/space_folder.dart';
@@ -22,12 +23,16 @@ class SettingsController extends _$SettingsController {
   AccordSettings build() {
     final box = ProfileStore.settingsBox;
     final raw = box.get(_key);
-    if (raw is Map) return AccordSettings.fromJson(raw);
-    return const AccordSettings();
+    final settings = raw is Map
+        ? AccordSettings.fromJson(raw)
+        : const AccordSettings();
+    desktopCloseToTray = settings.closeToTray;
+    return settings;
   }
 
   void _update(AccordSettings next) {
     state = next;
+    desktopCloseToTray = next.closeToTray;
     ProfileStore.settingsBox.put(_key, next.toJson());
   }
 
@@ -281,6 +286,9 @@ class SettingsController extends _$SettingsController {
     setUserVolume(serverKey, userId, AccordSettings.defaultUserVolume);
     setUserLocallyMuted(serverKey, userId, false);
   }
+
+  void setCloseToTray(bool enabled) =>
+      _update(state.copyWith(closeToTray: enabled));
 
   void setShowEmbeds(bool enabled) =>
       _update(state.copyWith(showEmbeds: enabled));

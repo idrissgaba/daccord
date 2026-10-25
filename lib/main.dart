@@ -27,6 +27,7 @@ import 'package:bonfire/shared/app_info.dart';
 import 'package:bonfire/shared/components/app_lifecycle_ticker_mode.dart';
 import 'package:bonfire/shared/components/app_shell.dart';
 import 'package:bonfire/shared/utils/rest_result_ext.dart';
+import 'package:bonfire/shared/utils/desktop_tray.dart';
 import 'package:bonfire/shared/utils/desktop_window.dart';
 import 'package:bonfire/theme/app_theme.dart';
 
@@ -103,6 +104,11 @@ void main() async {
     await setupDesktopWindow();
   } catch (e, st) {
     debugPrint('setupDesktopWindow failed during startup: $e\n$st');
+  }
+  try {
+    await setupDesktopTray();
+  } catch (e, st) {
+    debugPrint('setupDesktopTray failed during startup: $e\n$st');
   }
 
   // No bootstrap `MaterialApp` around [MainWindow]: the device-profile PIN gate
