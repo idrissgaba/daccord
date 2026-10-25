@@ -30,6 +30,7 @@ class MarkdownViewer extends StatefulWidget {
     this.selectable,
     this.selectionColor,
     this.copyIconBuilder,
+    this.contextMenuBuilder,
     super.key,
   });
 
@@ -53,6 +54,10 @@ class MarkdownViewer extends StatefulWidget {
   final Color? selectionColor;
   final bool? selectable;
   final CopyIconBuilder? copyIconBuilder;
+
+  /// The menu a right-click / long-press on selectable text opens; the
+  /// platform's text selection toolbar when null.
+  final SelectableRegionContextMenuBuilder? contextMenuBuilder;
 
   /// A function used to modify the parsed AST nodes.
   ///
@@ -144,6 +149,10 @@ class _MarkdownViewerState extends State<MarkdownViewer> {
       return _buildMarkdown();
     } else {
       return SelectionArea(
+        contextMenuBuilder: widget.contextMenuBuilder ??
+            (context, state) => AdaptiveTextSelectionToolbar.selectableRegion(
+                  selectableRegionState: state,
+                ),
         child: Builder(
           builder: (context) => _buildMarkdown(
             selectionRegistrar: SelectionContainer.maybeOf(context),
