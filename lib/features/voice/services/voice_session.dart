@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:bonfire/features/voice/services/android_screen_capture.dart';
 import 'package:bonfire/features/voice/utils/voice_logic.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart' as rtc;
@@ -318,6 +319,7 @@ class VoiceSession {
       'stop screen share',
       () => participant.setScreenShareEnabled(false),
     );
+    await releaseScreenCapture();
     await _guardMedia('stop camera', () => participant.setCameraEnabled(false));
     await _guardMedia(
       'stop mic',
@@ -454,8 +456,10 @@ class VoiceSession {
         'screen share',
         () => participant.setScreenShareEnabled(false),
       );
+      await releaseScreenCapture();
       return;
     }
+    if (!await prepareScreenCapture()) return;
 
     final resolvedFps = fps ?? defaultScreenShareFps;
     final resolvedBitrate = bitrate ?? defaultScreenShareBitrate;

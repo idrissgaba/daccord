@@ -25,6 +25,12 @@
         android:name="android.permission.CAMERA" />
     <uses-permission
         android:name="android.permission.RECORD_AUDIO" />
+    <!-- Screen share: Android 14+ only hands out a screen capture while a
+         mediaProjection foreground service runs (flutter_background's). -->
+    <uses-permission
+        android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission
+        android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
     <uses-permission
         android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission
@@ -60,6 +66,11 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/provider_paths" />
         </provider>
+        <service
+            android:name="de.julianassmann.flutter_background.IsolateHolderService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="mediaProjection" />
         <activity
             android:name=".MainActivity"
             android:exported="true"

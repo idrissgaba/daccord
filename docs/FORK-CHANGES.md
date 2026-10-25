@@ -26,6 +26,7 @@ Material icons and existing sounds; no third-party brand assets are used.
 | Push-to-talk (rebindable key, hold-to-talk button) | `feature/push-to-talk` | Deployed | `voice/controllers/voice.dart`, `voice/services/voice_session.dart`, `voice/views/voice_bar.dart`, `voice/views/voice_settings_screen.dart` |
 | Push-to-talk outside the app (Windows desktop) | `feature/global-ptt` | Built | `voice/services/global_key_watcher*.dart`, `voice/controllers/voice.dart`, `voice/views/voice_settings_screen.dart` (adds `win32` as a direct dependency) |
 | Updates come from this fork's releases (never upstream's) | `feature/fork-updates` | Built | `shared/app_info.dart` (`kUpdateRepo`) |
+| Android app: own application id `com.idrissgaba.daccord` (installs beside the official app), screen share on Android 14+ (mediaProjection foreground service via `flutter_background`) | `feature/android-app` | Built | `android/app/build.gradle`, `android/app/src/main/AndroidManifest.xml`, `voice/services/android_screen_capture.dart`, `voice/services/voice_session.dart` |
 | Fix: hidden spoilers were invisible (same colour as the pane) | `fix/visible-spoilers` | Built | `messaging/views/box/accord_message_markup.dart` |
 | Screen share: 4K, shared tab/screen audio, enabled in desktop browsers | `feature/screen-share-plus` | Deployed | `voice/services/voice_session.dart`, `voice/utils/audio_output_support.dart`, `voice/views/voice_bar.dart`, `voice/views/voice_view.dart` |
 | Voice messages (record from the composer, sent as audio files) | `feature/voice-messages` | Deployed | `messaging/utils/voice_message.dart`, `messaging/views/voice_message_recorder.dart`, `messaging/views/message_pane/composer.dart`, `messaging/views/inline_audio_player.dart` (adds the `record` package) |
@@ -65,6 +66,14 @@ Notes:
   moderation actions are refused.
 - Voice moderation is enforced by the server in LiveKit; the client only
   reflects it (locked mic, icons) and follows moves.
+
+## Android release signing
+
+Release APKs are signed with the fork's own key, kept outside the repository
+(`%USERPROFILE%\.daccord-signing\`, mirrored into the untracked
+`android/key.properties`). Losing it means existing installs can't update — keep
+a copy in the password manager. Build: `flutter build apk --release --flavor
+github --split-per-abi`.
 
 ## Building and deploying
 
