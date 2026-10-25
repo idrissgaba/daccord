@@ -75,6 +75,9 @@ void main() async {
   );
 
   WidgetsFlutterBinding.ensureInitialized();
+  // On the web the browser's own right-click menu opened on top of the app's
+  // menus; the app handles right-click itself, as a desktop chat app does.
+  if (kIsWeb) unawaited(BrowserContextMenu.disableContextMenu());
 
   // Load the build's version into kAppVersion before anything reads it (update
   // checker, error reporting, MCP serverInfo). Single bundled-metadata read, no

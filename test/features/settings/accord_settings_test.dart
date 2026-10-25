@@ -137,7 +137,7 @@ void main() {
       expect(settings.videoDimensions, (1280, 720));
       expect(settings.videoFps, 30);
       // Screen share gets its own, 60 fps ladder.
-      expect(settings.screenShareResolution, 0);
+      expect(settings.screenShareResolution, 1);
       expect(settings.screenShareDimensions, (1280, 720));
       expect(settings.screenShareFps, 60);
       expect(settings.screenShareMotionPriority, isTrue);
@@ -173,10 +173,19 @@ void main() {
     });
 
     test('4K shares at 3840x2160 with the largest bitrate', () {
-      const p2160 = AccordSettings(screenShareResolution: 3);
+      const p2160 = AccordSettings(screenShareResolution: 4);
       expect(p2160.screenShareDimensions, (3840, 2160));
       expect(p2160.screenShareBitrate, 16000000);
-      expect(AccordSettings.screenShareResolutionLabels[3], contains('2160p'));
+      expect(AccordSettings.screenShareResolutionLabels[4], contains('2160p'));
+      const p480 = AccordSettings(screenShareResolution: 0);
+      expect(p480.screenShareDimensions, (854, 480));
+      expect(AccordSettings.screenShareResolutionLabels[0], '480p');
+    });
+
+    test('a quality saved on the old 720p-first ladder keeps its size', () {
+      // Old index 1 was 1080p; on the new ladder 1080p is index 2.
+      final old = AccordSettings.fromJson(const {'screenShareResolution': 1});
+      expect(old.screenShareDimensions, (1920, 1080));
     });
 
     test('screen share audio defaults on and round-trips', () {
@@ -189,13 +198,13 @@ void main() {
     test('an out-of-range persisted resolution is clamped', () {
       expect(
         AccordSettings.fromJson(const {
-          'screenShareResolution': 99,
+          'screenShareQuality': 99,
         }).screenShareResolution,
         AccordSettings.screenShareResolutionLabels.length - 1,
       );
       expect(
         AccordSettings.fromJson(const {
-          'screenShareResolution': -3,
+          'screenShareQuality': -3,
         }).screenShareResolution,
         0,
       );
@@ -214,23 +223,23 @@ void main() {
 
     test('dimensions follow the resolution index', () {
       expect(
-        const AccordSettings(screenShareResolution: 0).screenShareDimensions,
+        const AccordSettings(screenShareResolution: 1).screenShareDimensions,
         (1280, 720),
       );
       expect(
-        const AccordSettings(screenShareResolution: 1).screenShareDimensions,
+        const AccordSettings(screenShareResolution: 2).screenShareDimensions,
         (1920, 1080),
       );
       expect(
-        const AccordSettings(screenShareResolution: 2).screenShareDimensions,
+        const AccordSettings(screenShareResolution: 3).screenShareDimensions,
         (2560, 1440),
       );
     });
 
     test('bitrate ceilings sit in the live-streaming range for 60 fps', () {
-      const p720 = AccordSettings(screenShareResolution: 0);
-      const p1080 = AccordSettings(screenShareResolution: 1);
-      const p1440 = AccordSettings(screenShareResolution: 2);
+      const p720 = AccordSettings(screenShareResolution: 1);
+      const p1080 = AccordSettings(screenShareResolution: 2);
+      const p1440 = AccordSettings(screenShareResolution: 3);
       expect(p720.screenShareBitrate, 3000000);
       expect(p1080.screenShareBitrate, 6000000);
       expect(p1440.screenShareBitrate, 9000000);
@@ -239,9 +248,9 @@ void main() {
     });
 
     test('bitrate scales down sub-linearly with frame rate', () {
-      const base = AccordSettings(screenShareResolution: 0);
-      const at30 = AccordSettings(screenShareResolution: 0, screenShareFps: 30);
-      const at15 = AccordSettings(screenShareResolution: 0, screenShareFps: 15);
+      const base = AccordSettings(screenShareResolution: 1);
+      const at30 = AccordSettings(screenShareResolution: 1, screenShareFps: 30);
+      const at15 = AccordSettings(screenShareResolution: 1, screenShareFps: 15);
       expect(at30.screenShareBitrate, 2100000);
       expect(at15.screenShareBitrate, 1500000);
       // Halving fps must not halve the budget.
