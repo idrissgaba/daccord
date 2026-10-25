@@ -9,6 +9,7 @@ import 'package:bonfire/features/voice/views/voice_text_panel.dart';
 import 'package:bonfire/features/voice/views/voice_view.dart';
 import 'package:bonfire/theme/app_theme.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -273,5 +274,28 @@ void main() {
       find.widgetWithText(FilledButton, 'Join Voice'),
     );
     expect(button.onPressed, isNull);
+  });
+
+  testWidgets('full screen grows the same view in place; Esc restores it', (
+    tester,
+  ) async {
+    addTearDown(() => voiceViewExpanded.value = false);
+    final voice = _RecordingVoiceController(const VoiceConnection());
+    await tester.pumpWidget(_host(voice: voice, channelId: 'c1'));
+    await tester.pump();
+    final view = tester.element(find.byType(VoiceChannelView));
+
+    await tester.tap(find.byKey(const Key('voice-full-screen')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(voiceViewExpanded.value, isTrue);
+    // No second view pushed: the very same element is still the only one.
+    expect(find.byType(VoiceChannelView), findsOneWidget);
+    expect(tester.element(find.byType(VoiceChannelView)), same(view));
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(voiceViewExpanded.value, isFalse);
   });
 }
