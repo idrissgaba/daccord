@@ -1,6 +1,8 @@
 import 'package:bonfire/features/events/controllers/presence.dart';
 import 'package:bonfire/features/member/utils/member_display.dart';
 import 'package:bonfire/features/member/views/accord_member_avatar.dart';
+import 'package:bonfire/features/authentication/models/accord_auth_state.dart';
+import 'package:bonfire/features/authentication/repositories/accord_auth.dart';
 import 'package:bonfire/features/user/controllers/accord_users.dart';
 import 'package:bonfire/features/user/views/self_status_button.dart';
 import 'package:bonfire/features/voice/controllers/voice.dart';
@@ -47,10 +49,24 @@ class UserPanel extends ConsumerWidget {
         (p) => userId == null ? null : accordCustomStatus(p, userId),
       ),
     );
-    final name = accordUserName(user, fallback: userId ?? '');
+    // The users cache may not hold us yet: fetch ourselves, and meanwhile
+    // show the name we signed in with rather than a raw id.
+    if (user == null && userId != null) {
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => ref
+            .read(accordUsersControllerProvider(serverKey).notifier)
+            .ensure(userId),
+      );
+    }
+    final sessionName = ref.watch(
+      accordAuthProvider.select(
+        (s) => s is AccordAuthLoggedIn ? s.session.username : null,
+      ),
+    );
+    final name = accordUserName(user, fallback: sessionName ?? userId ?? '');
     final subtitle = (customStatus?.isNotEmpty ?? false)
         ? customStatus!
-        : user?.username ?? '';
+        : user?.username ?? sessionName ?? '';
     final voice = ref.watch(voiceControllerProvider);
     final voiceNotifier = ref.read(voiceControllerProvider.notifier);
     final muted = voice.selfMute || voice.selfDeaf;
