@@ -16,6 +16,8 @@ Material icons and existing sounds; no third-party brand assets are used.
 | `feature/<name>` | One feature per branch, based on `master` |
 | `idris/main` | Integration branch that is built and deployed: `master` + every feature branch merged |
 
+`fix/windows-single-instance`, `fix/screen-share-cancel` and `feature/keyboard-shortcuts` are based on `idris/main` rather than `master`: they change files every other branch already touches (the composer, the home screen, the voice controller), so they re-merge with `idris/main` and are skipped by the per-branch `git rebase master` step below.
+
 ## Features
 
 | Feature | Branch | State | Main files |
