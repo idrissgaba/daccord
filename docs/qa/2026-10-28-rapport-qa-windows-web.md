@@ -163,3 +163,17 @@ Messages de test laissés dans `#general` (espace Maison), à supprimer :
 « QA test 1 … » (épinglé), « QA reply test @idr », « QA from Windo »,
 « QA from Windo`Hello from Windows app », « line one », « Test 😄 ok ».
 Le message « line two » a été supprimé pendant le test de suppression.
+
+---
+
+## 6. Suite donnée (29 octobre 2026)
+
+Corrigé dans `idris/main` (build 7, branches `fix/windows-single-instance`,
+`fix/screen-share-cancel`, `feature/keyboard-shortcuts`, serveur
+`feature/unfurl-not-an-edit`) : **B1, B2, B3, B4, B5, B6, B7, B9**, plus les
+raccourcis clavier (Ctrl+K, Alt+↑/↓, Ctrl+Alt+↑/↓, Ctrl+Shift+M/D, Ctrl+U,
+Ctrl+,, Ctrl+/, ↑ pour éditer, Échap, Tab/Entrée dans la liste des mentions) et
+l'entrée **Paramètres › App › Keyboard shortcuts**. Vérifié sur l'app Windows
+et le client web après reconstruction.
+
+Reste ouvert : B8, B10 à B25 et le reste de la section 2.
