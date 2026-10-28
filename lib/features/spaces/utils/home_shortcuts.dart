@@ -1,0 +1,213 @@
+/// App-wide keyboard shortcuts of the home screen, kept as data so the
+/// matcher, the "Keyboard shortcuts" dialog and the tests read one table.
+library;
+
+import 'package:accordkit/accordkit.dart';
+import 'package:flutter/services.dart';
+
+/// What a home-screen shortcut does.
+enum HomeShortcut {
+  quickSwitcher,
+  previousChannel,
+  nextChannel,
+  previousSpace,
+  nextSpace,
+  toggleMute,
+  toggleDeafen,
+  toggleMembers,
+  openSettings,
+  showShortcuts,
+}
+
+/// One row of the shortcuts table: the chord and what it does.
+class HomeShortcutBinding {
+  const HomeShortcutBinding(
+    this.shortcut,
+    this.key, {
+    this.control = false,
+    this.shift = false,
+    this.alt = false,
+    required this.label,
+  });
+
+  final HomeShortcut shortcut;
+  final LogicalKeyboardKey key;
+
+  /// Ctrl on Windows/Linux, ⌘ on macOS (the matcher treats Meta as Control).
+  final bool control;
+  final bool shift;
+  final bool alt;
+  final String label;
+
+  bool matches({
+    required LogicalKeyboardKey pressed,
+    required bool control,
+    required bool shift,
+    required bool alt,
+  }) =>
+      pressed == key &&
+      control == this.control &&
+      shift == this.shift &&
+      alt == this.alt;
+
+  /// "Ctrl+Shift+M" style text for the dialog and the settings page.
+  String describe({bool mac = false}) {
+    final parts = <String>[
+      if (control) mac ? '⌘' : 'Ctrl',
+      if (alt) mac ? '⌥' : 'Alt',
+      if (shift) mac ? '⇧' : 'Shift',
+      _keyName(key),
+    ];
+    return parts.join('+');
+  }
+
+  static String _keyName(LogicalKeyboardKey key) {
+    if (key == LogicalKeyboardKey.arrowUp) return '↑';
+    if (key == LogicalKeyboardKey.arrowDown) return '↓';
+    if (key == LogicalKeyboardKey.slash) return '/';
+    if (key == LogicalKeyboardKey.comma) return ',';
+    return key.keyLabel.toUpperCase();
+  }
+}
+
+/// The bindings, in the order the dialog lists them. Chords follow the
+/// defaults users know from other chat apps.
+const List<HomeShortcutBinding> homeShortcutBindings = [
+  HomeShortcutBinding(
+    HomeShortcut.quickSwitcher,
+    LogicalKeyboardKey.keyK,
+    control: true,
+    label: 'Find or jump to a channel',
+  ),
+  HomeShortcutBinding(
+    HomeShortcut.previousChannel,
+    LogicalKeyboardKey.arrowUp,
+    alt: true,
+    label: 'Previous channel',
+  ),
+  HomeShortcutBinding(
+    HomeShortcut.nextChannel,
+    LogicalKeyboardKey.arrowDown,
+    alt: true,
+    label: 'Next channel',
+  ),
+  HomeShortcutBinding(
+    HomeShortcut.previousSpace,
+    LogicalKeyboardKey.arrowUp,
+    control: true,
+    alt: true,
+    label: 'Previous space',
+  ),
+  HomeShortcutBinding(
+    HomeShortcut.nextSpace,
+    LogicalKeyboardKey.arrowDown,
+    control: true,
+    alt: true,
+    label: 'Next space',
+  ),
+  HomeShortcutBinding(
+    HomeShortcut.toggleMute,
+    LogicalKeyboardKey.keyM,
+    control: true,
+    shift: true,
+    label: 'Mute or unmute your microphone',
+  ),
+  HomeShortcutBinding(
+    HomeShortcut.toggleDeafen,
+    LogicalKeyboardKey.keyD,
+    control: true,
+    shift: true,
+    label: 'Deafen or undeafen',
+  ),
+  HomeShortcutBinding(
+    HomeShortcut.toggleMembers,
+    LogicalKeyboardKey.keyU,
+    control: true,
+    label: 'Show or hide the member list',
+  ),
+  HomeShortcutBinding(
+    HomeShortcut.openSettings,
+    LogicalKeyboardKey.comma,
+    control: true,
+    label: 'Open settings',
+  ),
+  HomeShortcutBinding(
+    HomeShortcut.showShortcuts,
+    LogicalKeyboardKey.slash,
+    control: true,
+    label: 'Show this list',
+  ),
+];
+
+/// Shortcuts the composer and the inline editor handle themselves, listed
+/// in the dialog for completeness.
+const List<(String chord, String label)> composerShortcutRows = [
+  ('Enter', 'Send the message, or save an edit'),
+  ('Shift+Enter', 'New line'),
+  ('↑', 'Edit your last message (empty composer)'),
+  ('Escape', 'Cancel a reply, an edit or the mention list'),
+  ('Tab / Enter', 'Insert the highlighted @mention'),
+  ('Ctrl+V', 'Paste an image or a long text as an attachment'),
+];
+
+/// The binding [pressed] with these modifiers triggers, or null.
+HomeShortcut? matchHomeShortcut({
+  required LogicalKeyboardKey pressed,
+  required bool control,
+  required bool shift,
+  required bool alt,
+}) {
+  for (final binding in homeShortcutBindings) {
+    if (binding.matches(
+      pressed: pressed,
+      control: control,
+      shift: shift,
+      alt: alt,
+    )) {
+      return binding.shortcut;
+    }
+  }
+  return null;
+}
+
+/// Channel ids in the order the channel list shows them: uncategorised
+/// channels first, then each category's children. Categories themselves are
+/// skipped (they can't be opened); collapsed ones are still walked, as in the
+/// reference client.
+List<String> orderedNavigableChannelIds(List<AccordChannel> channels) {
+  final categories = channels.where((c) => c.type == 'category');
+  final leaves = channels.where((c) => c.type != 'category');
+  final byParent = <String?, List<String>>{};
+  for (final c in leaves) {
+    byParent.putIfAbsent(c.parentId, () => []).add(c.id);
+  }
+  return [
+    ...?byParent[null],
+    for (final category in categories) ...?byParent[category.id],
+  ];
+}
+
+/// [ids] in [savedOrder] first, then the rest in their given order — the
+/// rail's ordering, shared so ↑/↓ across spaces follow what is drawn.
+List<String> orderBySavedOrder(List<String> ids, List<String> savedOrder) {
+  final idSet = ids.toSet();
+  final inOrder = [
+    for (final id in savedOrder)
+      if (idSet.contains(id)) id,
+  ];
+  final placed = inOrder.toSet();
+  final rest = [
+    for (final id in ids)
+      if (!placed.contains(id)) id,
+  ];
+  return [...inOrder, ...rest];
+}
+
+/// The id after (or before) [current] in [ids], wrapping at either end. With
+/// no [current] in the list, the first (or last) id. Null when [ids] is empty.
+String? adjacentId(List<String> ids, String? current, {required bool forward}) {
+  if (ids.isEmpty) return null;
+  final index = current == null ? -1 : ids.indexOf(current);
+  if (index < 0) return forward ? ids.first : ids.last;
+  return ids[(index + (forward ? 1 : -1)) % ids.length];
+}

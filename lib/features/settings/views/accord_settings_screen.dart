@@ -23,6 +23,7 @@ import 'package:bonfire/features/authentication/views/terms_gate.dart';
 import 'package:bonfire/shared/app_info.dart';
 import 'package:bonfire/shared/utils/external_url.dart';
 import 'package:bonfire/shared/utils/rest_result_ext.dart';
+import 'package:bonfire/features/spaces/views/keyboard_shortcuts_dialog.dart';
 import 'package:bonfire/features/voice/views/voice_settings_screen.dart';
 import 'package:bonfire/theme/app_theme.dart';
 import 'package:bonfire/theme/theme.dart';
@@ -597,6 +598,17 @@ class _VoiceVideoSection extends StatelessWidget {
           ),
           trailing: const Icon(Icons.chevron_right),
           onTap: () => showVoiceSettings(context),
+        ),
+        SectionHeader('Keyboard'),
+        ListTile(
+          key: const Key('settings-keyboard-shortcuts'),
+          leading: Icon(Icons.keyboard_outlined, color: colors.dirtyWhite),
+          title: const Text('Keyboard shortcuts'),
+          subtitle: const Text(
+            'Jump to a channel, switch channels and spaces, mute, deafen',
+          ),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => showKeyboardShortcutsDialog(context),
         ),
       ],
     );
