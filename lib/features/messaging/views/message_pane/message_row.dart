@@ -215,6 +215,12 @@ class _MessageRowState extends ConsumerState<_MessageRow> {
       _editFocus?.dispose();
       _editFocus = FocusNode(onKeyEvent: _onEditKey);
     });
+    // `autofocus` yields when something else (the composer, after ↑) already
+    // holds focus; take it once the field exists, so Enter/Escape and typing
+    // go to the editor and not to the composer underneath.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _editing) _editFocus?.requestFocus();
+    });
   }
 
   void _cancelEdit() {
