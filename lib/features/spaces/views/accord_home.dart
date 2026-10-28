@@ -34,8 +34,11 @@ import 'package:bonfire/features/spaces/controllers/spaces.dart';
 import 'package:bonfire/features/spaces/controllers/role_preview.dart';
 import 'package:bonfire/features/spaces/models/home_layout.dart';
 import 'package:bonfire/features/spaces/models/space_folder.dart';
+import 'package:bonfire/features/spaces/utils/home_shortcuts.dart';
 import 'package:bonfire/features/spaces/utils/leave_space.dart';
 import 'package:bonfire/features/spaces/utils/space_display.dart';
+import 'package:bonfire/features/spaces/views/keyboard_shortcuts_dialog.dart';
+import 'package:bonfire/features/spaces/views/quick_switcher.dart';
 import 'package:bonfire/features/spaces/views/role_preview_banner.dart';
 import 'package:bonfire/features/spaces/views/accord_discovery.dart';
 import 'package:bonfire/features/spaces/views/accord_gates.dart';
@@ -159,6 +162,7 @@ class _AccordHomeScreenState extends ConsumerState<AccordHomeScreen> {
     _pendingChannelName = widget.initialChannelName;
     _pendingMessageId = widget.initialMessageId;
     mcpHomeBridge.registerAll(_mcpNavHandlers());
+    HardwareKeyboard.instance.addHandler(_onGlobalKey);
     // Passive, throttled startup update check (gated on the setting).
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
@@ -185,9 +189,96 @@ class _AccordHomeScreenState extends ConsumerState<AccordHomeScreen> {
 
   @override
   void dispose() {
+    HardwareKeyboard.instance.removeHandler(_onGlobalKey);
     mcpHomeBridge.clear();
     accordVisibleChannel = null;
     super.dispose();
+  }
+
+  /// App-wide shortcuts (Ctrl+K, Alt+↑/↓, Ctrl+Shift+M, …). A hardware-level
+  /// handler rather than a `Shortcuts` widget so they work whatever has
+  /// focus, including nothing at all after a click on the channel list. Only
+  /// while this screen is the current route: a dialog's own keys (the quick
+  /// switcher's ↑/↓) must not reach here.
+  bool _onGlobalKey(KeyEvent event) {
+    if (event is! KeyDownEvent || !mounted) return false;
+    if (ModalRoute.of(context)?.isCurrent != true) return false;
+    final mods = HardwareKeyboard.instance;
+    final shortcut = matchHomeShortcut(
+      pressed: event.logicalKey,
+      control: mods.isControlPressed || mods.isMetaPressed,
+      shift: mods.isShiftPressed,
+      alt: mods.isAltPressed,
+    );
+    if (shortcut == null) return false;
+    unawaited(_runShortcut(shortcut));
+    return true;
+  }
+
+  Future<void> _runShortcut(HomeShortcut shortcut) async {
+    final shown = mcpHomeBridge.state;
+    final activeKey = ref.read(connectionsControllerProvider).activeKey;
+    switch (shortcut) {
+      case HomeShortcut.quickSwitcher:
+        final target = await showQuickSwitcher(context);
+        if (target == null || !mounted || activeKey == null) return;
+        _selectSpace(activeKey, target.spaceId);
+        await _openChannel(target.channelId, spaceId: target.spaceId);
+      case HomeShortcut.previousChannel:
+      case HomeShortcut.nextChannel:
+        final spaceId = shown.spaceId;
+        if (spaceId == null || activeKey == null) return;
+        final channels =
+            ref.read(accordChannelsControllerProvider(activeKey, spaceId)) ??
+            const <AccordChannel>[];
+        final next = adjacentId(
+          orderedNavigableChannelIds(channels),
+          shown.channelId,
+          forward: shortcut == HomeShortcut.nextChannel,
+        );
+        if (next != null) await _openChannel(next, spaceId: spaceId);
+      case HomeShortcut.previousSpace:
+      case HomeShortcut.nextSpace:
+        final current = activeKey == null || shown.spaceId == null
+            ? null
+            : ServerEntityKey(activeKey, shown.spaceId!).encoded;
+        final next = adjacentId(
+          _railSpaceKeys(),
+          current,
+          forward: shortcut == HomeShortcut.nextSpace,
+        );
+        final target = next == null ? null : ServerEntityKey.tryDecode(next);
+        if (target != null) _selectSpace(target.serverKey, target.entityId);
+      case HomeShortcut.toggleMute:
+        ref.read(voiceControllerProvider.notifier).toggleMute();
+      case HomeShortcut.toggleDeafen:
+        ref.read(voiceControllerProvider.notifier).toggleDeafen();
+      case HomeShortcut.toggleMembers:
+        setState(() => _memberListVisible = !_memberListVisible);
+      case HomeShortcut.openSettings:
+        context.push('/settings');
+      case HomeShortcut.showShortcuts:
+        await showKeyboardShortcutsDialog(context);
+    }
+  }
+
+  /// The rail's spaces (every connection, minus hidden ones) as encoded
+  /// entity keys, in the order the rail draws them.
+  List<String> _railSpaceKeys() {
+    final connections = ref.read(connectionsControllerProvider);
+    final settings = ref.read(settingsControllerProvider);
+    final live = ref.read(spacesControllerProvider);
+    final keys = <String>[];
+    for (final conn in connections.connections) {
+      final spaces = conn.key == connections.activeKey
+          ? (live ?? conn.spaces)
+          : conn.spaces;
+      for (final space in spaces) {
+        final key = ServerEntityKey(conn.key, space.id).encoded;
+        if (!settings.hiddenSpaces.contains(key)) keys.add(key);
+      }
+    }
+    return orderBySavedOrder(keys, settings.spaceOrder);
   }
 
   /// Navigation handlers the local MCP server's `navigate` tools delegate to.

@@ -242,19 +242,8 @@ class _SpaceRail extends ConsumerWidget {
 
   /// Orders [spaces] by the saved [savedOrder], appending any not listed in
   /// their natural (server) order.
-  static List<String> _orderedIds(List<String> ids, List<String> savedOrder) {
-    final idSet = ids.toSet();
-    final inOrder = [
-      for (final id in savedOrder)
-        if (idSet.contains(id)) id,
-    ];
-    final placed = inOrder.toSet();
-    final rest = [
-      for (final id in ids)
-        if (!placed.contains(id)) id,
-    ];
-    return [...inOrder, ...rest];
-  }
+  static List<String> _orderedIds(List<String> ids, List<String> savedOrder) =>
+      orderBySavedOrder(ids, savedOrder);
 
   /// Builds the rail units for one group: folders are emitted inline at the
   /// position of their first-ordered member space; other spaces stand alone.

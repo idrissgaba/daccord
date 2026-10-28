@@ -7,22 +7,45 @@ section: troubleshooting
 
 # Keyboard Shortcuts
 
+Press **Ctrl+/** (⌘+/ on macOS) anywhere in the app, or open **Settings →
+App → Keyboard shortcuts**, to see this list in the app.
+
+## Navigation and voice
+
+On macOS, read ⌘ for Ctrl and ⌥ for Alt.
+
+| Shortcut | Action |
+|----------|--------|
+| Ctrl+K | Find or jump to a channel (quick switcher) |
+| Alt+↑ / Alt+↓ | Previous / next channel in the space |
+| Ctrl+Alt+↑ / Ctrl+Alt+↓ | Previous / next space in the rail |
+| Ctrl+Shift+M | Mute or unmute your microphone |
+| Ctrl+Shift+D | Deafen or undeafen |
+| Ctrl+U | Show or hide the member list |
+| Ctrl+, | Open settings |
+| Ctrl+/ | Show the shortcuts list |
+
 ## Messaging
 
 | Shortcut | Action |
 |----------|--------|
 | Enter | Send message |
-| Shift+Enter | New line in message (desktop apps: Windows, macOS and Linux) |
+| Shift+Enter | New line in message (desktop and web) |
+| ↑ (empty composer) | Edit your last message in the channel |
+| Escape | Cancel a reply, or close the @mention list |
+| Tab / Enter (with the @mention list open) | Insert the highlighted mention; ↑/↓ move the highlight |
 | Ctrl+V / Cmd+V | Paste image or text from clipboard |
 
 ## Editing a Message
 
 | Shortcut | Action |
 |----------|--------|
-| Enter | Save edited message |
+| Enter | Save the edited message |
+| Shift+Enter | New line |
+| Escape | Cancel the edit |
 
-Use the visible **Cancel** button to discard an edit. To start editing, open
-the message's context menu and choose **Edit**.
+To start editing, press ↑ in the empty composer, or open the message's context
+menu and choose **Edit**.
 
 ## Mobile / Touch
 
