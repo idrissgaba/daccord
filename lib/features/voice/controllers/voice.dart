@@ -527,7 +527,10 @@ class VoiceController extends _$VoiceController {
     if (enable) {
       final settings = ref.read(settingsControllerProvider);
       final (width, height) = settings.screenShareDimensions;
-      await _session?.setScreenShareEnabled(
+      // A cancelled picker or a failed capture leaves nothing shared: the
+      // state must not say otherwise (the bar showed a green "sharing" button
+      // and a phantom tile after dismissing the browser prompt).
+      final started = await _session?.setScreenShareEnabled(
         true,
         sourceId: sourceId,
         width: width,
@@ -537,6 +540,7 @@ class VoiceController extends _$VoiceController {
         motionPriority: settings.screenShareMotionPriority,
         withAudio: settings.screenShareAudio,
       );
+      if (started != true) return;
     } else {
       await _session?.setScreenShareEnabled(false);
     }

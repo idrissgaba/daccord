@@ -26,8 +26,11 @@ class _RecordingSession extends VoiceSession {
   int? cameraFps;
   int? cameraBitrate;
 
+  /// What the next start reports: false simulates a cancelled picker.
+  bool startSucceeds = true;
+
   @override
-  Future<void> setScreenShareEnabled(
+  Future<bool> setScreenShareEnabled(
     bool enabled, {
     String? sourceId,
     int? width,
@@ -38,6 +41,7 @@ class _RecordingSession extends VoiceSession {
     bool withAudio = false,
   }) async {
     calls++;
+    if (enabled && !startSucceeds) return false;
     this.enabled = enabled;
     this.withAudio = withAudio;
     this.width = width;
@@ -45,6 +49,7 @@ class _RecordingSession extends VoiceSession {
     this.fps = fps;
     this.bitrate = bitrate;
     this.motionPriority = motionPriority;
+    return true;
   }
 
   @override
@@ -95,6 +100,34 @@ class _FixedSettingsController extends SettingsController {
 }
 
 void main() {
+  group('toggleScreenShare state', () {
+    test('a cancelled picker leaves nothing shared', () async {
+      final h = _harness(const AccordSettings());
+      h.session.startSucceeds = false;
+
+      await h.container
+          .read(voiceControllerProvider.notifier)
+          .toggleScreenShare();
+
+      // The bar used to light up its "sharing" button and the grid grew a
+      // phantom tile after dismissing the browser's share prompt.
+      expect(h.container.read(voiceControllerProvider).selfStream, isFalse);
+      expect(h.session.enabled, isNull);
+    });
+
+    test('a started share is reflected, and stopping clears it', () async {
+      final h = _harness(const AccordSettings());
+      final notifier = h.container.read(voiceControllerProvider.notifier);
+
+      await notifier.toggleScreenShare();
+      expect(h.container.read(voiceControllerProvider).selfStream, isTrue);
+
+      await notifier.toggleScreenShare();
+      expect(h.container.read(voiceControllerProvider).selfStream, isFalse);
+      expect(h.session.enabled, isFalse);
+    });
+  });
+
   group('toggleScreenShare quality', () {
     test('passes the screen-share settings, not the camera ones', () async {
       // Camera deliberately set to something different from screen share, so a
