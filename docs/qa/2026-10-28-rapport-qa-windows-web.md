@@ -188,6 +188,12 @@ Builds suivants (29 octobre 2026) :
   markdown (**B13**), `code` visible en Dark (**B11**), emoji couleur sous
   Windows (**B10**), Échap ferme les paramètres et largeur bornée (**B16**),
   carte de profil en popover (**B17**).
+- **Build 11** : le plein écran de la vue vocale fonctionne (il se refermait
+  aussitôt : la zone de messages était reconstruite quand les panneaux
+  latéraux disparaissaient) ; le partage d'écran d'un pair n'est plus reçu
+  d'office — sa tuile affiche **LIVE** et un bouton **Watch stream**, et
+  **Stop watching** coupe la réception ; deux sons originaux signalent le
+  début et la fin d'un stream (le nôtre ou celui d'un pair).
 
 Reste ouvert : B12 (picker d'emoji), B14 (message système d'épingle), B15
 (barre vocale), B18 à B25, et dans la section 2 les pages de paramètres
