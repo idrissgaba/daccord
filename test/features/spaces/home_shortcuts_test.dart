@@ -1,4 +1,5 @@
 import 'package:accordkit/accordkit.dart';
+import 'package:bonfire/features/settings/models/custom_keybind.dart';
 import 'package:bonfire/features/spaces/utils/home_shortcuts.dart';
 import 'package:bonfire/features/spaces/views/quick_switcher.dart';
 import 'package:flutter/services.dart';
@@ -85,6 +86,52 @@ void main() {
         (b) => b.shortcut == HomeShortcut.previousChannel,
       );
       expect(up.describe(), 'Alt+↑');
+    });
+  });
+
+  group('custom keybinds', () {
+    test('a recorded keybind triggers its action and wins over a built-in', () {
+      final custom = [
+        CustomKeybind(
+          action: HomeShortcut.toggleMute.name,
+          keyId: LogicalKeyboardKey.keyK.keyId,
+          keyLabel: 'K',
+          control: true,
+        ),
+      ];
+      // Ctrl+K is the built-in quick switcher; the user bound it to mute.
+      expect(
+        matchHomeShortcut(
+          pressed: LogicalKeyboardKey.keyK,
+          control: true,
+          shift: false,
+          alt: false,
+          custom: custom,
+        ),
+        HomeShortcut.toggleMute,
+      );
+      expect(
+        effectiveBindings(custom).first.describe(),
+        'Ctrl+K',
+      );
+    });
+
+    test('an unrecorded or unknown keybind is ignored', () {
+      final custom = [
+        CustomKeybind(action: HomeShortcut.toggleMute.name),
+        const CustomKeybind(action: 'no-such-action', keyId: 0x61),
+      ];
+      expect(effectiveBindings(custom).length, homeShortcutBindings.length);
+    });
+
+    test('round-trips through json', () {
+      const keybind = CustomKeybind(
+        action: 'nextChannel',
+        keyId: 0x100000301,
+        keyLabel: '↓',
+        alt: true,
+      );
+      expect(CustomKeybind.fromJson(keybind.toJson()), keybind);
     });
   });
 

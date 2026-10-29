@@ -10,6 +10,7 @@ import 'package:bonfire/features/settings/controllers/settings.dart';
 import 'package:bonfire/features/profiles/views/profiles_page.dart';
 import 'package:bonfire/features/server/controllers/connections.dart';
 import 'package:bonfire/features/settings/views/connections_settings_page.dart';
+import 'package:bonfire/features/settings/views/keybinds_section.dart';
 import 'package:bonfire/features/settings/views/privacy_settings_page.dart';
 import 'package:bonfire/features/settings/views/settings_backup.dart';
 import 'package:bonfire/features/member/utils/member_display.dart';
@@ -23,7 +24,6 @@ import 'package:bonfire/features/authentication/views/terms_gate.dart';
 import 'package:bonfire/shared/app_info.dart';
 import 'package:bonfire/shared/utils/external_url.dart';
 import 'package:bonfire/shared/utils/rest_result_ext.dart';
-import 'package:bonfire/features/spaces/views/keyboard_shortcuts_dialog.dart';
 import 'package:bonfire/features/voice/views/voice_settings_screen.dart';
 import 'package:bonfire/theme/app_theme.dart';
 import 'package:bonfire/theme/theme.dart';
@@ -87,6 +87,8 @@ class AccordSettingsScreen extends ConsumerWidget {
               const Divider(height: 24),
               const _VoiceVideoSection(),
               const Divider(height: 24),
+              const KeybindsSection(),
+              const Divider(height: 24),
               _AccountSection(
                 session: session,
                 hasMultipleConnections: ref
@@ -143,10 +145,11 @@ const double kSettingsContentMaxWidth = 760;
 const double _kSidebarWidth = 232;
 const double _kPanePadding = 16;
 
-/// The four sidebar categories the eleven settings sections group into.
+/// The sidebar categories the settings sections group into.
 enum SettingsCategory {
   account('Account', Icons.person_outline),
   app('App', Icons.tune),
+  keybinds('Keybinds', Icons.keyboard_outlined),
   system('System', Icons.settings_applications_outlined),
   advanced('Advanced', Icons.code);
 
@@ -319,6 +322,7 @@ class _CategoryPane extends ConsumerWidget {
         _SoundsSection(settings: settings, controller: controller),
         const _VoiceVideoSection(),
       ],
+      SettingsCategory.keybinds => <Widget>[const KeybindsSection()],
       SettingsCategory.system => <Widget>[
         // Store builds update through the store and never expose the GitHub
         // self-updater (#292).
@@ -598,17 +602,6 @@ class _VoiceVideoSection extends StatelessWidget {
           ),
           trailing: const Icon(Icons.chevron_right),
           onTap: () => showVoiceSettings(context),
-        ),
-        SectionHeader('Keyboard'),
-        ListTile(
-          key: const Key('settings-keyboard-shortcuts'),
-          leading: Icon(Icons.keyboard_outlined, color: colors.dirtyWhite),
-          title: const Text('Keyboard shortcuts'),
-          subtitle: const Text(
-            'Jump to a channel, switch channels and spaces, mute, deafen',
-          ),
-          trailing: const Icon(Icons.chevron_right),
-          onTap: () => showKeyboardShortcutsDialog(context),
         ),
       ],
     );

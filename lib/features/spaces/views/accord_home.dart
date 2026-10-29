@@ -209,6 +209,7 @@ class _AccordHomeScreenState extends ConsumerState<AccordHomeScreen> {
       control: mods.isControlPressed || mods.isMetaPressed,
       shift: mods.isShiftPressed,
       alt: mods.isAltPressed,
+      custom: ref.read(settingsControllerProvider).keybinds,
     );
     if (shortcut == null) return false;
     unawaited(_runShortcut(shortcut));
