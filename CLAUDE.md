@@ -188,6 +188,11 @@ When in doubt about Accord behaviour, read `packages/accordkit` (the vendored SD
   (`accord_home_*.dart`) and the DM screen (`accord_direct_messages_*.dart`).
   Same library, so the parts share the main file's imports and private names;
   add new private widgets to the matching part rather than growing the screen.
+  A large single class (a controller, a `State`) is split the same way into
+  `mixin`s in part files (`voice_afk.dart`, `accord_auth_internals.dart`,
+  `composer_mentions.dart`, …): each mixin owns the fields of its concern and
+  declares abstractly what it needs from the class; the class lists them in
+  `with` and marks the members it implements `@override`.
 - Session credential references remain random and profile-local. Platform vault operations share an isolate-wide queue because the Linux backend rewrites the entire vault; see `test/features/authentication/session_credential_vault_test.dart`.
 - Don't reintroduce Discord endpoints, Discord branding, or Firebase push without explicit instruction.
 

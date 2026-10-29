@@ -11,6 +11,9 @@ part of 'message_pane.dart';
 @visibleForTesting
 const composerNativeInputBarrierChannel = 'daccord/composer/input_barrier';
 
+/// A mention that pings everyone, which the send confirms first.
+final _broadcastMention = RegExp(r'@(everyone|here)\b');
+
 class _Composer extends ConsumerStatefulWidget {
   const _Composer({
     required this.channelId,
@@ -45,30 +48,29 @@ class _Composer extends ConsumerStatefulWidget {
   ConsumerState<_Composer> createState() => _ComposerState();
 }
 
-class _ComposerState extends ConsumerState<_Composer> {
+class _ComposerState extends ConsumerState<_Composer>
+    with
+        _ComposerAttachments,
+        _ComposerMentions,
+        _ComposerCommands,
+        _ComposerView {
+  @override
   final _controller = TextEditingController();
+  @override
   final _focusNode = FocusNode();
+  @override
   bool _sending = false;
-
-  /// Files the user has attached but not yet sent.
-  final List<PendingAttachment> _attachments = [];
-
-  /// True while a voice message is being recorded: the recorder replaces the
-  /// text field and its buttons.
-  bool _recordingVoice = false;
-
-  /// True while a file drag is hovering the composer, which swaps the hint for
-  /// a drop prompt and outlines the box.
-  bool _dragging = false;
 
   /// Why the last attach or send didn't work, shown above the composer.
   /// Cleared when the user attaches again or retries the send.
+  @override
   String? _error;
 
   /// The send cooldown in force — slowmode after an accepted send, or the
   /// `retry_after` of a server 429 — and the once-a-second tick that redraws
   /// its countdown. Nothing resends when it lapses: the user retries. Dropped
   /// on channel or account change, since it belongs to this channel alone.
+  @override
   SendCooldown? _cooldown;
   Timer? _cooldownTicker;
 
@@ -76,27 +78,12 @@ class _ComposerState extends ConsumerState<_Composer> {
   /// every 8s while the user keeps typing rather than on every keystroke.
   DateTime? _lastTypingSent;
   static const _typingInterval = Duration(seconds: 8);
-  static final _broadcastMention = RegExp(r'@(everyone|here)\b');
-
-  /// The `@` mention being typed, or null when the popup is hidden. A picked
-  /// handle replaces its `[start, end)` range of `_controller.text`.
-  ({int start, int end, String query})? _mention;
-
-  /// The mention popup row ↑/↓ have moved to; back to the top on every new
-  /// query.
-  int _mentionIndex = 0;
-
-  /// The `/name` being typed, or null when the command popup is hidden.
-  String? _slashQuery;
-
-  /// The slash command picked from the popup, whose options are being filled
-  /// in; null in plain message mode.
-  AccordCommand? _command;
 
   /// Captured once so `dispose()` can persist the draft without touching `ref`,
   /// which Riverpod tears down before `dispose()` runs. Safe because
   /// `SettingsController` is `keepAlive`, so this notifier outlives the widget.
   late final SettingsController _settings;
+  @override
   late String _serverKey;
 
   /// Text pastes longer than this prompt to send as a `.txt` attachment.
@@ -196,55 +183,6 @@ class _ComposerState extends ConsumerState<_Composer> {
     return KeyEventResult.handled;
   }
 
-  /// Keyboard for the mention popup: ↑/↓ move the highlight, Tab or Enter
-  /// insert the highlighted handle, Escape closes it. Null when the key isn't
-  /// the popup's or it has no candidates, so Enter still sends.
-  KeyEventResult? _onMentionKey(KeyEvent event, HardwareKeyboard mods) {
-    final key = event.logicalKey;
-    final isEnter = isPlainEnter(event, mods);
-    final isTab = key == LogicalKeyboardKey.tab;
-    final isUp = key == LogicalKeyboardKey.arrowUp;
-    final isDown = key == LogicalKeyboardKey.arrowDown;
-    final isEscape = key == LogicalKeyboardKey.escape;
-    if (!(isEnter || isTab || isUp || isDown || isEscape)) return null;
-    if (isEscape) {
-      if (event is KeyDownEvent) setState(() => _mention = null);
-      return KeyEventResult.handled;
-    }
-    final entries = _mentionEntries();
-    if (entries.isEmpty) return null;
-    final index = _mentionIndex.clamp(0, entries.length - 1);
-    if (isUp || isDown) {
-      // Dart's % is never negative for a positive divisor, so ↑ on the first
-      // row wraps to the last.
-      setState(
-        () => _mentionIndex = (index + (isDown ? 1 : -1)) % entries.length,
-      );
-      return KeyEventResult.handled;
-    }
-    if (event is KeyDownEvent) _pickMention(entries[index].handle);
-    return KeyEventResult.handled;
-  }
-
-  /// The popup's current candidates, in the order it shows them.
-  List<_MentionEntry> _mentionEntries() {
-    final spaceId = widget.spaceId;
-    final mention = _mention;
-    if (spaceId == null || mention == null) return const [];
-    final members = ref.read(
-      accordMembersControllerProvider(_serverKey, spaceId),
-    );
-    final space = ref
-        .read(spacesControllerProvider)
-        ?.firstWhereOrNull((s) => s.id == spaceId);
-    return _mentionCandidates(
-      members,
-      space?.roles ?? const <AccordRole>[],
-      mention.query,
-      allowBroadcast: widget.canMentionEveryone,
-    );
-  }
-
   /// Whether the IME has reported a composition. Enter is left to the IME
   /// then, because it commits the candidate.
   bool get _isComposing {
@@ -252,6 +190,7 @@ class _ComposerState extends ConsumerState<_Composer> {
     return composing.isValid && !composing.isCollapsed;
   }
 
+  @override
   void _onSubmitted() {
     // EditableText unfocuses on a `send` action just before onSubmitted runs;
     // the field is enabled, so asking for focus straight back lands in the
@@ -451,6 +390,7 @@ class _ComposerState extends ConsumerState<_Composer> {
 
   /// Persists [text] as the draft for [channelId] (mirrors the reference
   /// client's `Config.set_draft_text`).
+  @override
   void _saveDraft(String channelId, String text) {
     _settings.setDraft(_serverKey, channelId, text);
   }
@@ -464,6 +404,7 @@ class _ComposerState extends ConsumerState<_Composer> {
     super.dispose();
   }
 
+  @override
   void _onChanged(String value) {
     _updateMentionState(value);
     _updateSlashState(value);
@@ -477,289 +418,13 @@ class _ComposerState extends ConsumerState<_Composer> {
     ref.accordClient?.messages.typing(widget.channelId);
   }
 
-  /// Shows, updates or hides the mention popup for the caret position. The
-  /// popup itself is only built when there are candidates to show.
-  void _updateMentionState(String text) {
-    final mention = widget.spaceId == null
-        ? null
-        : findMentionTrigger(text, _controller.value.selection);
-    if (mention == null && _mention == null) return;
-    setState(() {
-      if (mention?.query != _mention?.query) _mentionIndex = 0;
-      _mention = mention;
-    });
-  }
-
-  /// Shows, updates or hides the slash command popup.
-  void _updateSlashState(String text) {
-    final query = widget.spaceId == null ? null : slashQuery(text);
-    if (query == _slashQuery) return;
-    setState(() => _slashQuery = query);
-  }
-
-  /// Switches the box to filling in [command]'s options.
-  void _pickCommand(AccordCommand command) {
-    _controller.clear();
-    _saveDraft(widget.channelId, '');
-    setState(() {
-      _slashQuery = null;
-      _mention = null;
-      _command = command;
-    });
-  }
-
-  void _cancelCommand() {
-    setState(() => _command = null);
-    _focusNode.requestFocus();
-  }
-
-  /// Runs [command] with [options]; resolves to the reason it failed, or
-  /// null. The bot's answer arrives as a message; until it does, the box says
-  /// the command is on its way.
-  Future<String?> _runCommand(
-    AccordCommand command,
-    List<Map<String, dynamic>> options,
-  ) async {
-    final client = ref.accordClient;
-    if (client == null) return 'Not connected.';
-    final result = await client.interactions.runCommand(
-      channelId: widget.channelId,
-      commandId: command.id,
-      options: options,
-    );
-    final data = result.data;
-    final id = result.ok && data is Map ? data['id'] as String? : null;
-    if (id == null) {
-      return result.errorMessageOr('Could not run /${command.name}');
-    }
-    ref
-        .read(interactionTrackerProvider.notifier)
-        .started(
-          PendingInteraction(
-            id: id,
-            channelId: widget.channelId,
-            commandName: command.name,
-          ),
-        );
-    if (mounted && identical(_command, command)) {
-      setState(() => _command = null);
-      _focusNode.requestFocus();
-    }
-    return null;
-  }
-
-  /// `/name text` typed in full: runs the command when the text fills it,
-  /// opens its form when it needs more, or picks the top match of a partial
-  /// `/na`. Returns whether [text] was handled as a command. Decides
-  /// synchronously, so the box is cleared in the same turn as a plain send
-  /// (the Linux send barrier relies on it).
-  bool _sendAsCommand(String text) {
-    final spaceId = widget.spaceId;
-    if (spaceId == null || !text.startsWith('/') || _attachments.isNotEmpty) {
-      return false;
-    }
-    final commands =
-        ref.read(spaceCommandsControllerProvider(_serverKey, spaceId)) ??
-        const <AccordCommand>[];
-    if (commands.isEmpty) return false;
-    final quick = parseQuickCommand(text, commands);
-    if (quick != null) {
-      _controller.clear();
-      _saveDraft(widget.channelId, '');
-      setState(() => _slashQuery = null);
-      unawaited(
-        _runCommand(quick.command, quick.options).then((error) {
-          if (error == null || !mounted) return;
-          if (_controller.text.isEmpty) _controller.text = text;
-          setState(() => _error = error);
-        }),
-      );
-      return true;
-    }
-    final typedName = RegExp(r'^/(\S+)').firstMatch(text)?.group(1);
-    final exact = commands.where((c) => c.name == typedName).firstOrNull;
-    final pick =
-        exact ??
-        (slashQuery(text) == null
-            ? null
-            : matchCommands(commands, slashQuery(text)!).firstOrNull);
-    if (pick == null) return false;
-    _pickCommand(pick);
-    return true;
-  }
-
-  /// Replaces the active `@query` with `@handle ` and dismisses the popup.
-  /// Mirrors the reference's `_on_mention_picked`.
-  void _pickMention(String handle) {
-    final mention = _mention;
-    if (mention == null || mention.end > _controller.text.length) return;
-    _controller.value = insertAtSelection(
-      TextEditingValue(
-        text: _controller.text,
-        selection: TextSelection(
-          baseOffset: mention.start,
-          extentOffset: mention.end,
-        ),
-      ),
-      '@$handle ',
-    );
-    setState(() => _mention = null);
-    _focusNode.requestFocus();
-  }
-
-  /// Opens the system file picker.
-  ///
-  /// No `allowedExtensions` filter: the Accord server enforces no type
-  /// allow-list on message attachments (only size and count — see
-  /// `AccordServerLimits`), so filtering here would hide legitimate files.
-  /// Unrecognised types attach and upload; they just don't preview inline.
-  ///
-  /// The picker can throw rather than return null (Windows' legacy
-  /// `GetOpenFileNameW` fails on a cloud placeholder or an over-MAX_PATH
-  /// selection); unguarded, that escapes the unawaited `onPressed` and the
-  /// attach button appears to do nothing.
-  Future<void> _pickFiles() async {
-    final FilePickerResult? result;
-    try {
-      result = await FilePicker.platform.pickFiles(
-        allowMultiple: true,
-        withData: true,
-      );
-    } catch (e) {
-      debugPrint('File picker failed: $e');
-      if (mounted) {
-        setState(() => _error = "Couldn't open the file picker: $e");
-      }
-      return;
-    }
-    if (result == null || !mounted) return;
-    _addFiles([for (final file in result.files) PendingAttachment(file)]);
-  }
-
-  Future<void> _onDrop(DropDoneDetails details) async {
-    setState(() => _dragging = false);
-    if (_sending) return;
-    final dropped = await readDroppedFiles(
-      details.files,
-      maxBytes: ref.read(serverLimitsControllerProvider).maxAttachmentBytes,
-    );
-    if (!mounted) return;
-    _addFiles(dropped.accepted, alsoRejected: dropped.rejections);
-  }
-
-  /// Attaches every file in [files] that passes the connected server's
-  /// limits, and reports the ones that don't, along with any [alsoRejected]
-  /// lines the caller screened out itself. A file dropped in silence would
-  /// look like the attach button doing nothing.
-  void _addFiles(
-    Iterable<PendingAttachment> files, {
-    List<String> alsoRejected = const [],
-  }) {
-    final limits = ref.read(serverLimitsControllerProvider);
-    final screened = screenAttachments(
-      files,
-      maxBytes: limits.maxAttachmentBytes,
-      maxCount: limits.maxAttachmentsPerMessage,
-      alreadyAttached: _attachments.length,
-    );
-    final rejections = [...alsoRejected, ...screened.rejections];
-    setState(() {
-      _attachments.addAll(screened.accepted);
-      _error = rejections.isEmpty ? null : rejections.join('\n');
-    });
-  }
-
-  void _startVoiceMessage() {
-    setState(() {
-      _recordingVoice = true;
-      _error = null;
-    });
-  }
-
-  /// A finished voice message is sent straight away, like any attachment.
-  void _onVoiceMessageRecorded(PendingAttachment file) {
-    setState(() => _recordingVoice = false);
-    _addFiles([file]);
-    if (_attachments.contains(file)) unawaited(_send());
-  }
-
-  void _onVoiceMessageClosed(String? error) {
-    if (!mounted) return;
-    setState(() {
-      _recordingVoice = false;
-      _error = error;
-    });
-  }
-
-  void _createPoll() {
-    final client = ref.accordClient;
-    if (client == null) return;
-    final controller = ref.read(
-      accordMessagesControllerProvider(
-        ref.readActiveServerKey() ?? '',
-        widget.channelId,
-      ).notifier,
-    );
-    showCreatePollDialog(
-      context,
-      create:
-          ({
-            required question,
-            required answers,
-            required allowMultiselect,
-            required durationHours,
-          }) => controller.createPoll(
-            client,
-            question: question,
-            answers: answers,
-            allowMultiselect: allowMultiselect,
-            durationHours: durationHours,
-          ),
-    );
-  }
-
-  void _removeAttachment(PendingAttachment file) {
-    setState(() => _attachments.remove(file));
-  }
-
-  Future<void> _pickEmoji() async {
-    final pick = await showAccordEmojiPicker(context, spaceId: widget.spaceId);
-    if (pick == null || !mounted) return;
-    _insertAtCursor(pick.composerText);
-  }
-
-  /// Sends a sticker picked from the spaces we belong to.
-  Future<void> _pickSticker() async {
-    final spaceId = widget.spaceId;
-    if (spaceId == null) return;
-    final sticker = await showStickerPicker(context, spaceId: spaceId);
-    final client = ref.accordClient;
-    if (sticker == null || client == null || !mounted) return;
-    final result = await client.stickers.send(widget.channelId, sticker.id);
-    if (!mounted) return;
-    final message = result.data;
-    if (result.ok && message is AccordMessage) {
-      ref
-          .read(
-            accordMessagesControllerProvider(
-              ref.readActiveServerKey() ?? '',
-              widget.channelId,
-            ).notifier,
-          )
-          .addMessage(message);
-    } else {
-      setState(
-        () => _error = result.errorMessageOr('Could not send the sticker'),
-      );
-    }
-    _focusNode.requestFocus();
-  }
-
+  @override
   void _insertAtCursor(String text) {
     _controller.value = insertAtSelection(_controller.value, text);
     _focusNode.requestFocus();
   }
 
+  @override
   Future<void> _send() async {
     // Emoticons convert on send, not on render, so the stored content holds the
     // real glyph for every other client (and for edit/copy here).
@@ -850,341 +515,5 @@ class _ComposerState extends ConsumerState<_Composer> {
     restoreFailedSend(_controller, text);
     _saveDraft(widget.channelId, _controller.text);
     if (cooldown != null) _startCooldown(cooldown);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = BonfireThemeExtension.of(context);
-    // Watched, not read: the limits arrive a round-trip after connect, and the
-    // attach button's enabled state depends on the count limit.
-    final limits = ref.watch(serverLimitsControllerProvider);
-    final atAttachmentLimit =
-        _attachments.length >= limits.maxAttachmentsPerMessage;
-    final name = widget.channelName;
-    // DMs have no `#`: the pane passes the conversation's title, and the
-    // placeholder reads "Message @name". A nameless channel stays "Message"
-    // rather than a dangling "Message #".
-    final hint = _dragging
-        ? 'Drop files to attach'
-        : name == null || name.isEmpty
-        ? 'Message'
-        : widget.spaceId == null
-        ? 'Message @$name'
-        : 'Message #$name';
-    final now = DateTime.now();
-    final cooldown = _cooldown != null && _cooldown!.isActive(now)
-        ? _cooldown
-        : null;
-    final sendBlocked = sendBlockedByCooldown(
-      cooldown: cooldown,
-      now: now,
-      hasAttachments: _attachments.isNotEmpty,
-    );
-    // A voice message is an upload, so an upload budget holds it back too.
-    final voiceBlocked = sendBlockedByCooldown(
-      cooldown: cooldown,
-      now: now,
-      hasAttachments: true,
-    );
-    // Configured capacity, shown as guidance beside the per-message limits;
-    // only the server knows what's left this minute.
-    final budgetHint = uploadBudgetHint(
-      requestsPerMinute: limits.uploadRequestsPerMinute,
-      bytesPerMinute: limits.uploadBytesPerMinute,
-    );
-    final String? cooldownLine = cooldown != null
-        ? [
-            sendCooldownLabel(cooldown, now),
-            if (cooldown.kind == SendCooldownKind.rateLimited &&
-                budgetHint != null)
-              budgetHint,
-          ].join(' ')
-        : widget.slowmodeSeconds > 0
-        ? slowmodeHint(widget.slowmodeSeconds)
-        : null;
-    // A DropTarget keeps receiving drags even when covered, so it's disabled
-    // while a dialog/sheet (emoji picker, lightbox, …) is on top of the pane.
-    final onTop = ModalRoute.of(context)?.isCurrent ?? true;
-    return DropTarget(
-      enable: !_sending && onTop,
-      onDragEntered: (_) => setState(() => _dragging = true),
-      onDragExited: (_) => setState(() => _dragging = false),
-      onDragDone: _onDrop,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8),
-          decoration: BoxDecoration(
-            // A shade lighter than the chat, so the box reads as a field.
-            color: Color.lerp(colors.background, colors.dirtyWhite, 0.05),
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: _dragging ? colors.primary : Colors.transparent,
-            ),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (widget.replyingTo != null)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(8, 6, 4, 0),
-                  child: Row(
-                    children: [
-                      Icon(Icons.reply, size: 14, color: colors.gray),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: Text(
-                          'Replying to ${widget.replyName ?? 'message'}',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: Theme.of(
-                            context,
-                          ).textTheme.labelMedium!.copyWith(color: colors.gray),
-                        ),
-                      ),
-                      IconButton(
-                        tooltip: 'Cancel reply',
-                        visualDensity: VisualDensity.compact,
-                        onPressed: widget.onCancelReply,
-                        icon: Icon(Icons.close, size: 14, color: colors.gray),
-                      ),
-                    ],
-                  ),
-                ),
-              if (_error != null)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(8, 8, 4, 0),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(child: InlineError(_error!, centered: false)),
-                      IconButton(
-                        tooltip: 'Dismiss',
-                        visualDensity: VisualDensity.compact,
-                        onPressed: () => setState(() => _error = null),
-                        icon: Icon(Icons.close, size: 14, color: colors.gray),
-                      ),
-                    ],
-                  ),
-                ),
-              if (_attachments.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
-                  child: Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      for (final file in _attachments)
-                        _AttachmentChip(
-                          attachment: file,
-                          onRemove: _sending
-                              ? null
-                              : () => _removeAttachment(file),
-                        ),
-                    ],
-                  ),
-                ),
-              if (!widget.canMentionEveryone)
-                // Follows the text itself: pastes and programmatic edits don't
-                // otherwise rebuild the composer.
-                ValueListenableBuilder(
-                  valueListenable: _controller,
-                  builder: (context, value, _) =>
-                      _broadcastMention.hasMatch(value.text)
-                      ? Padding(
-                          padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
-                          child: Align(
-                            alignment: Alignment.centerLeft,
-                            child: Text(
-                              "You don't have permission to mention @everyone or @here in this channel.",
-                              style: Theme.of(context).textTheme.bodySmall!
-                                  .copyWith(color: colors.yellow),
-                            ),
-                          ),
-                        )
-                      : const SizedBox.shrink(),
-                ),
-              if (cooldownLine != null)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.timer_outlined,
-                        size: 14,
-                        color: cooldown != null ? colors.yellow : colors.gray,
-                      ),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: Text(
-                          cooldownLine,
-                          style: Theme.of(context).textTheme.bodySmall!
-                              .copyWith(
-                                color: cooldown != null
-                                    ? colors.yellow
-                                    : colors.gray,
-                              ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              if (_mention != null && widget.spaceId != null)
-                _MentionPopup(
-                  spaceId: widget.spaceId!,
-                  query: _mention!.query,
-                  allowBroadcast: widget.canMentionEveryone,
-                  onPick: _pickMention,
-                  highlighted: _mentionIndex,
-                ),
-              if (_slashQuery != null &&
-                  _command == null &&
-                  widget.spaceId != null)
-                CommandPopup(
-                  serverKey: _serverKey,
-                  spaceId: widget.spaceId!,
-                  query: _slashQuery!,
-                  onPick: _pickCommand,
-                ),
-              InteractionStatusLine(channelId: widget.channelId),
-              if (_recordingVoice)
-                VoiceMessageRecorder(
-                  onRecorded: _onVoiceMessageRecorded,
-                  onClosed: _onVoiceMessageClosed,
-                )
-              else if (_command != null && widget.spaceId != null)
-                CommandForm(
-                  key: ValueKey('command-form-${_command!.id}'),
-                  serverKey: _serverKey,
-                  spaceId: widget.spaceId!,
-                  command: _command!,
-                  onRun: (options) => _runCommand(_command!, options),
-                  onCancel: _cancelCommand,
-                )
-              else
-                Row(
-                  children: [
-                    IconButton(
-                      tooltip: atAttachmentLimit
-                          ? 'Attachment limit reached '
-                                '(${limits.maxAttachmentsPerMessage} per message)'
-                          : [
-                              'Attach files '
-                                  '(${attachmentLimitsHint(maxBytes: limits.maxAttachmentBytes, maxCount: limits.maxAttachmentsPerMessage)})',
-                              if (budgetHint != null) budgetHint,
-                            ].join('\n'),
-                      onPressed: _sending || atAttachmentLimit
-                          ? null
-                          : _pickFiles,
-                      icon: Icon(
-                        Icons.add_circle_outline,
-                        size: 20,
-                        color: atAttachmentLimit
-                            ? colors.gray
-                            : colors.dirtyWhite,
-                      ),
-                    ),
-                    if (widget.spaceId != null)
-                      IconButton(
-                        key: const Key('poll-create'),
-                        tooltip: 'Create a poll',
-                        onPressed: _sending ? null : _createPoll,
-                        icon: Icon(
-                          Icons.poll_outlined,
-                          size: 20,
-                          color: colors.dirtyWhite,
-                        ),
-                      ),
-                    Expanded(
-                      child: TextField(
-                        controller: _controller,
-                        focusNode: _focusNode,
-                        // Deliberately never disabled while sending: a disabled
-                        // TextField gives up focus (and the mobile keyboard) for
-                        // the whole round-trip. The buttons below and the guard
-                        // in _send() are what stop a double-send.
-                        minLines: 1,
-                        maxLines: 6,
-                        textInputAction: composerUsesNativeNewlines
-                            ? TextInputAction.newline
-                            : TextInputAction.send,
-                        onChanged: _onChanged,
-                        onSubmitted: (_) => _onSubmitted(),
-                        style: Theme.of(context).textTheme.bodyLarge,
-                        decoration: InputDecoration(
-                          isDense: true,
-                          border: InputBorder.none,
-                          hintText: hint,
-                          hintStyle: Theme.of(
-                            context,
-                          ).textTheme.bodyLarge!.copyWith(color: colors.gray),
-                        ),
-                      ),
-                    ),
-                    IconButton(
-                      tooltip: 'Emoji',
-                      onPressed: _sending ? null : _pickEmoji,
-                      icon: Icon(
-                        Icons.emoji_emotions_outlined,
-                        size: 20,
-                        color: colors.dirtyWhite,
-                      ),
-                    ),
-                    if (widget.spaceId != null)
-                      IconButton(
-                        key: const Key('sticker-pick'),
-                        tooltip: 'Stickers',
-                        onPressed: _sending ? null : _pickSticker,
-                        icon: Icon(
-                          Icons.sticky_note_2_outlined,
-                          size: 20,
-                          color: colors.dirtyWhite,
-                        ),
-                      ),
-                    ValueListenableBuilder(
-                      valueListenable: _controller,
-                      builder: (context, value, _) {
-                        // Nothing typed or attached: the send slot records a
-                        // voice message instead.
-                        if (value.text.trim().isEmpty && _attachments.isEmpty) {
-                          return IconButton(
-                            key: const Key('voice-message-record'),
-                            tooltip: voiceBlocked && cooldown != null
-                                ? sendCooldownLabel(cooldown, now)
-                                : 'Record a voice message',
-                            onPressed: _sending || voiceBlocked
-                                ? null
-                                : _startVoiceMessage,
-                            icon: Icon(
-                              Icons.mic_none,
-                              size: 20,
-                              color: voiceBlocked
-                                  ? colors.gray
-                                  : colors.dirtyWhite,
-                            ),
-                          );
-                        }
-                        return IconButton(
-                          tooltip: sendBlocked && cooldown != null
-                              ? sendCooldownLabel(cooldown, now)
-                              : 'Send',
-                          onPressed: _sending || sendBlocked ? null : _send,
-                          icon: Icon(
-                            Icons.send,
-                            size: 20,
-                            color: sendBlocked
-                                ? colors.gray
-                                : colors.dirtyWhite,
-                          ),
-                        );
-                      },
-                    ),
-                  ],
-                ),
-            ],
-          ),
-        ),
-      ),
-    );
   }
 }

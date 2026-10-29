@@ -100,8 +100,15 @@ import 'package:pasteboard/pasteboard.dart';
 
 part 'attachments.dart';
 part 'composer.dart';
+part 'composer_attachments.dart';
+part 'composer_commands.dart';
+part 'composer_mentions.dart';
+part 'composer_view.dart';
 part 'mention_popup.dart';
 part 'message_row.dart';
+part 'message_row_editing.dart';
+part 'message_row_handlers.dart';
+part 'message_row_parts.dart';
 part 'message_row_actions.dart';
 part 'mute_button.dart';
 part 'reactions.dart';
