@@ -31,6 +31,7 @@ class HomeShortcutBinding {
     this.alt = false,
     required this.label,
     this.keyLabel = '',
+    this.physical = 0,
   });
 
   final HomeShortcut shortcut;
@@ -39,6 +40,10 @@ class HomeShortcutBinding {
   /// The main key as the layout that recorded it showed it (recorded
   /// keybinds only); built-ins derive it from [key].
   final String keyLabel;
+
+  /// `PhysicalKeyboardKey.usbHidUsage` of a recorded key (0 for built-ins):
+  /// a press matches on either the logical or the physical key.
+  final int physical;
 
   /// Ctrl on Windows/Linux, ⌘ on macOS (the matcher treats Meta as Control).
   final bool control;
@@ -51,8 +56,9 @@ class HomeShortcutBinding {
     required bool control,
     required bool shift,
     required bool alt,
+    int physicalPressed = 0,
   }) =>
-      pressed == key &&
+      (pressed == key || (physical != 0 && physicalPressed == physical)) &&
       control == this.control &&
       shift == this.shift &&
       alt == this.alt;
@@ -197,6 +203,7 @@ HomeShortcutBinding? bindingFromCustom(CustomKeybind keybind) {
     alt: keybind.alt,
     label: homeShortcutLabel(shortcut),
     keyLabel: keybind.keyLabel,
+    physical: keybind.physicalKey,
   );
 }
 
@@ -215,6 +222,7 @@ HomeShortcut? matchHomeShortcut({
   required bool control,
   required bool shift,
   required bool alt,
+  int physicalPressed = 0,
   List<CustomKeybind> custom = const [],
 }) {
   for (final binding in effectiveBindings(custom)) {
@@ -223,6 +231,7 @@ HomeShortcut? matchHomeShortcut({
       control: control,
       shift: shift,
       alt: alt,
+      physicalPressed: physicalPressed,
     )) {
       return binding.shortcut;
     }

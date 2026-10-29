@@ -116,6 +116,31 @@ void main() {
       );
     });
 
+    test('a recorded keybind also matches on its physical key', () {
+      final custom = [
+        CustomKeybind(
+          action: HomeShortcut.toggleDeafen.name,
+          keyId: LogicalKeyboardKey.keyJ.keyId,
+          physicalKey: PhysicalKeyboardKey.keyJ.usbHidUsage,
+          keyLabel: 'J',
+          control: true,
+          shift: true,
+        ),
+      ];
+      // Ctrl held: the platform reported some other logical key for J.
+      expect(
+        matchHomeShortcut(
+          pressed: const LogicalKeyboardKey(0x1100000094),
+          control: true,
+          shift: true,
+          alt: false,
+          physicalPressed: PhysicalKeyboardKey.keyJ.usbHidUsage,
+          custom: custom,
+        ),
+        HomeShortcut.toggleDeafen,
+      );
+    });
+
     test('an unrecorded or unknown keybind is ignored', () {
       final custom = [
         CustomKeybind(action: HomeShortcut.toggleMute.name),
