@@ -21,30 +21,11 @@ import 'package:bonfire/theme/theme.dart';
 import 'package:collection/collection.dart';
 import 'package:bonfire/features/member/views/profile_extras.dart';
 import 'package:bonfire/shared/utils/platform.dart';
-import 'package:flutter/gestures.dart';
+import 'package:bonfire/shared/utils/pointer_anchor.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 part 'member_popout/sections.dart';
-
-/// Where the pointer last went down, so the profile card can open beside
-/// what was clicked (a name, an avatar, a member row) as in other chat apps.
-Offset? _lastPointerDown;
-DateTime? _lastPointerDownAt;
-bool _trackingPointer = false;
-
-/// Starts recording pointer-down positions for [showAccordMemberPopout].
-/// Idempotent; the home screen calls it on mount.
-void trackMemberPopoutAnchor() {
-  if (_trackingPointer) return;
-  _trackingPointer = true;
-  GestureBinding.instance.pointerRouter.addGlobalRoute((event) {
-    if (event is PointerDownEvent) {
-      _lastPointerDown = event.position;
-      _lastPointerDownAt = DateTime.now();
-    }
-  });
-}
 
 /// Opens the member profile card for [userId] within [spaceId]. On desktop
 /// it pops out beside the click that opened it; on touch layouts (or with no
@@ -54,13 +35,7 @@ Future<void> showAccordMemberPopout(
   required String spaceId,
   required String userId,
 }) {
-  final at = _lastPointerDownAt;
-  final anchor =
-      shouldUseDesktopLayout(context) &&
-          at != null &&
-          DateTime.now().difference(at) < const Duration(seconds: 2)
-      ? _lastPointerDown
-      : null;
+  final anchor = shouldUseDesktopLayout(context) ? recentPointerAnchor() : null;
   if (anchor == null) {
     return showDialog<void>(
       context: context,

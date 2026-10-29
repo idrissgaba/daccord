@@ -86,8 +86,7 @@ class _MentionPopup extends ConsumerWidget {
                           overflow: TextOverflow.ellipsis,
                           style: Theme.of(context).textTheme.bodyMedium!
                               .copyWith(
-                                color:
-                                    entry.kind == _MentionEntryKind.broadcast
+                                color: entry.kind == _MentionEntryKind.broadcast
                                     ? _composerBroadcastColor
                                     : null,
                               ),
@@ -95,12 +94,11 @@ class _MentionPopup extends ConsumerWidget {
                       ),
                       Text(
                         "@${entry.handle}",
-                        style: Theme.of(context).textTheme.labelSmall!
-                            .copyWith(
-                              color: entry.kind == _MentionEntryKind.broadcast
-                                  ? _composerBroadcastColor
-                                  : colors.gray,
-                            ),
+                        style: Theme.of(context).textTheme.labelSmall!.copyWith(
+                          color: entry.kind == _MentionEntryKind.broadcast
+                              ? _composerBroadcastColor
+                              : colors.gray,
+                        ),
                       ),
                     ],
                   ),
@@ -177,11 +175,16 @@ List<_MentionEntry> _mentionCandidates(
   for (final r in roles) {
     if (!r.mentionable) continue;
     consider(
-      _MentionEntry(handle: r.name, label: r.name, kind: _MentionEntryKind.role),
+      _MentionEntry(
+        handle: r.name,
+        label: r.name,
+        kind: _MentionEntryKind.role,
+      ),
     );
   }
   final out = [...broadcasts, ...prefix, ...contains];
-  if (out.length > _maxMentionResults) return out.sublist(0, _maxMentionResults);
+  if (out.length > _maxMentionResults)
+    return out.sublist(0, _maxMentionResults);
   return out;
 }
 

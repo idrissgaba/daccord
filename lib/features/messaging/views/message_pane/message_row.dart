@@ -23,10 +23,19 @@ class _MessageRow extends ConsumerStatefulWidget {
     this.onUserTap,
     this.onUserContextMenu,
     this.editRequest,
+    this.rowRegistry,
+    this.highlighted = false,
   });
 
   final AccordMessage message;
   final String channelId;
+
+  /// Where the pane finds a built row's context by message id, to scroll a
+  /// "jump to message" target into view. See `_MessagePaneState._jumpTo`.
+  final Map<String, BuildContext>? rowRegistry;
+
+  /// Tinted for a moment after a jump landed on this row.
+  final bool highlighted;
 
   /// The pane asks a row to open its inline editor by setting this to the
   /// row's message id (↑ in the empty composer edits your last message).
@@ -112,6 +121,7 @@ class _MessageRowState extends ConsumerState<_MessageRow>
   void initState() {
     super.initState();
     widget.editRequest?.addListener(_onEditRequest);
+    widget.rowRegistry?[widget.message.id] = context;
   }
 
   @override
@@ -120,6 +130,18 @@ class _MessageRowState extends ConsumerState<_MessageRow>
     if (oldWidget.editRequest != widget.editRequest) {
       oldWidget.editRequest?.removeListener(_onEditRequest);
       widget.editRequest?.addListener(_onEditRequest);
+    }
+    if (oldWidget.message.id != widget.message.id ||
+        oldWidget.rowRegistry != widget.rowRegistry) {
+      _unregister(oldWidget);
+      widget.rowRegistry?[widget.message.id] = context;
+    }
+  }
+
+  void _unregister(_MessageRow of) {
+    final registry = of.rowRegistry;
+    if (registry != null && identical(registry[of.message.id], context)) {
+      registry.remove(of.message.id);
     }
   }
 
@@ -137,6 +159,7 @@ class _MessageRowState extends ConsumerState<_MessageRow>
   @override
   void dispose() {
     widget.editRequest?.removeListener(_onEditRequest);
+    _unregister(widget);
     _hover.dispose();
     _editController?.dispose();
     _editFocus?.dispose();
@@ -198,10 +221,14 @@ class _MessageRowState extends ConsumerState<_MessageRow>
     final compact = ref.watch(
       settingsControllerProvider.select((s) => s.compactMode),
     );
+    // Grouped rows sit on their line height alone, as in other chat apps; a
+    // fresh author header gets room above and below.
     final topGap = widget.grouped
         ? (compact ? 0.0 : 1.0)
         : (compact ? 3.0 : 6.0);
-    final bottomGap = compact ? 3.0 : 6.0;
+    final bottomGap = widget.grouped
+        ? (compact ? 1.0 : 2.0)
+        : (compact ? 3.0 : 6.0);
     final avatarRadius = compact ? 14.0 : 18.0;
     final gutter = compact ? 8.0 : 12.0;
     final cdnUrl = ref.watchCdnUrl();
@@ -280,7 +307,9 @@ class _MessageRowState extends ConsumerState<_MessageRow>
           // repaints: the message itself is passed through untouched.
           child: DecoratedBox(
             decoration: BoxDecoration(
-              color: hovered && shouldUseDesktopLayout(context)
+              color: widget.highlighted
+                  ? colors.primary.withValues(alpha: 0.16)
+                  : hovered && shouldUseDesktopLayout(context)
                   ? Color.lerp(colors.background, colors.darkGray, 0.18)
                   : Colors.transparent,
             ),
@@ -409,7 +438,7 @@ class _MessageRowState extends ConsumerState<_MessageRow>
                           _buildEditor(theme, colors)
                         else if (isLoadingMessage(message))
                           MessageThinking(botName: _authorName)
-                        else if (message.type == 'member_join' ||
+                        else if (isSystemMessage(message) ||
                             message.content.isNotEmpty)
                           Padding(
                             padding: const EdgeInsets.only(top: 2),

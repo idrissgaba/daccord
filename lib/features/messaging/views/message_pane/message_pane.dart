@@ -29,6 +29,7 @@ import 'package:bonfire/features/member/views/accord_member_avatar.dart';
 import 'package:bonfire/features/member/views/accord_member_popout.dart';
 import 'package:bonfire/features/messaging/controllers/accord_emojis.dart';
 import 'package:bonfire/features/messaging/controllers/accord_messages.dart';
+import 'package:bonfire/features/messaging/controllers/message_jump.dart';
 import 'package:bonfire/features/messaging/controllers/app_commands.dart';
 import 'package:bonfire/features/messaging/controllers/pending_uploads.dart';
 import 'package:bonfire/features/messaging/models/pending_upload.dart';
@@ -102,6 +103,7 @@ part 'attachments.dart';
 part 'composer.dart';
 part 'composer_attachments.dart';
 part 'composer_commands.dart';
+part 'composer_emoji.dart';
 part 'composer_mentions.dart';
 part 'composer_view.dart';
 part 'mention_popup.dart';
@@ -215,6 +217,12 @@ class _MessagePaneState extends ConsumerState<MessagePane> {
   AccordMessage? _replyTo;
   final ScrollController _scroll = ScrollController();
 
+  /// Built rows by message id, for [_jumpTo].
+  final Map<String, BuildContext> _rowContexts = {};
+
+  /// The row a jump just landed on, tinted for a moment.
+  String? _highlightedMessageId;
+
   /// Set to a message id to open that row's inline editor (↑ in the empty
   /// composer edits the current user's last message).
   final _editRequest = ValueNotifier<String?>(null);
@@ -230,6 +238,16 @@ class _MessagePaneState extends ConsumerState<MessagePane> {
   void initState() {
     super.initState();
     _scroll.addListener(_onScroll);
+    // A jump requested before this pane existed (a search hit that opened the
+    // channel) is waiting in the provider.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final pending = ref.read(messageJumpProvider);
+      if (pending != null && pending.channelId == widget.channelId) {
+        ref.read(messageJumpProvider.notifier).clear();
+        _jumpTo(pending.messageId);
+      }
+    });
     _readLifecycle = AppLifecycleListener(
       onResume: () {
         _scheduleRead();
@@ -345,6 +363,92 @@ class _MessagePaneState extends ConsumerState<MessagePane> {
     _editRequest.value = last.id;
   }
 
+  /// Scrolls [messageId] into view and tints it for a moment. The list is
+  /// lazy, so a far-off row isn't built yet: jump to roughly where it should
+  /// be, then step a viewport at a time toward it until its row mounts. A
+  /// message older than the loaded history is fetched and opened in the
+  /// thread panel instead.
+  Future<void> _jumpTo(String messageId) async {
+    final channelId = widget.channelId;
+    final serverKey = ref.readActiveServerKey();
+    if (channelId == null || serverKey == null) return;
+    int indexOf() =>
+        ref
+            .read(accordMessagesControllerProvider(serverKey, channelId))
+            ?.indexWhere((m) => m.id == messageId) ??
+        -1;
+    int? count() => ref
+        .read(accordMessagesControllerProvider(serverKey, channelId))
+        ?.length;
+    if (indexOf() < 0) {
+      final client = ref.accordClient;
+      if (client == null) return;
+      final result = await client.messages.fetch(channelId, messageId);
+      if (!mounted) return;
+      if (result.data case final AccordMessage root) {
+        showAccordThread(
+          context,
+          channelId: channelId,
+          root: root,
+          spaceId: widget.spaceId,
+        );
+      } else {
+        showInfoSnack(context, 'That message is unavailable.');
+      }
+      return;
+    }
+    var proportional = true;
+    for (var attempt = 0; attempt < 60; attempt++) {
+      final rowContext = _rowContexts[messageId];
+      if (rowContext != null && rowContext.mounted) {
+        await Scrollable.ensureVisible(
+          rowContext,
+          alignment: 0.35,
+          duration: const Duration(milliseconds: 160),
+        );
+        if (!mounted) return;
+        setState(() => _highlightedMessageId = messageId);
+        Future<void>.delayed(const Duration(milliseconds: 2200), () {
+          if (mounted && _highlightedMessageId == messageId) {
+            setState(() => _highlightedMessageId = null);
+          }
+        });
+        return;
+      }
+      if (!_scroll.hasClients) return;
+      final index = indexOf();
+      final total = count();
+      if (index < 0 || total == null || total == 0) return;
+      final position = _scroll.position;
+      double target;
+      if (proportional) {
+        // `reverse: true`: offset 0 is the newest message, the far end the
+        // oldest; the cache lists oldest first.
+        target = (1 - (index + 0.5) / total) * position.maxScrollExtent;
+        proportional = false;
+      } else {
+        // Which way from the rows built now? Older rows have lower indexes.
+        final built = [
+          for (final entry in _rowContexts.entries)
+            if (entry.value.mounted)
+              ref
+                      .read(
+                        accordMessagesControllerProvider(serverKey, channelId),
+                      )
+                      ?.indexWhere((m) => m.id == entry.key) ??
+                  -1,
+        ].where((i) => i >= 0);
+        if (built.isEmpty) return;
+        final older = index < built.reduce((a, b) => a < b ? a : b);
+        final step = position.viewportDimension * 0.9;
+        target = position.pixels + (older ? step : -step);
+      }
+      _scroll.jumpTo(target.clamp(0.0, position.maxScrollExtent));
+      await WidgetsBinding.instance.endOfFrame;
+      if (!mounted) return;
+    }
+  }
+
   /// Watches for the user scrolling near the top of the history (with
   /// `reverse: true`, that means approaching [maxScrollExtent]) and pages in
   /// older messages. The controller dedupes concurrent calls so we can fire
@@ -394,6 +498,11 @@ class _MessagePaneState extends ConsumerState<MessagePane> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<MessageJump?>(messageJumpProvider, (previous, next) {
+      if (next == null || next.channelId != widget.channelId) return;
+      ref.read(messageJumpProvider.notifier).clear();
+      _jumpTo(next.messageId);
+    });
     final colors = BonfireThemeExtension.of(context);
     final channel = widget.channel;
     final channelId = widget.channelId;
@@ -701,6 +810,7 @@ class _MessagePaneState extends ConsumerState<MessagePane> {
                           canManage: canManageMessages,
                           onUserTap: widget.onUserTap,
                           onUserContextMenu: widget.onUserContextMenu,
+                          onJump: (message) => _jumpTo(message.id),
                         ),
                         icon: Icon(
                           Icons.push_pin_outlined,
@@ -824,6 +934,8 @@ class _MessagePaneState extends ConsumerState<MessagePane> {
                         grouped: grouped,
                         narrow: panel,
                         editRequest: _editRequest,
+                        rowRegistry: _rowContexts,
+                        highlighted: _highlightedMessageId == message.id,
                         author: author,
                         authorUser: authorUser,
                         nameColor: colorRole == null

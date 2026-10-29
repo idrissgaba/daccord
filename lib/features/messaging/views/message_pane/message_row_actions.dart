@@ -17,10 +17,13 @@ class _FloatingActionsOverlay extends StatelessWidget {
     if (actions == null) return child;
     final colors = BonfireThemeExtension.of(context);
     return Stack(
+      // The bar straddles the row's top edge rather than covering its first
+      // line (the author header, or a "used /command" line).
+      clipBehavior: Clip.none,
       children: [
         child,
         Positioned(
-          top: 0,
+          top: -14,
           right: 4,
           child: Material(
             color: colors.foreground,

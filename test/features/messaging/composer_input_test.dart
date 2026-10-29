@@ -64,4 +64,41 @@ void main() {
       expect(next.selection, _caret(3));
     });
   });
+
+  group('findEmojiTrigger', () {
+    test('finds the shortcode between the colon and the caret', () {
+      const text = 'nice :thu';
+      final t = findEmojiTrigger(text, _caret(text.length));
+      expect(t, isNotNull);
+      expect(t!.start, 5);
+      expect(t.end, 9);
+      expect(t.query, 'thu');
+    });
+
+    test('needs two characters, so a lone colon stays quiet', () {
+      expect(findEmojiTrigger(':t', _caret(2)), isNull);
+      expect(findEmojiTrigger(':th', _caret(3)), isNotNull);
+    });
+
+    test('ignores times and colons inside words', () {
+      expect(findEmojiTrigger('at 10:30', _caret(8)), isNull);
+      expect(findEmojiTrigger('a:bcd', _caret(5)), isNull);
+    });
+
+    test('stops at whitespace and after a closed shortcode', () {
+      expect(findEmojiTrigger(':joy: hi', _caret(8)), isNull);
+      expect(findEmojiTrigger(':joy: :fi', _caret(9))?.query, 'fi');
+    });
+
+    test('needs a collapsed selection inside the text', () {
+      expect(
+        findEmojiTrigger(
+          ':abc',
+          const TextSelection(baseOffset: 0, extentOffset: 2),
+        ),
+        isNull,
+      );
+      expect(findEmojiTrigger(':abc', _caret(9)), isNull);
+    });
+  });
 }

@@ -184,11 +184,7 @@ Finder _row(String messageId, String body) {
 }
 
 /// Opens [messageId]'s overflow menu and picks [action] from it.
-Future<void> _menuAction(
-  WidgetTester tester,
-  Finder row,
-  String action,
-) async {
+Future<void> _menuAction(WidgetTester tester, Finder row, String action) async {
   await tester.tap(
     find.descendant(of: row, matching: find.byTooltip('Message actions')),
   );
@@ -215,7 +211,7 @@ void main() {
 
     // The confirm dialog is up and nothing has been deleted yet.
     expect(
-      find.text('This message will be permanently deleted.'),
+      find.text('Are you sure you want to delete this message?'),
       findsOneWidget,
     );
     expect(harness.requestsFor('m1'), isEmpty);
@@ -242,26 +238,24 @@ void main() {
     expect(_body('second message'), findsOneWidget);
   });
 
-  testWidgets(
-    'a failed delete leaves the message and reports the failure',
-    (tester) async {
-      final harness = await _pumpPane(tester, failDeleteOf: 'm1');
+  testWidgets('a failed delete leaves the message and reports the failure', (
+    tester,
+  ) async {
+    final harness = await _pumpPane(tester, failDeleteOf: 'm1');
 
-      await _menuAction(tester, _row('m1', 'first message'), 'Delete');
-      await tester.tap(find.widgetWithText(FilledButton, 'Delete'));
-      await _tick(tester);
+    await _menuAction(tester, _row('m1', 'first message'), 'Delete');
+    await tester.tap(find.widgetWithText(FilledButton, 'Delete'));
+    await _tick(tester);
 
-      expect(
-        harness.requestsFor('m1'),
-        ['DELETE /api/v1/channels/$_channelId/messages/m1'],
-      );
-      // The row is still there rather than having been optimistically removed…
-      expect(_body('first message'), findsOneWidget);
-      // …and the failure is surfaced rather than silently swallowed, which is
-      // what made this indistinguishable from the dead voice-chat menu (#229).
-      expect(find.text('Failed to delete message'), findsOneWidget);
-    },
-  );
+    expect(harness.requestsFor('m1'), [
+      'DELETE /api/v1/channels/$_channelId/messages/m1',
+    ]);
+    // The row is still there rather than having been optimistically removed…
+    expect(_body('first message'), findsOneWidget);
+    // …and the failure is surfaced rather than silently swallowed, which is
+    // what made this indistinguishable from the dead voice-chat menu (#229).
+    expect(find.text('Failed to delete message'), findsOneWidget);
+  });
 
   testWidgets('reaction lands on the message the picker was opened on, even '
       'when a new message arrives while it is open', (tester) async {

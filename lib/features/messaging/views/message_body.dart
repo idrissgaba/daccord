@@ -21,7 +21,7 @@ class MessageBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final content = accordMessageText(message, authorName: authorName);
-    if (message.type == 'member_join') {
+    if (isSystemMessage(message)) {
       return Text(content, style: getMarkdownStyleSheet(context).paragraph);
     }
     return AccordMessageContent(content: content, spaceId: spaceId);

@@ -71,6 +71,9 @@ class SpaceEventsEntry extends ConsumerWidget {
         borderRadius: BorderRadius.circular(8),
         child: InkWell(
           key: const Key('space-events-entry'),
+          // The dialog it opens would hand focus back here and leave the row
+          // lit up as if still selected.
+          canRequestFocus: false,
           borderRadius: BorderRadius.circular(8),
           onTap: () => showSpaceEvents(context, spaceId: spaceId),
           child: Padding(

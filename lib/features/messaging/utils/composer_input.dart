@@ -119,3 +119,42 @@ TextEditingValue insertAtSelection(TextEditingValue value, String text) {
     selection: TextSelection.collapsed(offset: start + text.length),
   );
 }
+
+/// The `:shortcode` emoji being typed at [selection] in [text], or null: the
+/// nearest `:` before the caret that starts the text or follows whitespace,
+/// with at least [minQuery] shortcode characters (letters, digits, `_`, `+`,
+/// `-`) between it and the caret, so `10:30` and a lone `:` never open the
+/// popup. `[start, end)` covers the `:` and the lowercased [query] after it.
+({int start, int end, String query})? findEmojiTrigger(
+  String text,
+  TextSelection selection, {
+  int minQuery = 2,
+}) {
+  if (!selection.isValid || !selection.isCollapsed) return null;
+  final caret = selection.baseOffset;
+  if (caret > text.length) return null;
+  for (var i = caret - 1; i >= 0; i--) {
+    final code = text.codeUnitAt(i);
+    if (code == 0x3A /* : */ ) {
+      if (i > 0) {
+        final before = text.codeUnitAt(i - 1);
+        if (before != 0x20 && before != 0x09 && before != 0x0A) return null;
+      }
+      if (caret - i - 1 < minQuery) return null;
+      return (
+        start: i,
+        end: caret,
+        query: text.substring(i + 1, caret).toLowerCase(),
+      );
+    }
+    final isShortcodeChar =
+        (code >= 0x30 && code <= 0x39) ||
+        (code >= 0x41 && code <= 0x5A) ||
+        (code >= 0x61 && code <= 0x7A) ||
+        code == 0x5F ||
+        code == 0x2B ||
+        code == 0x2D;
+    if (!isShortcodeChar) return null;
+  }
+  return null;
+}

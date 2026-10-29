@@ -2,7 +2,11 @@ part of 'message_pane.dart';
 
 /// Slash commands: the /name popup, the picked command's option form, and running it. Split from [_ComposerState] for size.
 mixin _ComposerCommands
-    on ConsumerState<_Composer>, _ComposerAttachments, _ComposerMentions {
+    on
+        ConsumerState<_Composer>,
+        _ComposerAttachments,
+        _ComposerMentions,
+        _ComposerEmojiSuggest {
   void _saveDraft(String channelId, String text);
 
   /// The `/name` being typed, or null when the command popup is hidden.
@@ -26,6 +30,7 @@ mixin _ComposerCommands
     setState(() {
       _slashQuery = null;
       _mention = null;
+      _emojiSuggest = null;
       _command = command;
     });
   }

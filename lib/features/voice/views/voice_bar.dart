@@ -12,7 +12,6 @@ import 'package:bonfire/features/voice/services/voice_session.dart';
 import 'package:bonfire/features/voice/utils/audio_output_support.dart';
 import 'package:bonfire/features/voice/views/mic_level_meter.dart';
 import 'package:bonfire/features/voice/views/screen_share_picker.dart';
-import 'package:bonfire/features/voice/views/voice_settings_screen.dart';
 import 'package:bonfire/theme/theme.dart';
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
@@ -98,7 +97,18 @@ class _VoiceBarState extends ConsumerState<VoiceBar> {
       );
     }
 
-    final (statusText, statusColor) = _status(voice, colors, channelName);
+    final spaceName = spaceId == null
+        ? null
+        : ref.watch(
+            spacesControllerProvider.select(
+              (s) => s?.firstWhereOrNull((sp) => sp.id == spaceId)?.name,
+            ),
+          );
+    final (statusText, statusColor) = _status(voice, colors);
+    final where = [
+      if (channelName != null) channelName,
+      if (spaceName != null) spaceName,
+    ].join(' / ');
     // Only read while the mic is live, like the level meter below.
     final pushToTalk =
         !voice.selfMute &&
@@ -128,13 +138,29 @@ class _VoiceBarState extends ConsumerState<VoiceBar> {
                     const SizedBox(width: 8),
                     Expanded(
                       child: Tooltip(
-                        message: statusText,
-                        child: Text(
-                          statusText,
-                          overflow: TextOverflow.ellipsis,
-                          style: Theme.of(
-                            context,
-                          ).textTheme.labelMedium!.copyWith(color: statusColor),
+                        message: where.isEmpty
+                            ? statusText
+                            : '$statusText — $where',
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              statusText,
+                              overflow: TextOverflow.ellipsis,
+                              style: Theme.of(context).textTheme.labelMedium!
+                                  .copyWith(
+                                    color: statusColor,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                            ),
+                            if (where.isNotEmpty)
+                              Text(
+                                where,
+                                overflow: TextOverflow.ellipsis,
+                                style: Theme.of(context).textTheme.labelSmall!
+                                    .copyWith(color: colors.gray),
+                              ),
+                          ],
                         ),
                       ),
                     ),
@@ -153,19 +179,6 @@ class _VoiceBarState extends ConsumerState<VoiceBar> {
               ),
             Row(
               children: [
-                _VoiceButton(
-                  key: const Key('voice-bar-mute'),
-                  icon: voice.selfMute || !voice.canSpeak
-                      ? Icons.mic_off
-                      : Icons.mic,
-                  tooltip:
-                      voice.speakBlockedReason ??
-                      (voice.selfMute ? 'Unmute' : 'Mute'),
-                  active: voice.selfMute || !voice.canSpeak,
-                  activeColor: colors.red,
-                  onPressed: () =>
-                      ref.read(voiceControllerProvider.notifier).toggleMute(),
-                ),
                 if (pushToTalk)
                   _PushToTalkButton(
                     onChanged: (pressed) => ref
@@ -173,18 +186,7 @@ class _VoiceBarState extends ConsumerState<VoiceBar> {
                         .setPushToTalkPressed(pressed),
                   ),
                 _VoiceButton(
-                  icon: voice.selfDeaf || voice.serverDeaf
-                      ? Icons.headset_off
-                      : Icons.headset,
-                  tooltip: voice.serverDeaf
-                      ? 'A moderator has deafened you.'
-                      : (voice.selfDeaf ? 'Undeafen' : 'Deafen'),
-                  active: voice.selfDeaf || voice.serverDeaf,
-                  activeColor: colors.red,
-                  onPressed: () =>
-                      ref.read(voiceControllerProvider.notifier).toggleDeafen(),
-                ),
-                _VoiceButton(
+                  key: const Key('voice-bar-camera'),
                   icon: voice.selfVideo ? Icons.videocam_off : Icons.videocam,
                   tooltip: voice.selfVideo ? 'Stop camera' : 'Camera',
                   active: voice.selfVideo,
@@ -216,13 +218,7 @@ class _VoiceBarState extends ConsumerState<VoiceBar> {
                   ),
                 const Spacer(),
                 _VoiceButton(
-                  icon: Icons.settings,
-                  tooltip: 'Voice settings',
-                  active: false,
-                  activeColor: colors.primary,
-                  onPressed: () => showVoiceSettings(context),
-                ),
-                _VoiceButton(
+                  key: const Key('voice-bar-disconnect'),
                   icon: Icons.call_end,
                   tooltip: 'Disconnect',
                   active: false,
@@ -254,20 +250,16 @@ class _VoiceBarState extends ConsumerState<VoiceBar> {
     );
   }
 
-  (String, Color) _status(
-    VoiceConnection voice,
-    BonfireThemeExtension colors,
-    String? channelName,
-  ) {
+  (String, Color) _status(VoiceConnection voice, BonfireThemeExtension colors) {
     if (voice.error != null) return (voice.error!, colors.red);
     // Tell the user *why* they've dimmed out in the participant list — an AFK
     // badge nobody explains is just a mystery.
     if (voice.isAfk && voice.sessionState == VoiceSessionState.connected) {
-      return ('Away — ${channelName ?? 'Voice'}', colors.yellow);
+      return ('Away', colors.yellow);
     }
     switch (voice.sessionState) {
       case VoiceSessionState.connected:
-        return (channelName ?? 'Voice connected', colors.green);
+        return ('Voice Connected', colors.green);
       case VoiceSessionState.connecting:
         return ('Connecting…', colors.yellow);
       case VoiceSessionState.reconnecting:
@@ -275,7 +267,7 @@ class _VoiceBarState extends ConsumerState<VoiceBar> {
       case VoiceSessionState.failed:
         return ('Connection failed', colors.red);
       case VoiceSessionState.disconnected:
-        return (channelName ?? 'Voice', colors.gray);
+        return ('Voice', colors.gray);
     }
   }
 }

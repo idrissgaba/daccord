@@ -6,6 +6,7 @@ import 'package:bonfire/features/user/controllers/accord_users.dart';
 import 'package:bonfire/features/messaging/controllers/accord_messages.dart';
 import 'package:bonfire/features/messaging/utils/message_visibility.dart';
 import 'package:bonfire/features/messaging/utils/message_display.dart';
+import 'package:bonfire/features/spaces/utils/message_time.dart';
 import 'package:bonfire/features/spaces/views/accord_reports.dart';
 import 'package:bonfire/shared/components/async_state_views.dart';
 import 'package:bonfire/shared/utils/rest_result_ext.dart';
@@ -22,6 +23,7 @@ Future<void> showPinnedMessages(
   required bool canManage,
   ValueChanged<AccordUser>? onUserTap,
   void Function(AccordUser user, Offset? globalPosition)? onUserContextMenu,
+  ValueChanged<AccordMessage>? onJump,
 }) {
   return showDialog<void>(
     context: context,
@@ -31,6 +33,7 @@ Future<void> showPinnedMessages(
       canManage: canManage,
       onUserTap: onUserTap,
       onUserContextMenu: onUserContextMenu,
+      onJump: onJump,
     ),
   );
 }
@@ -42,6 +45,7 @@ class _PinnedMessagesDialog extends ConsumerStatefulWidget {
     required this.canManage,
     required this.onUserTap,
     required this.onUserContextMenu,
+    this.onJump,
   });
 
   final String channelId;
@@ -50,6 +54,9 @@ class _PinnedMessagesDialog extends ConsumerStatefulWidget {
   final ValueChanged<AccordUser>? onUserTap;
   final void Function(AccordUser user, Offset? globalPosition)?
   onUserContextMenu;
+
+  /// Scrolls the pane to the pinned message (closing the dialog first).
+  final ValueChanged<AccordMessage>? onJump;
 
   @override
   ConsumerState<_PinnedMessagesDialog> createState() =>
@@ -113,6 +120,15 @@ class _PinnedMessagesDialogState extends ConsumerState<_PinnedMessagesDialog> {
     required String? currentUserId,
   }) {
     final actions = <Widget>[
+      if (widget.onJump case final onJump?)
+        IconButton(
+          tooltip: 'Jump to message',
+          onPressed: () {
+            Navigator.of(context).pop();
+            onJump(message);
+          },
+          icon: const Icon(Icons.north_east, size: 18),
+        ),
       if (message.authorId != currentUserId)
         IconButton(
           tooltip: 'Report',
@@ -262,12 +278,31 @@ class _PinnedMessagesDialogState extends ConsumerState<_PinnedMessagesDialog> {
                         // (see #198). The unpin handler already captures its
                         // message rather than reading it back from the row.
                         key: ValueKey(message.id),
-                        title: authorName,
+                        title: Row(
+                          children: [
+                            Flexible(child: authorName),
+                            const SizedBox(width: 8),
+                            Flexible(
+                              child: Text(
+                                messageTimestampFromIso(message.timestamp),
+                                overflow: TextOverflow.ellipsis,
+                                style: Theme.of(context).textTheme.labelSmall!
+                                    .copyWith(color: colors.gray),
+                              ),
+                            ),
+                          ],
+                        ),
                         subtitle: Text(
                           content.isEmpty ? '(attachment)' : content,
                           maxLines: 3,
                           overflow: TextOverflow.ellipsis,
                         ),
+                        onTap: widget.onJump == null
+                            ? null
+                            : () {
+                                Navigator.of(context).pop();
+                                widget.onJump!(message);
+                              },
                         trailing: _rowActions(
                           message,
                           name,

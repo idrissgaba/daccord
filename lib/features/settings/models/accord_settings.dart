@@ -130,6 +130,7 @@ class AccordSettings {
     this.showEmbeds = true,
     this.closeToTray = true,
     this.convertEmoticons = true,
+    this.emojiSkinTone = 0,
     this.streamerMode = false,
     this.reducedMotion = false,
     this.uiScale = 1.0,
@@ -356,6 +357,10 @@ class AccordSettings {
   /// Discord; see `applyEmoticons` in the messaging feature.
   final bool convertEmoticons;
 
+  /// Default skin tone for the emoji picker and `:shortcode:` suggestions:
+  /// 0 = none (yellow), 1–5 = light → dark.
+  final int emojiSkinTone;
+
   /// Streamer mode: hides private details (notes, invite codes) and keeps
   /// notifications quiet while sharing the screen.
   final bool streamerMode;
@@ -452,6 +457,7 @@ class AccordSettings {
     bool? showEmbeds,
     bool? closeToTray,
     bool? convertEmoticons,
+    int? emojiSkinTone,
     bool? streamerMode,
     bool? reducedMotion,
     double? uiScale,
@@ -524,6 +530,7 @@ class AccordSettings {
       showEmbeds: showEmbeds ?? this.showEmbeds,
       closeToTray: closeToTray ?? this.closeToTray,
       convertEmoticons: convertEmoticons ?? this.convertEmoticons,
+      emojiSkinTone: emojiSkinTone ?? this.emojiSkinTone,
       streamerMode: streamerMode ?? this.streamerMode,
       reducedMotion: reducedMotion ?? this.reducedMotion,
       uiScale: uiScale ?? this.uiScale,
@@ -742,6 +749,7 @@ class AccordSettings {
     'showEmbeds': showEmbeds,
     'closeToTray': closeToTray,
     'convertEmoticons': convertEmoticons,
+    'emojiSkinTone': emojiSkinTone,
     'streamerMode': streamerMode,
     'reducedMotion': reducedMotion,
     'uiScale': uiScale,
@@ -864,6 +872,10 @@ class AccordSettings {
       showEmbeds: json['showEmbeds'] as bool? ?? true,
       closeToTray: json['closeToTray'] as bool? ?? true,
       convertEmoticons: json['convertEmoticons'] as bool? ?? true,
+      emojiSkinTone: ((json['emojiSkinTone'] as num?)?.toInt() ?? 0).clamp(
+        0,
+        5,
+      ),
       streamerMode: json['streamerMode'] as bool? ?? false,
       reducedMotion: json['reducedMotion'] as bool? ?? false,
       uiScale:
@@ -881,8 +893,7 @@ class AccordSettings {
           if (k is Map) CustomKeybind.fromJson(k),
       ],
       disabledDefaultKeybinds: [
-        for (final s
-            in (json['disabledDefaultKeybinds'] as List? ?? const []))
+        for (final s in (json['disabledDefaultKeybinds'] as List? ?? const []))
           s.toString(),
       ],
       mutedSpaces: [

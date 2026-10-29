@@ -4,7 +4,11 @@ import 'package:bonfire/shared/utils/client_access.dart';
 import 'package:bonfire/shared/utils/responsive_dialog.dart';
 
 import 'package:accordkit/accordkit.dart';
+import 'package:bonfire/features/channels/controllers/accord_channels.dart';
 import 'package:bonfire/features/messaging/utils/message_display.dart';
+import 'package:bonfire/features/spaces/utils/message_time.dart';
+import 'package:bonfire/features/spaces/utils/search_query.dart';
+import 'package:collection/collection.dart';
 import 'package:bonfire/features/member/controllers/accord_members.dart';
 import 'package:bonfire/features/member/utils/member_display.dart';
 import 'package:bonfire/features/user/controllers/accord_users.dart';
@@ -76,12 +80,54 @@ class _SearchDialogState extends ConsumerState<_SearchDialog>
     _debounce = Timer(const Duration(milliseconds: 350), () => _run(trimmed));
   }
 
+  /// Turns the typed filters into the search endpoint's parameters: `from:`
+  /// resolves against the member cache (username or display name), `in:`
+  /// against the channel list; dates and `pinned:` pass straight through.
+  Map<String, dynamic> _filterParams(ParsedSearchQuery parsed) {
+    final params = <String, dynamic>{};
+    final serverKey = ref.readActiveServerKey() ?? '';
+    if (parsed.from case final from?) {
+      final needle = from.toLowerCase();
+      final members = ref.read(
+        accordMembersControllerProvider(serverKey, widget.spaceId),
+      );
+      final member = members?.values.firstWhereOrNull(
+        (m) =>
+            (m.user?.username.toLowerCase() == needle) ||
+            accordMemberName(m).toLowerCase() == needle,
+      );
+      // An unknown name must match nothing, not everything.
+      params['author_id'] = member?.user?.id ?? member?.userId ?? '-';
+    }
+    if (parsed.inChannel case final name?) {
+      final channels = ref.read(
+        accordChannelsControllerProvider(serverKey, widget.spaceId),
+      );
+      final channel = channels?.firstWhereOrNull(
+        (c) => (c.name ?? '').toLowerCase() == name.toLowerCase(),
+      );
+      params['channel_id'] = channel?.id ?? '-';
+    }
+    if (parsed.before case final before?) params['before'] = before;
+    if (parsed.after case final after?) params['after'] = after;
+    if (parsed.pinned case final pinned?) params['pinned'] = '$pinned';
+    return params;
+  }
+
   Future<void> _run(String query) async {
     final client = _client;
     if (client == null) return;
+    final parsed = parseSearchQuery(query);
     final results = await Future.wait([
-      client.messages.search(widget.spaceId, query),
-      client.members.search(widget.spaceId, query),
+      client.messages.search(
+        widget.spaceId,
+        parsed.text,
+        query: _filterParams(parsed),
+      ),
+      client.members.search(
+        widget.spaceId,
+        parsed.text.isEmpty ? query : parsed.text,
+      ),
     ]);
     if (!mounted) return;
     final messageResult = results[0];
@@ -122,7 +168,8 @@ class _SearchDialogState extends ConsumerState<_SearchDialog>
                       decoration: InputDecoration(
                         isDense: true,
                         prefixIcon: const Icon(Icons.search, size: 18),
-                        hintText: 'Search messages and members',
+                        hintText:
+                            'Search — from:@user in:#channel before:2026-01-31 pinned:true',
                         border: const OutlineInputBorder(),
                       ),
                     ),
@@ -173,6 +220,9 @@ class _SearchDialogState extends ConsumerState<_SearchDialog>
     final members = ref.watch(
       accordMembersControllerProvider(serverKey, widget.spaceId),
     );
+    final channels = ref.watch(
+      accordChannelsControllerProvider(serverKey, widget.spaceId),
+    );
     final users = ref.watch(accordUsersControllerProvider(serverKey));
     final ensureUser = ref
         .read(accordUsersControllerProvider(serverKey).notifier)
@@ -192,8 +242,29 @@ class _SearchDialogState extends ConsumerState<_SearchDialog>
         final content = plainMessagePreview(
           accordMessageText(message, authorName: name),
         );
+        final channelName = channels
+            ?.firstWhereOrNull((c) => c.id == message.channelId)
+            ?.name;
         return ListTile(
-          title: Text(name, style: theme.textTheme.titleSmall),
+          title: Row(
+            children: [
+              Flexible(child: Text(name, style: theme.textTheme.titleSmall)),
+              const SizedBox(width: 8),
+              Text(
+                messageTimestampFromIso(message.timestamp),
+                style: theme.textTheme.labelSmall!.copyWith(color: colors.gray),
+              ),
+              if (channelName != null) ...[
+                const Spacer(),
+                Text(
+                  '#$channelName',
+                  style: theme.textTheme.labelSmall!.copyWith(
+                    color: colors.gray,
+                  ),
+                ),
+              ],
+            ],
+          ),
           subtitle: Text(
             content.isEmpty ? '(attachment)' : content,
             maxLines: 2,

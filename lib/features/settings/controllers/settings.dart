@@ -310,6 +310,9 @@ class SettingsController extends _$SettingsController {
   void setConvertEmoticons(bool enabled) =>
       _update(state.copyWith(convertEmoticons: enabled));
 
+  void setEmojiSkinTone(int tone) =>
+      _update(state.copyWith(emojiSkinTone: tone.clamp(0, 5)));
+
   void setReducedMotion(bool enabled) =>
       _update(state.copyWith(reducedMotion: enabled));
 

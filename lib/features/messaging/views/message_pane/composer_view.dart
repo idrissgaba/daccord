@@ -5,6 +5,7 @@ mixin _ComposerView
     on
         ConsumerState<_Composer>,
         _ComposerMentions,
+        _ComposerEmojiSuggest,
         _ComposerCommands,
         _ComposerAttachments {
   SendCooldown? get _cooldown;
@@ -195,6 +196,13 @@ mixin _ComposerView
                   allowBroadcast: widget.canMentionEveryone,
                   onPick: _pickMention,
                   highlighted: _mentionIndex,
+                ),
+              if (_emojiSuggest != null && _mention == null)
+                _EmojiSuggestPopup(
+                  entries: _emojiSuggestions(),
+                  query: _emojiSuggest!.query,
+                  onPick: _pickEmojiSuggestion,
+                  highlighted: _emojiIndex,
                 ),
               if (_slashQuery != null &&
                   _command == null &&

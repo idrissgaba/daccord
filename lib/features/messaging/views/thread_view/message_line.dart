@@ -263,8 +263,7 @@ class _MessageLineState extends ConsumerState<_MessageLine> {
                       edited: message.editedAt != null,
                     ),
                     const SizedBox(height: 2),
-                    if (message.type == 'member_join' ||
-                        message.content.isNotEmpty)
+                    if (isSystemMessage(message) || message.content.isNotEmpty)
                       MessageBody(
                         message: message,
                         authorName: name,

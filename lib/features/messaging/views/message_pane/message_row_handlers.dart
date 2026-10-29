@@ -3,6 +3,7 @@ part of 'message_pane.dart';
 /// What the row's hover bar and actions menu do: reactions, pins, threads, polls, forward, report, delete, block. Split from [_MessageRowState] for size.
 mixin _MessageRowHandlers on ConsumerState<_MessageRow>, _MessageRowEditing {
   String get _authorName;
+  String get _fullTime;
   AccordMessagesController? get _channelMessages;
 
   /// Whether the row's "⋯" actions menu is open. Only meaningful when [narrow],
@@ -75,16 +76,14 @@ mixin _MessageRowHandlers on ConsumerState<_MessageRow>, _MessageRowEditing {
   Future<void> _openSuperReactionPicker(String messageId) async {
     final pick = await showAccordEmojiPicker(context, spaceId: widget.spaceId);
     if (pick == null || !mounted) return;
-    final token = pick.id == null
-        ? resolveEmojiGlyph(pick.name)
-        : '${pick.name}:${pick.id}';
+    final token = pick.id == null ? pick.char : '${pick.name}:${pick.id}';
     await _toggleSuperReaction(messageId, token);
   }
 
   Future<void> _openReactionPicker(String messageId) async {
     final pick = await showAccordEmojiPicker(context, spaceId: widget.spaceId);
     if (pick == null || !mounted) return;
-    await _toggleReaction(messageId, pick.name, emojiId: pick.id);
+    await _toggleReaction(messageId, pick.reactionName, emojiId: pick.id);
   }
 
   Future<void> _togglePin(String messageId, {required bool pinned}) async {
@@ -120,14 +119,12 @@ mixin _MessageRowHandlers on ConsumerState<_MessageRow>, _MessageRowEditing {
   Future<void> _delete(String messageId) async {
     final client = _client;
     if (client == null || _busy) return;
-    final confirmed = await showConfirmDialog(
-      context,
-      title: 'Delete message',
-      message: 'This message will be permanently deleted.',
-      confirmLabel: 'Delete',
-      danger: true,
-    );
-    if (confirmed != true || !mounted) return;
+    // Shift held while choosing Delete skips the confirmation, as in other
+    // chat apps.
+    final confirmed =
+        HardwareKeyboard.instance.isShiftPressed ||
+        await _confirmDelete(_message, _authorName, _fullTime) == true;
+    if (!confirmed || !mounted) return;
     setState(() => _busy = true);
     final ok = await ref
         .read(
@@ -142,6 +139,100 @@ mixin _MessageRowHandlers on ConsumerState<_MessageRow>, _MessageRowEditing {
     // than leaving the message sitting there as if nothing had been asked.
     setState(() => _busy = false);
     if (!ok) showInfoSnack(context, 'Failed to delete message');
+  }
+
+  /// "Delete Message?" with a preview of what goes, and the Shift tip.
+  Future<bool?> _confirmDelete(
+    AccordMessage message,
+    String authorName,
+    String when,
+  ) {
+    final colors = BonfireThemeExtension.of(context);
+    final preview = plainMessagePreview(
+      accordMessageText(message, authorName: authorName),
+    );
+    return showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Message'),
+        content: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 440),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Text('Are you sure you want to delete this message?'),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: colors.background,
+                  borderRadius: BorderRadius.circular(6),
+                  boxShadow: const [
+                    BoxShadow(color: Colors.black26, blurRadius: 6),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            authorName,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(ctx).textTheme.titleSmall,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Flexible(
+                          child: Text(
+                            when,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(ctx).textTheme.labelSmall!.copyWith(
+                              color: colors.gray,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      preview.isEmpty
+                          ? (message.attachments.isNotEmpty
+                                ? '(attachment)'
+                                : '(no text)')
+                          : preview,
+                      maxLines: 4,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Protip: hold Shift while clicking Delete to skip this '
+                'confirmation.',
+                style: Theme.of(
+                  ctx,
+                ).textTheme.labelSmall!.copyWith(color: colors.gray),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: FilledButton.styleFrom(backgroundColor: colors.red),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _blockFiles(AccordMessage message) async {

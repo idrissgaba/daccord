@@ -52,6 +52,7 @@ class _ComposerState extends ConsumerState<_Composer>
     with
         _ComposerAttachments,
         _ComposerMentions,
+        _ComposerEmojiSuggest,
         _ComposerCommands,
         _ComposerView {
   @override
@@ -119,6 +120,19 @@ class _ComposerState extends ConsumerState<_Composer>
     if (_mention != null && widget.spaceId != null) {
       final result = _onMentionKey(event, mods);
       if (result != null) return result;
+    }
+    if (_emojiSuggest != null) {
+      final result = _onEmojiSuggestKey(event, mods);
+      if (result != null) return result;
+    }
+    // Ctrl+E opens the emoji picker, as in other chat apps.
+    if (event is KeyDownEvent &&
+        key == LogicalKeyboardKey.keyE &&
+        (mods.isControlPressed || mods.isMetaPressed) &&
+        !mods.isShiftPressed &&
+        !mods.isAltPressed) {
+      if (!_sending) _pickEmoji();
+      return KeyEventResult.handled;
     }
     if (event is KeyDownEvent && key == LogicalKeyboardKey.escape) {
       if (widget.replyingTo != null && widget.onCancelReply != null) {
@@ -407,6 +421,7 @@ class _ComposerState extends ConsumerState<_Composer>
   @override
   void _onChanged(String value) {
     _updateMentionState(value);
+    _updateEmojiSuggestState(value);
     _updateSlashState(value);
     if (value.trim().isEmpty) return;
     final now = DateTime.now();
@@ -464,6 +479,7 @@ class _ComposerState extends ConsumerState<_Composer>
       _error = null;
       _attachments.clear();
       _mention = null;
+      _emojiSuggest = null;
     });
 
     SendFailure? error;

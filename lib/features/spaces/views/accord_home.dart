@@ -20,12 +20,12 @@ import 'package:bonfire/features/channels/utils/channel_sort.dart';
 import 'package:bonfire/features/developer/services/mcp_home_bridge.dart';
 import 'package:bonfire/features/member/controllers/accord_members.dart';
 import 'package:bonfire/features/member/views/accord_member_list.dart';
-import 'package:bonfire/features/member/views/accord_member_popout.dart';
 import 'package:bonfire/features/member/views/remote_origin_badge.dart';
 import 'package:bonfire/features/onboarding/models/onboarding_step.dart';
 import 'package:bonfire/features/onboarding/views/onboarding_anchors.dart';
 import 'package:bonfire/features/messaging/views/thread_view.dart';
 import 'package:bonfire/features/messaging/controllers/accord_messages.dart';
+import 'package:bonfire/features/messaging/controllers/message_jump.dart';
 import 'package:bonfire/features/messaging/views/message_pane/message_pane.dart';
 import 'package:bonfire/features/member/utils/permissions.dart';
 import 'package:bonfire/features/server/controllers/connections.dart';
@@ -71,6 +71,7 @@ import 'package:bonfire/shared/components/server_unreachable.dart';
 import 'package:bonfire/shared/app_info.dart';
 import 'package:bonfire/shared/models/server_entity_key.dart';
 import 'package:bonfire/shared/utils/platform.dart';
+import 'package:bonfire/shared/utils/pointer_anchor.dart';
 import 'package:bonfire/shared/utils/rest_result_ext.dart';
 import 'package:bonfire/shared/utils/text_prompt_dialog.dart';
 import 'package:bonfire/features/voice/controllers/voice.dart';
@@ -87,6 +88,7 @@ import 'package:bonfire/features/voice/views/voice_view.dart'
     show voiceViewExpanded;
 import 'package:bonfire/theme/theme.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart' show SchedulerPhase;
 import 'package:flutter/services.dart';
@@ -168,7 +170,7 @@ class _AccordHomeScreenState extends ConsumerState<AccordHomeScreen>
     _pendingMessageId = widget.initialMessageId;
     mcpHomeBridge.registerAll(_mcpNavHandlers());
     HardwareKeyboard.instance.addHandler(_onGlobalKey);
-    trackMemberPopoutAnchor();
+    trackPointerAnchor();
     // Passive, throttled startup update check (gated on the setting).
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
@@ -241,6 +243,21 @@ class _AccordHomeScreenState extends ConsumerState<AccordHomeScreen>
     ref
         .read(settingsControllerProvider.notifier)
         .setLastSelection(tab.serverKey, tab.spaceId, tab.channelId);
+    _syncWebUrl(tab.spaceId, tab.channelId);
+  }
+
+  /// On the web, mirrors the open channel into the address bar
+  /// (`/spaces?space=…&channel=…`) so the page can be refreshed, shared or
+  /// walked back through with the browser's Back button — which lands on the
+  /// `/spaces` route again with the previous parameters.
+  void _syncWebUrl(String spaceId, String channelId) {
+    if (!kIsWeb) return;
+    SystemNavigator.routeInformationUpdated(
+      uri: Uri(
+        path: '/spaces',
+        queryParameters: {'space': spaceId, 'channel': channelId},
+      ),
+    );
   }
 
   /// Opens (or switches to) a tab for [channelId] in [spaceId] on the active
@@ -287,6 +304,7 @@ class _AccordHomeScreenState extends ConsumerState<AccordHomeScreen>
     ref
         .read(settingsControllerProvider.notifier)
         .setLastSelection(activeKey, spaceId, channelId);
+    _syncWebUrl(spaceId, channelId);
     return true;
   }
 
@@ -317,6 +335,12 @@ class _AccordHomeScreenState extends ConsumerState<AccordHomeScreen>
       final cached = ref
           .read(accordMessagesControllerProvider(serverKey, channel.id))
           ?.firstWhereOrNull((message) => message.id == messageId);
+      // A message already in the open history scrolls into view in place; one
+      // older than the loaded pages is fetched and opened in the thread panel.
+      if (cached != null) {
+        ref.read(messageJumpProvider.notifier).request(channel.id, messageId);
+        return;
+      }
       var root = cached;
       if (root == null) {
         final client = ref.accordClient;

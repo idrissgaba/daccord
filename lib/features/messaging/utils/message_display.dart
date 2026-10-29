@@ -8,8 +8,17 @@ String accordMessageText(AccordMessage message, {required String authorName}) {
   if (message.type == 'member_join') {
     return '$authorName joined the server.';
   }
+  if (message.type == 'pin') {
+    return '$authorName pinned a message to this channel.';
+  }
   return message.content;
 }
+
+/// Whether [message] is one the server wrote about an action (a member
+/// joining, a pin) rather than something a person typed. Rendered as plain
+/// text with the author's current name, never as Markdown.
+bool isSystemMessage(AccordMessage message) =>
+    message.type == 'member_join' || message.type == 'pin';
 
 /// [content] as one plain line for previews (reply bar, pinned list, search
 /// results): markdown markers dropped, `:shortcode:` turned into its emoji,
@@ -17,9 +26,15 @@ String accordMessageText(AccordMessage message, {required String authorName}) {
 String plainMessagePreview(String content) {
   var text = content
       // Fenced code: keep the code, drop the fences and language tag.
-      .replaceAllMapped(RegExp(r'```[a-zA-Z0-9_+-]*\n?([\s\S]*?)```'), (m) => m[1]!)
+      .replaceAllMapped(
+        RegExp(r'```[a-zA-Z0-9_+-]*\n?([\s\S]*?)```'),
+        (m) => m[1]!,
+      )
       // Masked links [label](url) → label.
-      .replaceAllMapped(RegExp(r'\[([^\]]+)\]\((https?://[^)]+)\)'), (m) => m[1]!)
+      .replaceAllMapped(
+        RegExp(r'\[([^\]]+)\]\((https?://[^)]+)\)'),
+        (m) => m[1]!,
+      )
       // Line prefixes: headings, subtext, quotes, list bullets.
       .replaceAll(RegExp(r'^(#{1,3}|-#|>{1,3})\s+', multiLine: true), '')
       // Spoilers stay hidden in previews too.
