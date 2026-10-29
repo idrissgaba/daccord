@@ -141,6 +141,38 @@ void main() {
       );
     });
 
+    test('a removed built-in no longer fires, a replacement does', () {
+      expect(
+        matchHomeShortcut(
+          pressed: LogicalKeyboardKey.keyK,
+          control: true,
+          shift: false,
+          alt: false,
+          disabledDefaults: [HomeShortcut.quickSwitcher.name],
+        ),
+        isNull,
+      );
+      final custom = [
+        CustomKeybind(
+          action: HomeShortcut.quickSwitcher.name,
+          keyId: LogicalKeyboardKey.keyP.keyId,
+          keyLabel: 'P',
+          control: true,
+        ),
+      ];
+      expect(
+        matchHomeShortcut(
+          pressed: LogicalKeyboardKey.keyP,
+          control: true,
+          shift: false,
+          alt: false,
+          custom: custom,
+          disabledDefaults: [HomeShortcut.quickSwitcher.name],
+        ),
+        HomeShortcut.quickSwitcher,
+      );
+    });
+
     test('an unrecorded or unknown keybind is ignored', () {
       final custom = [
         CustomKeybind(action: HomeShortcut.toggleMute.name),

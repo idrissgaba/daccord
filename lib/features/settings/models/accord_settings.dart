@@ -136,6 +136,7 @@ class AccordSettings {
     this.spaceOrder = const <String>[],
     this.spaceFolders = const <SpaceFolder>[],
     this.keybinds = const <CustomKeybind>[],
+    this.disabledDefaultKeybinds = const <String>[],
     this.mutedSpaces = const <String>[],
     this.hiddenSpaces = const <String>[],
     this.channelListWidth = defaultChannelListWidth,
@@ -379,6 +380,10 @@ class AccordSettings {
   /// built-in chords of `homeShortcutBindings` when the two clash.
   final List<CustomKeybind> keybinds;
 
+  /// `HomeShortcut.name`s whose built-in chord the user removed or replaced
+  /// on the Keybinds page.
+  final List<String> disabledDefaultKeybinds;
+
   /// Space IDs the user has muted (per-space notification suppression). Stored
   /// client-side: accordkit exposes no server-synced notification settings.
   final List<String> mutedSpaces;
@@ -453,6 +458,7 @@ class AccordSettings {
     List<String>? spaceOrder,
     List<SpaceFolder>? spaceFolders,
     List<CustomKeybind>? keybinds,
+    List<String>? disabledDefaultKeybinds,
     List<String>? mutedSpaces,
     List<String>? hiddenSpaces,
     double? channelListWidth,
@@ -524,6 +530,8 @@ class AccordSettings {
       spaceOrder: spaceOrder ?? this.spaceOrder,
       spaceFolders: spaceFolders ?? this.spaceFolders,
       keybinds: keybinds ?? this.keybinds,
+      disabledDefaultKeybinds:
+          disabledDefaultKeybinds ?? this.disabledDefaultKeybinds,
       mutedSpaces: mutedSpaces ?? this.mutedSpaces,
       hiddenSpaces: hiddenSpaces ?? this.hiddenSpaces,
       channelListWidth: channelListWidth ?? this.channelListWidth,
@@ -740,6 +748,7 @@ class AccordSettings {
     'spaceOrder': spaceOrder,
     'spaceFolders': [for (final f in spaceFolders) f.toJson()],
     'keybinds': [for (final k in keybinds) k.toJson()],
+    'disabledDefaultKeybinds': disabledDefaultKeybinds,
     'mutedSpaces': mutedSpaces,
     'hiddenSpaces': hiddenSpaces,
     'channelListWidth': channelListWidth,
@@ -870,6 +879,11 @@ class AccordSettings {
       keybinds: [
         for (final k in (json['keybinds'] as List? ?? const []))
           if (k is Map) CustomKeybind.fromJson(k),
+      ],
+      disabledDefaultKeybinds: [
+        for (final s
+            in (json['disabledDefaultKeybinds'] as List? ?? const []))
+          s.toString(),
       ],
       mutedSpaces: [
         for (final s in (json['mutedSpaces'] as List? ?? const []))

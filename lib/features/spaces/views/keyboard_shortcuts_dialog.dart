@@ -2,6 +2,7 @@ import 'package:bonfire/features/settings/controllers/settings.dart';
 import 'package:bonfire/features/spaces/utils/home_shortcuts.dart';
 import 'package:bonfire/shared/components/dialog_title_bar.dart';
 import 'package:bonfire/theme/theme.dart';
+import 'package:collection/collection.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -24,14 +25,21 @@ class KeyboardShortcutsDialog extends ConsumerWidget {
     final colors = BonfireThemeExtension.of(context);
     final theme = Theme.of(context);
     final mac = !kIsWeb && defaultTargetPlatform == TargetPlatform.macOS;
-    final custom = ref.watch(
-      settingsControllerProvider.select((s) => s.keybinds),
+    final settings = ref.watch(settingsControllerProvider);
+    final effective = effectiveBindings(
+      settings.keybinds,
+      disabledDefaults: settings.disabledDefaultKeybinds,
     );
-    final effective = effectiveBindings(custom);
-    // One row per action: the first binding in force for it.
+    // One row per action: the first binding in force for it, or none when
+    // the user removed it.
     final rows = [
       for (final shortcut in HomeShortcut.values)
-        effective.firstWhere((b) => b.shortcut == shortcut),
+        (
+          homeShortcutLabel(shortcut),
+          effective
+              .firstWhereOrNull((b) => b.shortcut == shortcut)
+              ?.describe(mac: mac),
+        ),
     ];
     Widget row(String chord, String label) => Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
@@ -77,8 +85,8 @@ class KeyboardShortcutsDialog extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     heading('Navigation and voice'),
-                    for (final binding in rows)
-                      row(binding.describe(mac: mac), binding.label),
+                    for (final (label, chord) in rows)
+                      row(chord ?? 'Not bound', label),
                     heading('Writing'),
                     for (final (chord, label) in composerShortcutRows)
                       row(chord, label),
