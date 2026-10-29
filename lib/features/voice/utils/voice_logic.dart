@@ -54,9 +54,12 @@ class VoiceAudioOptions {
   final bool autoGainControl;
   final bool highQuality;
 
-  /// Bitrate used when [highQuality] is on (128 kbps, Opus stereo preset).
-  static const AudioEncoding highQualityEncoding =
-      AudioEncoding.presetMusicHighQualityStereo;
+  /// Bitrate used when [highQuality] is on: 128 kbps Opus, mono. A
+  /// microphone is one channel; the stereo preset spent half the bits on a
+  /// duplicate.
+  static const AudioEncoding highQualityEncoding = AudioEncoding(
+    maxBitrate: 128000,
+  );
 
   /// Capture options for the microphone [deviceId] (null = system default).
   AudioCaptureOptions captureOptions(String? deviceId) => AudioCaptureOptions(
@@ -69,18 +72,23 @@ class VoiceAudioOptions {
     voiceIsolation: noiseSuppression,
   );
 
-  /// Bitrate for ordinary voice: 64 kbps Opus, what other voice chat apps
-  /// default to. LiveKit's own default is its 24–32 kbps speech preset, which
-  /// sounds noticeably muffled next to them.
-  static const AudioEncoding voiceEncoding = AudioEncoding(maxBitrate: 64000);
+  /// Bitrate for ordinary voice: 96 kbps Opus (full band), the "good"
+  /// setting of other voice chat apps rather than their 64 kbps floor.
+  /// LiveKit's own default is its 24–32 kbps speech preset, which sounds
+  /// noticeably muffled next to them.
+  static const AudioEncoding voiceEncoding = AudioEncoding(maxBitrate: 96000);
 
-  /// Publish options for the microphone track. Voice keeps DTX (silence costs
-  /// nothing) and adds RED, which resends audio redundantly so lost packets
-  /// don't cut words. High quality also disables DTX, which would otherwise
-  /// cut the quiet passages of music.
+  /// Publish options for the microphone track. DTX is off: discontinuous
+  /// transmission mutes the encoder between words and clips the start of the
+  /// next one, which is what made voices sound worse than elsewhere. RED
+  /// resends audio redundantly so lost packets don't cut words.
   AudioPublishOptions get publishOptions => highQuality
-      ? const AudioPublishOptions(encoding: highQualityEncoding, dtx: false)
-      : const AudioPublishOptions(encoding: voiceEncoding, red: true);
+      ? const AudioPublishOptions(
+          encoding: highQualityEncoding,
+          dtx: false,
+          red: true,
+        )
+      : const AudioPublishOptions(encoding: voiceEncoding, dtx: false, red: true);
 
   @override
   bool operator ==(Object other) =>

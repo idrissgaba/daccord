@@ -74,16 +74,17 @@ void main() {
   });
 
   group('VoiceAudioOptions', () {
-    test('defaults keep every platform filter on at the standard bitrate', () {
+    test('defaults keep every platform filter on at 96 kbps, no DTX', () {
       const audio = VoiceAudioOptions();
       final capture = audio.captureOptions(null);
       expect(capture.noiseSuppression, isTrue);
       expect(capture.echoCancellation, isTrue);
       expect(capture.autoGainControl, isTrue);
       expect(capture.voiceIsolation, isTrue);
-      expect(audio.publishOptions.encoding?.maxBitrate, 64000);
+      expect(audio.publishOptions.encoding?.maxBitrate, 96000);
       expect(audio.publishOptions.red, isTrue);
-      expect(audio.publishOptions.dtx, isTrue);
+      // DTX clipped the first syllable after every pause.
+      expect(audio.publishOptions.dtx, isFalse);
     });
 
     test('turning noise suppression off also drops voice isolation', () {
@@ -94,10 +95,11 @@ void main() {
       expect(capture.deviceId, 'mic-1');
     });
 
-    test('high quality raises the bitrate and disables DTX', () {
+    test('high quality raises the bitrate, mono, with RED and no DTX', () {
       const audio = VoiceAudioOptions(highQuality: true);
       expect(audio.publishOptions.encoding?.maxBitrate, 128000);
       expect(audio.publishOptions.dtx, isFalse);
+      expect(audio.publishOptions.red, isTrue);
     });
 
     test('maps from settings and compares by value', () {
