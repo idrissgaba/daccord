@@ -7,6 +7,7 @@ import 'package:bonfire/features/authentication/views/switcher.dart';
 import 'package:bonfire/features/settings/views/accord_settings_screen.dart';
 import 'package:bonfire/features/spaces/views/accord_home.dart';
 import 'package:bonfire/theme/theme.dart';
+import 'package:bonfire/shared/components/escape_to_close.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -88,7 +89,8 @@ final routerController = GoRouter(
         ),
         GoRoute(
           path: '/settings',
-          builder: (context, state) => const AccordSettingsScreen(),
+          builder: (context, state) =>
+              const EscapeToClose(child: AccordSettingsScreen()),
         ),
         GoRoute(
           path: '/admin',

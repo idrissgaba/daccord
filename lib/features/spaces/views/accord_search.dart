@@ -189,7 +189,9 @@ class _SearchDialogState extends ConsumerState<_SearchDialog>
           users: users,
           ensure: ensureUser,
         );
-        final content = accordMessageText(message, authorName: name);
+        final content = plainMessagePreview(
+          accordMessageText(message, authorName: name),
+        );
         return ListTile(
           title: Text(name, style: theme.textTheme.titleSmall),
           subtitle: Text(

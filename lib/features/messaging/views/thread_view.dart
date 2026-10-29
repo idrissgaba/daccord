@@ -40,6 +40,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 /// the root post is edited or deleted from inside the view the returned future
 /// completes with a [ThreadResult] so the caller (the forum index) can refresh
 /// its row; `null` means nothing changed.
+///
+/// On desktop, when the home screen hosts a side panel and [context] is not
+/// itself inside a dialog, the thread opens in that panel beside the channel
+/// (as in other chat apps) instead of a modal; the future then completes
+/// when the panel closes.
 Future<ThreadResult?> showAccordThread(
   BuildContext context, {
   required String channelId,
@@ -49,6 +54,19 @@ Future<ThreadResult?> showAccordThread(
   ValueChanged<AccordUser>? onUserTap,
   void Function(AccordUser user, Offset? globalPosition)? onUserContextMenu,
 }) {
+  final inDialog = ModalRoute.of(context) is PopupRoute;
+  if (threadPanelHost.attached && !inDialog) {
+    final request = ThreadPanelRequest(
+      channelId: channelId,
+      spaceId: spaceId,
+      root: root,
+      canManageMessages: canManageMessages,
+      onUserTap: onUserTap,
+      onUserContextMenu: onUserContextMenu,
+    );
+    threadPanelHost.open(request);
+    return request._done.future;
+  }
   return showDialog<ThreadResult>(
     context: context,
     builder: (dialogContext) => Dialog(
@@ -68,6 +86,52 @@ Future<ThreadResult?> showAccordThread(
     ),
   );
 }
+
+/// A thread shown in the home screen's side panel.
+class ThreadPanelRequest {
+  ThreadPanelRequest({
+    required this.channelId,
+    required this.spaceId,
+    required this.root,
+    required this.canManageMessages,
+    this.onUserTap,
+    this.onUserContextMenu,
+  });
+
+  final String channelId;
+  final String? spaceId;
+  final AccordMessage root;
+  final bool canManageMessages;
+  final ValueChanged<AccordUser>? onUserTap;
+  final void Function(AccordUser user, Offset? globalPosition)?
+  onUserContextMenu;
+  final Completer<ThreadResult?> _done = Completer<ThreadResult?>();
+}
+
+/// The side-panel slot the home screen offers threads. [attached] is set by
+/// the home screen while its layout has room for the panel.
+class ThreadPanelHost extends ValueNotifier<ThreadPanelRequest?> {
+  ThreadPanelHost() : super(null);
+
+  bool attached = false;
+
+  void open(ThreadPanelRequest request) {
+    final previous = value;
+    value = request;
+    if (previous != null && !previous._done.isCompleted) {
+      previous._done.complete(null);
+    }
+  }
+
+  void close([ThreadResult? result]) {
+    final current = value;
+    if (current == null) return;
+    value = null;
+    if (!current._done.isCompleted) current._done.complete(result);
+  }
+}
+
+final threadPanelHost = ThreadPanelHost();
 
 /// The outcome of a thread view, reported back to the forum index so it can
 /// reflect a root-post edit or removal without a full reload.
@@ -103,6 +167,7 @@ class AccordThreadPane extends ConsumerStatefulWidget {
     this.onUserTap,
     this.onUserContextMenu,
     this.dialog = false,
+    this.panel = false,
   });
 
   final String channelId;
@@ -117,6 +182,10 @@ class AccordThreadPane extends ConsumerStatefulWidget {
   /// When true, renders with dialog chrome (close icon, shrink-wrapped); when
   /// false, fills the available area with a back arrow.
   final bool dialog;
+
+  /// When true (the home screen's side panel), fills the column like the
+  /// inline view but closes with an × like the dialog.
+  final bool panel;
 
   @override
   ConsumerState<AccordThreadPane> createState() => _AccordThreadPaneState();
@@ -427,9 +496,12 @@ class _AccordThreadPaneState extends ConsumerState<AccordThreadPane> {
           child: Row(
             children: [
               IconButton(
-                tooltip: dialog ? 'Close' : 'Back',
+                tooltip: dialog || widget.panel ? 'Close' : 'Back',
                 onPressed: _close,
-                icon: Icon(dialog ? Icons.close : Icons.arrow_back, size: 18),
+                icon: Icon(
+                  dialog || widget.panel ? Icons.close : Icons.arrow_back,
+                  size: 18,
+                ),
               ),
               const SizedBox(width: 4),
               Icon(Icons.forum, size: 18, color: colors.dirtyWhite),

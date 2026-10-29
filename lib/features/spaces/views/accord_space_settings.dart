@@ -28,6 +28,7 @@ import 'package:bonfire/features/spaces/views/welcome_screen.dart';
 import 'package:bonfire/shared/components/image_crop_dialog.dart';
 import 'package:bonfire/theme/theme.dart';
 import 'package:collection/collection.dart';
+import 'package:bonfire/shared/components/escape_to_close.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -44,7 +45,9 @@ Future<void> showAccordSpaceSettings(
   required String spaceId,
 }) {
   return Navigator.of(context).push<void>(
-    MaterialPageRoute(builder: (_) => _SpaceSettings(spaceId: spaceId)),
+    MaterialPageRoute(
+      builder: (_) => EscapeToClose(child: _SpaceSettings(spaceId: spaceId)),
+    ),
   );
 }
 

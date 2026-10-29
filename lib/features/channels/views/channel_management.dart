@@ -46,10 +46,15 @@ Future<void> showCreateChannelDialog(
   BuildContext context, {
   required String spaceId,
   String? parentId,
+  String initialType = 'text',
 }) {
   return showDialog<void>(
     context: context,
-    builder: (_) => _ChannelEditorDialog(spaceId: spaceId, parentId: parentId),
+    builder: (_) => _ChannelEditorDialog(
+      spaceId: spaceId,
+      parentId: parentId,
+      initialType: initialType,
+    ),
   );
 }
 
@@ -108,11 +113,13 @@ class _ChannelEditorDialog extends ConsumerStatefulWidget {
     required this.spaceId,
     this.channel,
     this.parentId,
+    this.initialType = 'text',
   });
 
   final String spaceId;
   final AccordChannel? channel;
   final String? parentId;
+  final String initialType;
 
   @override
   ConsumerState<_ChannelEditorDialog> createState() =>
@@ -126,7 +133,7 @@ class _ChannelEditorDialogState extends ConsumerState<_ChannelEditorDialog> {
   late final TextEditingController _topic = TextEditingController(
     text: widget.channel?.topic ?? '',
   );
-  late String _type = widget.channel?.type ?? 'text';
+  late String _type = widget.channel?.type ?? widget.initialType;
   late String? _parentId = widget.channel?.parentId ?? widget.parentId;
   late bool _nsfw = widget.channel?.nsfw ?? false;
   late int _rateLimit = widget.channel?.rateLimitSeconds ?? 0;

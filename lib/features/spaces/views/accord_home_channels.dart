@@ -133,6 +133,96 @@ class _ChannelListState extends ConsumerState<_ChannelList> {
         );
   }
 
+  /// The space menu under its name, as in other chat apps: invite, settings,
+  /// create channel or category, mark as read, then the per-server entries
+  /// (mute, hide, leave) shared with the rail's menu.
+  void _openSpaceMenu(
+    BuildContext anchorContext, {
+    required AccordSpace space,
+    required List<AccordChannel>? channels,
+    required bool canInvite,
+    required bool canManage,
+    required bool canManageChannels,
+  }) {
+    final serverKey = ref.read(connectionsControllerProvider).activeKey;
+    if (serverKey == null) return;
+    final box = anchorContext.findRenderObject() as RenderBox?;
+    final anchor = box == null
+        ? null
+        : box.localToGlobal(Offset(0, box.size.height));
+    const duplicated = {'Invite people', 'Space settings'};
+    showAccordContextMenu(
+      context,
+      globalPosition: anchor,
+      title: space.name,
+      entries: [
+        if (canInvite)
+          AccordMenuEntry(
+            label: 'Invite people',
+            icon: Icons.person_add_outlined,
+            onSelected: () => showAccordInvites(context, spaceId: space.id),
+          ),
+        if (canManage)
+          AccordMenuEntry(
+            label: 'Space settings',
+            icon: Icons.settings_outlined,
+            onSelected: () =>
+                showAccordSpaceSettings(context, spaceId: space.id),
+          ),
+        if (canManageChannels) ...[
+          AccordMenuEntry(
+            label: 'Create channel',
+            icon: Icons.add_circle_outline,
+            onSelected: () =>
+                showCreateChannelDialog(context, spaceId: space.id),
+          ),
+          AccordMenuEntry(
+            label: 'Create category',
+            icon: Icons.create_new_folder_outlined,
+            onSelected: () => showCreateChannelDialog(
+              context,
+              spaceId: space.id,
+              initialType: 'category',
+            ),
+          ),
+          if (channels != null)
+            AccordMenuEntry(
+              label: 'Reorder channels',
+              icon: Icons.reorder,
+              onSelected: () => showAccordChannelReorder(
+                context,
+                spaceId: space.id,
+                channels: channels,
+              ),
+            ),
+        ],
+        AccordMenuEntry(
+          label: 'Mark as read',
+          icon: Icons.mark_chat_read_outlined,
+          enabled: channels != null,
+          onSelected: () {
+            for (final channel in channels ?? const <AccordChannel>[]) {
+              if (channel.type == 'category') continue;
+              markChannelRead(
+                ref,
+                channel.id,
+                fallbackMessageId: channel.lastMessageId,
+              );
+            }
+          },
+        ),
+        const AccordMenuEntry.divider(),
+        for (final entry in _serverActionEntries(
+          context,
+          ref,
+          space,
+          serverKey,
+        ))
+          if (!duplicated.contains(entry.label)) entry,
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final ref = this.ref;
@@ -200,10 +290,26 @@ class _ChannelListState extends ConsumerState<_ChannelList> {
             child: Row(
               children: [
                 Expanded(
-                  child: Text(
-                    spaceName ?? 'Select a space',
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.titleSmall,
+                  // The space name opens the space menu, as in other chat
+                  // apps.
+                  child: Builder(
+                    builder: (nameContext) => InkWell(
+                      onTap: id == null || space == null
+                          ? null
+                          : () => _openSpaceMenu(
+                              nameContext,
+                              space: space,
+                              channels: channels,
+                              canInvite: canInvite,
+                              canManage: canManage,
+                              canManageChannels: canManageChannels,
+                            ),
+                      child: Text(
+                        spaceName ?? 'Select a space',
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.titleSmall,
+                      ),
+                    ),
                   ),
                 ),
                 if (space?.origin != null) ...[
@@ -225,70 +331,21 @@ class _ChannelListState extends ConsumerState<_ChannelList> {
                       }
                     },
                   ),
-                if (id != null && (canInvite || canManageChannels || canManage))
-                  PopupMenuButton<_HeaderAction>(
-                    tooltip: 'Space actions',
-                    icon: Icon(
-                      Icons.more_vert,
-                      size: 18,
+                if (id != null && space != null)
+                  Builder(
+                    builder: (buttonContext) => _HeaderAction(
+                      tooltip: 'Space menu',
+                      icon: Icons.expand_more,
                       color: colors.dirtyWhite,
+                      onPressed: () => _openSpaceMenu(
+                        buttonContext,
+                        space: space,
+                        channels: channels,
+                        canInvite: canInvite,
+                        canManage: canManage,
+                        canManageChannels: canManageChannels,
+                      ),
                     ),
-                    onSelected: (action) => action.onPressed(),
-                    itemBuilder: (context) =>
-                        <_HeaderAction>[
-                              if (canInvite)
-                                _HeaderAction(
-                                  tooltip: 'Invite people',
-                                  icon: Icons.person_add,
-                                  color: colors.dirtyWhite,
-                                  onPressed: () =>
-                                      showAccordInvites(context, spaceId: id),
-                                ),
-                              if (canManageChannels)
-                                _HeaderAction(
-                                  tooltip: 'Create channel',
-                                  icon: Icons.add,
-                                  color: colors.dirtyWhite,
-                                  onPressed: () => showCreateChannelDialog(
-                                    context,
-                                    spaceId: id,
-                                  ),
-                                ),
-                              if (canManageChannels && channels != null)
-                                _HeaderAction(
-                                  tooltip: 'Reorder channels',
-                                  icon: Icons.reorder,
-                                  color: colors.dirtyWhite,
-                                  onPressed: () => showAccordChannelReorder(
-                                    context,
-                                    spaceId: id,
-                                    channels: channels,
-                                  ),
-                                ),
-                              if (canManage)
-                                _HeaderAction(
-                                  tooltip: 'Space settings',
-                                  icon: Icons.settings,
-                                  color: colors.dirtyWhite,
-                                  onPressed: () => showAccordSpaceSettings(
-                                    context,
-                                    spaceId: id,
-                                  ),
-                                ),
-                            ]
-                            .map(
-                              (action) => PopupMenuItem<_HeaderAction>(
-                                value: action,
-                                child: Row(
-                                  children: [
-                                    Icon(action.icon, size: 18),
-                                    const SizedBox(width: 12),
-                                    Text(action.tooltip),
-                                  ],
-                                ),
-                              ),
-                            )
-                            .toList(),
                   ),
               ],
             ),
