@@ -876,7 +876,12 @@ class _AccordHomeScreenState extends ConsumerState<AccordHomeScreen> {
                           setState(() => _dragChannelWidth = null);
                         },
                       ),
+                    // Keyed: going full screen swaps the panes on both sides,
+                    // and an unkeyed child between changed siblings is
+                    // rebuilt — disposing the voice view, which leaves full
+                    // screen again.
                     Expanded(
+                      key: const ValueKey('home-message-area'),
                       child: messageArea(
                         membersButton:
                             hasMembers && !layout.showsMemberListInline,
