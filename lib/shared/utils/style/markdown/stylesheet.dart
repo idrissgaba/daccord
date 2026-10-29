@@ -26,7 +26,14 @@ MarkdownStyle getMarkdownStyleSheet(BuildContext context) {
       color: palette.foreground,
       borderRadius: BorderRadius.circular(8),
     ),
-    codeSpan: codeStyle.copyWith(backgroundColor: palette.foreground),
+    // Darker than the message pane in every theme: on Dark the pane itself is
+    // `foreground`, so `foreground` made inline code invisible.
+    codeSpan: codeStyle.copyWith(
+      backgroundColor: Color.alphaBlend(
+        const Color(0x47000000),
+        palette.foreground,
+      ),
+    ),
     list: TextStyle(
       fontSize: 14.5,
       fontWeight: FontWeight.w500,

@@ -1109,7 +1109,9 @@ class _MessageRowState extends ConsumerState<_MessageRow> {
             )
             .ensure,
       );
-      final content = accordMessageText(referenced, authorName: name);
+      final content = plainMessagePreview(
+        accordMessageText(referenced, authorName: name),
+      );
       preview = content.isEmpty ? '(attachment)' : content;
     }
     return Padding(

@@ -74,9 +74,18 @@ class _TabStripState extends ConsumerState<_TabStrip> {
 
     // A space icon is only drawn on tabs whose channel name collides with
     // another open tab (mirrors the reference's `update_icons`).
+    // Labels follow the channel as it is now: a tab opened before a rename
+    // used to keep the old name.
+    String liveName(OpenTab t) =>
+        ref
+            .watch(accordChannelsControllerProvider(t.serverKey, t.spaceId))
+            ?.firstWhereOrNull((c) => c.id == t.channelId)
+            ?.name ??
+        t.name;
     final nameCounts = <String, int>{};
     for (final t in tabs) {
-      nameCounts[t.name] = (nameCounts[t.name] ?? 0) + 1;
+      final name = liveName(t);
+      nameCounts[name] = (nameCounts[name] ?? 0) + 1;
     }
 
     final list = ReorderableListView.builder(
@@ -94,14 +103,19 @@ class _TabStripState extends ConsumerState<_TabStrip> {
         final tab = tabs[index];
         final conn = connections.connectionFor(tab.serverKey);
         final space = conn?.spaces.firstWhereOrNull((s) => s.id == tab.spaceId);
-        final iconUrl = (nameCounts[tab.name] ?? 0) > 1 && space != null
+        final name = liveName(tab);
+        final duplicate = (nameCounts[name] ?? 0) > 1 && space != null;
+        final iconUrl = duplicate
             ? accordSpaceIconUrl(space, conn?.session.server.cdnUrl)
             : null;
+        // Two "general" tabs from different spaces say which space they are.
+        final label = duplicate ? '$name · ${space.name}' : name;
         return ReorderableDragStartListener(
           key: ValueKey(tab.key),
           index: index,
           child: _TabChip(
             tab: tab,
+            label: label,
             active: tab.key == activeKey,
             iconUrl: iconUrl,
             channelType: ref
@@ -257,6 +271,7 @@ String _buildConnectLink(
 class _TabChip extends StatelessWidget {
   const _TabChip({
     required this.tab,
+    required this.label,
     required this.active,
     required this.iconUrl,
     this.channelType,
@@ -266,6 +281,7 @@ class _TabChip extends StatelessWidget {
   });
 
   final OpenTab tab;
+  final String label;
   final bool active;
   final String? iconUrl;
   final String? channelType;
@@ -285,7 +301,7 @@ class _TabChip extends StatelessWidget {
         child: MouseRegion(
           cursor: SystemMouseCursors.click,
           child: Container(
-            constraints: const BoxConstraints(maxWidth: 180),
+            constraints: const BoxConstraints(maxWidth: 220),
             padding: const EdgeInsets.only(left: 10, right: 4),
             decoration: BoxDecoration(
               color: active ? colors.foreground : Colors.transparent,
@@ -326,7 +342,7 @@ class _TabChip extends StatelessWidget {
                 ],
                 Flexible(
                   child: Text(
-                    tab.name,
+                    label,
                     overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.bodySmall!.copyWith(
                       color: active ? Colors.white : colors.dirtyWhite,

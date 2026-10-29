@@ -20,6 +20,7 @@ import 'package:bonfire/features/channels/utils/channel_sort.dart';
 import 'package:bonfire/features/developer/services/mcp_home_bridge.dart';
 import 'package:bonfire/features/member/controllers/accord_members.dart';
 import 'package:bonfire/features/member/views/accord_member_list.dart';
+import 'package:bonfire/features/member/views/accord_member_popout.dart';
 import 'package:bonfire/features/member/views/remote_origin_badge.dart';
 import 'package:bonfire/features/onboarding/models/onboarding_step.dart';
 import 'package:bonfire/features/onboarding/views/onboarding_anchors.dart';
@@ -69,6 +70,7 @@ import 'package:bonfire/shared/components/horizontal_wheel_scroll.dart';
 import 'package:bonfire/shared/components/server_unreachable.dart';
 import 'package:bonfire/shared/app_info.dart';
 import 'package:bonfire/shared/models/server_entity_key.dart';
+import 'package:bonfire/shared/utils/platform.dart';
 import 'package:bonfire/shared/utils/rest_result_ext.dart';
 import 'package:bonfire/shared/utils/text_prompt_dialog.dart';
 import 'package:bonfire/features/voice/controllers/voice.dart';
@@ -163,6 +165,7 @@ class _AccordHomeScreenState extends ConsumerState<AccordHomeScreen> {
     _pendingMessageId = widget.initialMessageId;
     mcpHomeBridge.registerAll(_mcpNavHandlers());
     HardwareKeyboard.instance.addHandler(_onGlobalKey);
+    trackMemberPopoutAnchor();
     // Passive, throttled startup update check (gated on the setting).
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
@@ -190,6 +193,8 @@ class _AccordHomeScreenState extends ConsumerState<AccordHomeScreen> {
   @override
   void dispose() {
     HardwareKeyboard.instance.removeHandler(_onGlobalKey);
+    threadPanelHost.attached = false;
+    threadPanelHost.close();
     mcpHomeBridge.clear();
     accordVisibleChannel = null;
     super.dispose();
@@ -836,6 +841,8 @@ class _AccordHomeScreenState extends ConsumerState<AccordHomeScreen> {
             _expandedLayout = null;
           }
           final layout = _expandedLayout ?? resolved;
+          // Threads open beside the channel when there is room for them.
+          threadPanelHost.attached = layout.showsSidebarInline && !expanded;
           if (layout.showsSidebarInline) {
             final channelWidth = layout.channelListWidth;
             final panes = Stack(
@@ -876,11 +883,24 @@ class _AccordHomeScreenState extends ConsumerState<AccordHomeScreen> {
                         expanded: expanded,
                       ),
                     ),
-                    if (!expanded &&
-                        layout.showsMemberListInline &&
-                        hasMembers &&
-                        _memberListVisible)
-                      AccordMemberList(spaceId: effectiveSpaceId),
+                    if (!expanded)
+                      ValueListenableBuilder<ThreadPanelRequest?>(
+                        valueListenable: threadPanelHost,
+                        builder: (context, thread, _) {
+                          // A thread of the channel on screen takes the
+                          // member list's place, as in other chat apps.
+                          if (thread != null &&
+                              thread.channelId == shownChannelId) {
+                            return _ThreadSidePanel(request: thread);
+                          }
+                          if (layout.showsMemberListInline &&
+                              hasMembers &&
+                              _memberListVisible) {
+                            return AccordMemberList(spaceId: effectiveSpaceId);
+                          }
+                          return const SizedBox.shrink();
+                        },
+                      ),
                   ],
                 ),
                 pip,
@@ -1022,4 +1042,36 @@ AccordChannel? resolveDeepLinkChannel(
   if (channelName == null || channelName.isEmpty) return null;
   final matches = channels.where((channel) => channel.name == channelName);
   return matches.length == 1 ? matches.single : null;
+}
+
+/// A thread beside the channel: the same view the modal used, filling a
+/// fixed-width column with a divider on its left edge.
+class _ThreadSidePanel extends StatelessWidget {
+  const _ThreadSidePanel({required this.request});
+
+  final ThreadPanelRequest request;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = BonfireThemeExtension.of(context);
+    return Container(
+      key: ValueKey('thread-panel-${request.root.id}'),
+      width: 420,
+      decoration: BoxDecoration(
+        color: colors.background,
+        border: Border(left: BorderSide(color: colors.foreground)),
+      ),
+      child: AccordThreadPane(
+        key: ValueKey(request.root.id),
+        channelId: request.channelId,
+        spaceId: request.spaceId,
+        root: request.root,
+        canManageMessages: request.canManageMessages,
+        onUserTap: request.onUserTap,
+        onUserContextMenu: request.onUserContextMenu,
+        panel: true,
+        onClose: threadPanelHost.close,
+      ),
+    );
+  }
 }

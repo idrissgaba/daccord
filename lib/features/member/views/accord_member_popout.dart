@@ -20,19 +20,99 @@ import 'package:bonfire/features/spaces/views/accord_reports.dart';
 import 'package:bonfire/theme/theme.dart';
 import 'package:collection/collection.dart';
 import 'package:bonfire/features/member/views/profile_extras.dart';
+import 'package:bonfire/shared/utils/platform.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-/// Opens the member profile popout for [userId] within [spaceId] as a modal.
+/// Where the pointer last went down, so the profile card can open beside
+/// what was clicked (a name, an avatar, a member row) as in other chat apps.
+Offset? _lastPointerDown;
+DateTime? _lastPointerDownAt;
+bool _trackingPointer = false;
+
+/// Starts recording pointer-down positions for [showAccordMemberPopout].
+/// Idempotent; the home screen calls it on mount.
+void trackMemberPopoutAnchor() {
+  if (_trackingPointer) return;
+  _trackingPointer = true;
+  GestureBinding.instance.pointerRouter.addGlobalRoute((event) {
+    if (event is PointerDownEvent) {
+      _lastPointerDown = event.position;
+      _lastPointerDownAt = DateTime.now();
+    }
+  });
+}
+
+/// Opens the member profile card for [userId] within [spaceId]. On desktop
+/// it pops out beside the click that opened it; on touch layouts (or with no
+/// recent click) it is a centered modal.
 Future<void> showAccordMemberPopout(
   BuildContext context, {
   required String spaceId,
   required String userId,
 }) {
-  return showDialog<void>(
+  final at = _lastPointerDownAt;
+  final anchor =
+      shouldUseDesktopLayout(context) &&
+          at != null &&
+          DateTime.now().difference(at) < const Duration(seconds: 2)
+      ? _lastPointerDown
+      : null;
+  if (anchor == null) {
+    return showDialog<void>(
+      context: context,
+      builder: (_) => _MemberPopout(spaceId: spaceId, userId: userId),
+    );
+  }
+  return showGeneralDialog<void>(
     context: context,
-    builder: (_) => _MemberPopout(spaceId: spaceId, userId: userId),
+    barrierDismissible: true,
+    barrierLabel: 'Close profile',
+    barrierColor: Colors.transparent,
+    transitionDuration: const Duration(milliseconds: 120),
+    pageBuilder: (_, _, _) => CustomSingleChildLayout(
+      delegate: _PopoverLayout(anchor),
+      child: _MemberPopout(spaceId: spaceId, userId: userId, anchored: true),
+    ),
+    transitionBuilder: (_, animation, _, child) =>
+        FadeTransition(opacity: animation, child: child),
   );
+}
+
+/// Places the card to the right of [anchor] (to its left when there is no
+/// room, e.g. clicks in the member list), its top near the click, kept on
+/// screen.
+class _PopoverLayout extends SingleChildLayoutDelegate {
+  const _PopoverLayout(this.anchor);
+
+  final Offset anchor;
+  static const double _margin = 12;
+
+  @override
+  BoxConstraints getConstraintsForChild(BoxConstraints constraints) =>
+      BoxConstraints.loose(
+        Size(360, (constraints.maxHeight - 2 * _margin).clamp(0, 900)),
+      );
+
+  @override
+  Offset getPositionForChild(Size size, Size childSize) {
+    var x = anchor.dx + 16;
+    if (x + childSize.width > size.width - _margin) {
+      x = anchor.dx - 16 - childSize.width;
+    }
+    final y = (anchor.dy - 40).clamp(
+      _margin,
+      (size.height - childSize.height - _margin).clamp(_margin, size.height),
+    );
+    return Offset(
+      x.clamp(_margin, (size.width - childSize.width - _margin).clamp(_margin, size.width)),
+      y.toDouble(),
+    );
+  }
+
+  @override
+  bool shouldRelayout(_PopoverLayout oldDelegate) => anchor != oldDelegate.anchor;
 }
 
 /// Available timeout durations (label → seconds), mirroring the reference
@@ -47,10 +127,17 @@ const _timeoutDurations = <(String, int)>[
 ];
 
 class _MemberPopout extends ConsumerStatefulWidget {
-  const _MemberPopout({required this.spaceId, required this.userId});
+  const _MemberPopout({
+    required this.spaceId,
+    required this.userId,
+    this.anchored = false,
+  });
 
   final String spaceId;
   final String userId;
+
+  /// Shown beside a click (a plain card) rather than as a centered dialog.
+  final bool anchored;
 
   @override
   ConsumerState<_MemberPopout> createState() => _MemberPopoutState();
@@ -407,9 +494,9 @@ class _MemberPopoutState extends ConsumerState<_MemberPopout> {
         .sortedBy<num>((r) => -r.position);
     final memberRoleIds = member?.roles ?? const <String>[];
 
-    return Dialog(
-      backgroundColor: colors.foreground,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    return _PopoutFrame(
+      anchored: widget.anchored,
+      color: colors.foreground,
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 360),
         child: SingleChildScrollView(
@@ -928,6 +1015,37 @@ class _ActionRow extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// A centered dialog, or a raised card when the profile pops out beside a
+/// click.
+class _PopoutFrame extends StatelessWidget {
+  const _PopoutFrame({
+    required this.anchored,
+    required this.color,
+    required this.child,
+  });
+
+  final bool anchored;
+  final Color color;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final shape = RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(12),
+    );
+    if (!anchored) {
+      return Dialog(backgroundColor: color, shape: shape, child: child);
+    }
+    return Material(
+      color: color,
+      shape: shape,
+      elevation: 12,
+      clipBehavior: Clip.antiAlias,
+      child: child,
     );
   }
 }

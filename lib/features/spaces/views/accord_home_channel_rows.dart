@@ -174,8 +174,18 @@ class _ChannelTileState extends ConsumerState<_ChannelTile> {
 
   /// Selects the channel; a second click inside the double-click window joins it
   /// instead of re-selecting (the first click already opened the tab).
+  ///
+  /// On desktop a single click on a voice channel opens it and joins, as in
+  /// other chat apps; touch keeps select-then-join so a scroll's stray tap
+  /// can't put someone on air (#202).
   void _handleTap() {
     final now = DateTime.now();
+    if (_isVoice && shouldUseDesktopLayout(context)) {
+      _lastTapAt = null;
+      widget.onTap();
+      _joinVoice();
+      return;
+    }
     if (_isVoice && isVoiceDoubleTap(_lastTapAt, now)) {
       _lastTapAt = null;
       _joinVoice();

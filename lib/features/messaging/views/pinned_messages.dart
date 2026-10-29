@@ -220,9 +220,8 @@ class _PinnedMessagesDialogState extends ConsumerState<_PinnedMessagesDialog> {
                         users: users,
                         ensure: ensureUser,
                       );
-                      final content = accordMessageText(
-                        message,
-                        authorName: name,
+                      final content = plainMessagePreview(
+                        accordMessageText(message, authorName: name),
                       );
                       final author =
                           members?[message.authorId]?.user ??

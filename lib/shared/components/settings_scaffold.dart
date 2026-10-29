@@ -1,4 +1,5 @@
 import 'package:bonfire/theme/theme.dart';
+import 'package:bonfire/shared/components/escape_to_close.dart';
 import 'package:flutter/material.dart';
 
 /// Standard chrome for a pushed settings sub-page: themed [Scaffold] +
@@ -20,7 +21,7 @@ class SettingsScaffold extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = BonfireThemeExtension.of(context);
-    return Scaffold(
+    final scaffold = Scaffold(
       backgroundColor: colors.background,
       appBar: AppBar(
         backgroundColor: colors.foreground,
@@ -32,7 +33,16 @@ class SettingsScaffold extends StatelessWidget {
         actions: actions,
       ),
       floatingActionButton: floatingActionButton,
-      body: body,
+      // Content keeps a readable column on wide windows instead of
+      // stretching toggles to the far edge.
+      body: Align(
+        alignment: Alignment.topCenter,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 760),
+          child: body,
+        ),
+      ),
     );
+    return EscapeToClose(child: scaffold);
   }
 }

@@ -126,6 +126,15 @@ BonfireThemeExtension paletteFor(AppThemePreset preset, {Color? accent}) {
   return accent == null ? base : base.copyWith(primary: accent);
 }
 
+/// Colour emoji fonts tried before the platform's own fallback. Without them
+/// Windows picked Segoe UI Symbol for some emoji (🔊 drawn as a grey outline,
+/// 🎶 as an empty box) where Segoe UI Emoji has the colour glyph.
+const kEmojiFontFallback = <String>[
+  'Segoe UI Emoji',
+  'Apple Color Emoji',
+  'Noto Color Emoji',
+];
+
 TextTheme _textTheme(BonfireThemeExtension palette) {
   final high = palette.dirtyWhite;
   final medium = palette.gray;
@@ -139,7 +148,12 @@ TextTheme _textTheme(BonfireThemeExtension palette) {
     double size,
     Color color, [
     FontWeight weight = FontWeight.w500,
-  ]) => TextStyle(fontSize: size, fontWeight: weight, color: color);
+  ]) => TextStyle(
+    fontSize: size,
+    fontWeight: weight,
+    color: color,
+    fontFamilyFallback: kEmojiFontFallback,
+  );
   return TextTheme(
     displayLarge: s(36, high),
     displayMedium: s(20, high),
