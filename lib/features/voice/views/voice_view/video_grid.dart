@@ -41,11 +41,22 @@ class _ConnectedBody extends ConsumerWidget {
     required this.onToggleSpotlight,
     this.only,
     this.fullScreen = false,
+    this.edgeToEdge = false,
+    this.stripHidden = false,
+    this.onToggleStrip,
   });
 
   /// This is the full-screen view, the one that keeps rendering video while
   /// it is open (see [voiceFullScreenOpen]).
   final bool fullScreen;
+
+  /// Drop the gutter around the spotlighted tile (full screen).
+  final bool edgeToEdge;
+
+  /// Whether the strip under the spotlighted tile is folded away, and the
+  /// chevron that folds it (see `_VoiceChannelViewState._stripHidden`).
+  final bool stripHidden;
+  final VoidCallback? onToggleStrip;
 
   /// The owning view's tile keys (see `_VoiceChannelViewState._tileKeys`).
   final Map<String, GlobalKey> tileKeys;
@@ -105,6 +116,9 @@ class _ConnectedBody extends ConsumerWidget {
                     onToggleSpotlight: onToggleSpotlight,
                     only: {for (final s in speakers) s.userId},
                     fullScreen: fullScreen,
+                    edgeToEdge: edgeToEdge,
+                    stripHidden: stripHidden,
+                    onToggleStrip: onToggleStrip,
                   ),
           ),
           StageAudiencePanel(channelId: channelId, spaceId: spaceId!),
@@ -180,6 +194,9 @@ class _ConnectedBody extends ConsumerWidget {
             if (i != spotlightIdx) tiles[i],
         ],
         tileBuilder: tileWidget,
+        edgeToEdge: edgeToEdge,
+        stripHidden: stripHidden,
+        onToggleStrip: onToggleStrip,
       );
     }
 
@@ -258,28 +275,51 @@ class _ConnectedBody extends ConsumerWidget {
 }
 
 /// One spotlighted tile filling the body above a horizontal strip of the
-/// remaining tiles.
+/// remaining tiles. A chevron between them folds the strip away so the
+/// spotlight (a stream, in full screen) gets the whole body, as in other
+/// chat apps; folded, the chevron floats over the video's bottom edge.
 class _SpotlightLayout extends StatelessWidget {
   const _SpotlightLayout({
     required this.spotlight,
     required this.rest,
     required this.tileBuilder,
+    this.edgeToEdge = false,
+    this.stripHidden = false,
+    this.onToggleStrip,
   });
 
   final _Tile spotlight;
   final List<_Tile> rest;
   final Widget Function(_Tile) tileBuilder;
+  final bool edgeToEdge;
+  final bool stripHidden;
+  final VoidCallback? onToggleStrip;
 
   @override
   Widget build(BuildContext context) {
+    final video = Padding(
+      padding: EdgeInsets.all(edgeToEdge ? 0 : 8),
+      child: tileBuilder(spotlight),
+    );
+    final chevron = onToggleStrip == null
+        ? null
+        : _StripChevron(hidden: stripHidden, onPressed: onToggleStrip!);
+
+    if (stripHidden) {
+      return Stack(
+        fit: StackFit.expand,
+        children: [
+          video,
+          if (chevron != null)
+            Positioned(left: 0, right: 0, bottom: 8, child: chevron),
+        ],
+      );
+    }
+
     return Column(
       children: [
-        Expanded(
-          child: Padding(
-            padding: const EdgeInsets.all(8),
-            child: tileBuilder(spotlight),
-          ),
-        ),
+        Expanded(child: video),
+        if (chevron != null) chevron,
         SizedBox(
           height: 110,
           child: ScrollConfiguration(
@@ -303,6 +343,41 @@ class _SpotlightLayout extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// The small centred chevron that folds the participant strip under the
+/// spotlighted tile away, and brings it back.
+class _StripChevron extends StatelessWidget {
+  const _StripChevron({required this.hidden, required this.onPressed});
+
+  final bool hidden;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Tooltip(
+        message: hidden ? 'Show participants' : 'Hide participants',
+        child: Material(
+          color: Colors.black54,
+          borderRadius: BorderRadius.circular(12),
+          child: InkWell(
+            key: Key(hidden ? 'voice-strip-show' : 'voice-strip-hide'),
+            borderRadius: BorderRadius.circular(12),
+            onTap: onPressed,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+              child: Icon(
+                hidden ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+                size: 20,
+                color: Colors.white,
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

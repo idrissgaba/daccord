@@ -106,6 +106,17 @@ void main() {
     expect(find.text('LIVE'), findsNothing);
     expect(find.byKey(const Key('stop-watching-u2')), findsOneWidget);
 
+    // The watched stream is spotlighted above the strip of other tiles; the
+    // chevron folds the strip away so the stream has the whole body.
+    expect(find.byKey(const Key('voice-strip-hide')), findsOneWidget);
+    await tester.tap(find.byKey(const Key('voice-strip-hide')));
+    await tester.pump();
+    expect(find.byKey(const Key('voice-strip-show')), findsOneWidget);
+    expect(find.byKey(const Key('voice-strip-hide')), findsNothing);
+    await tester.tap(find.byKey(const Key('voice-strip-show')));
+    await tester.pump();
+    expect(find.byKey(const Key('voice-strip-hide')), findsOneWidget);
+
     await tester.tap(find.byKey(const Key('stop-watching-u2')));
     await tester.pump(const Duration(milliseconds: 400));
 

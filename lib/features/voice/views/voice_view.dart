@@ -160,6 +160,11 @@ class _VoiceChannelViewState extends ConsumerState<VoiceChannelView> {
   /// recreates its video renderer, which crashes the engine on Windows.
   final _tileKeys = <String, GlobalKey>{};
 
+  /// Whether the strip of other participants under the spotlighted tile is
+  /// folded away (the chevron between them), so a stream can take the whole
+  /// body in full screen.
+  bool _stripHidden = false;
+
   /// Whether the voice text-chat panel is open. Defaults open in full-screen and
   /// in the lobby, and closed for a call already in progress in the narrower
   /// message-pane presentation; the header toggle then wins until the view
@@ -247,15 +252,23 @@ class _VoiceChannelViewState extends ConsumerState<VoiceChannelView> {
 
   Widget _body(bool connectedHere) {
     final primary = connectedHere
-        ? _ConnectedBody(
-            tileKeys: _tileKeys,
-            channelId: widget.channelId,
-            spaceId: widget.spaceId,
-            fullScreen: widget.fullScreen,
-            spotlightUserId: _spotlightUserId,
-            onToggleSpotlight: (userId) => setState(
-              () =>
-                  _spotlightUserId = _spotlightUserId == userId ? null : userId,
+        ? ValueListenableBuilder<bool>(
+            valueListenable: voiceViewExpanded,
+            builder: (context, expanded, _) => _ConnectedBody(
+              tileKeys: _tileKeys,
+              channelId: widget.channelId,
+              spaceId: widget.spaceId,
+              fullScreen: widget.fullScreen,
+              // Full screen: the video runs edge to edge, no gutter.
+              edgeToEdge: expanded || widget.fullScreen,
+              spotlightUserId: _spotlightUserId,
+              onToggleSpotlight: (userId) => setState(
+                () => _spotlightUserId = _spotlightUserId == userId
+                    ? null
+                    : userId,
+              ),
+              stripHidden: _stripHidden,
+              onToggleStrip: () => setState(() => _stripHidden = !_stripHidden),
             ),
           )
         : VoiceLobbyBody(
