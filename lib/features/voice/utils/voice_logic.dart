@@ -88,7 +88,11 @@ class VoiceAudioOptions {
           dtx: false,
           red: true,
         )
-      : const AudioPublishOptions(encoding: voiceEncoding, dtx: false, red: true);
+      : const AudioPublishOptions(
+          encoding: voiceEncoding,
+          dtx: false,
+          red: true,
+        );
 
   @override
   bool operator ==(Object other) =>

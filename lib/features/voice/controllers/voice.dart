@@ -9,6 +9,7 @@ import 'package:bonfire/features/server/controllers/connections.dart';
 import 'package:bonfire/features/settings/controllers/settings.dart';
 import 'package:bonfire/features/settings/models/accord_settings.dart';
 import 'package:bonfire/features/voice/controllers/voice_states.dart';
+import 'package:bonfire/features/voice/models/voice_connection.dart';
 import 'package:bonfire/features/voice/services/afk_monitor.dart';
 import 'package:bonfire/features/voice/services/global_key_watcher.dart';
 import 'package:bonfire/features/voice/services/voice_session.dart';
@@ -20,131 +21,18 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+export 'package:bonfire/features/voice/models/voice_connection.dart';
+
 part 'voice.g.dart';
-
-/// The local user's voice-connection state. Distinct from the per-user
-/// [AccordVoiceState] cache ([VoiceStatesController]): this tracks *our* session
-/// — which channel we're in, the LiveKit media state, and our self-flags.
-@immutable
-class VoiceConnection {
-  const VoiceConnection({
-    this.channelId,
-    this.spaceId,
-    this.serverKey,
-    this.sessionState = VoiceSessionState.disconnected,
-    this.selfMute = false,
-    this.selfDeaf = false,
-    this.selfVideo = false,
-    this.selfStream = false,
-    this.speakingUserIds = const {},
-    this.isAfk = false,
-    this.error,
-    this.tick = 0,
-    this.serverMute = false,
-    this.serverDeaf = false,
-    this.suppressed = false,
-    this.stage = false,
-  });
-
-  final String? channelId;
-  final String? spaceId;
-
-  /// The connection (`userId@baseUrl`) the voice session is pinned to — *not*
-  /// whichever server is active. Every voice REST/gateway call routes through
-  /// this key's client so switching servers mid-call doesn't send our
-  /// leave/state updates to the wrong server.
-  final String? serverKey;
-  final VoiceSessionState sessionState;
-  final bool selfMute;
-  final bool selfDeaf;
-  final bool selfVideo;
-
-  /// Whether we're currently screen-sharing.
-  final bool selfStream;
-  final Set<String> speakingUserIds;
-
-  /// Whether *we* have been idle long enough to count as away (see
-  /// `AfkMonitor`); surfaced to other members by flipping our presence to
-  /// `idle`.
-  final bool isAfk;
-
-  /// Transient error message for the voice bar (auto-dismissed by the UI).
-  final String? error;
-
-  /// Bumped when the set of renderable LiveKit tracks/participants changes; the
-  /// video grid watches it to rebuild its tiles.
-  final int tick;
-
-  /// A moderator muted us (the server sends none of our audio).
-  final bool serverMute;
-
-  /// A moderator deafened us (the server sends us nothing, takes nothing).
-  final bool serverDeaf;
-
-  /// The channel denies us `speak` — or, on a stage, we're in the audience.
-  final bool suppressed;
-
-  /// The channel is a stage.
-  final bool stage;
-
-  bool get isConnected => channelId != null;
-
-  /// Whether the server carries our microphone right now.
-  bool get canSpeak => !(serverMute || serverDeaf || suppressed);
-
-  /// Why we can't speak (see [canSpeak]), or null.
-  String? get speakBlockedReason => voiceSpeakBlockedReason(
-    serverMute: serverMute,
-    serverDeaf: serverDeaf,
-    suppressed: suppressed,
-    stage: stage,
-  );
-
-  VoiceConnection copyWith({
-    String? channelId,
-    String? spaceId,
-    String? serverKey,
-    VoiceSessionState? sessionState,
-    bool? selfMute,
-    bool? selfDeaf,
-    bool? selfVideo,
-    bool? selfStream,
-    Set<String>? speakingUserIds,
-    bool? isAfk,
-    String? error,
-    bool clearError = false,
-    int? tick,
-    bool? serverMute,
-    bool? serverDeaf,
-    bool? suppressed,
-    bool? stage,
-  }) {
-    return VoiceConnection(
-      channelId: channelId ?? this.channelId,
-      spaceId: spaceId ?? this.spaceId,
-      serverKey: serverKey ?? this.serverKey,
-      sessionState: sessionState ?? this.sessionState,
-      selfMute: selfMute ?? this.selfMute,
-      selfDeaf: selfDeaf ?? this.selfDeaf,
-      selfVideo: selfVideo ?? this.selfVideo,
-      selfStream: selfStream ?? this.selfStream,
-      speakingUserIds: speakingUserIds ?? this.speakingUserIds,
-      isAfk: isAfk ?? this.isAfk,
-      error: clearError ? null : (error ?? this.error),
-      tick: tick ?? this.tick,
-      serverMute: serverMute ?? this.serverMute,
-      serverDeaf: serverDeaf ?? this.serverDeaf,
-      suppressed: suppressed ?? this.suppressed,
-      stage: stage ?? this.stage,
-    );
-  }
-}
+part 'voice_afk.dart';
+part 'voice_push_to_talk.dart';
 
 /// Orchestrates voice channel join/leave and media toggles (reference:
 /// `client_voice.gd`). Owns a single [VoiceSession] (the LiveKit transport) and
 /// pushes runtime self-state to the server via `updateVoiceState`.
 @Riverpod(keepAlive: true)
-class VoiceController extends _$VoiceController {
+class VoiceController extends _$VoiceController with _VoiceAfk, _PushToTalk {
+  @override
   VoiceSession? _session;
 
   /// The LiveKit session, exposed so the video grid can render its tracks.
@@ -160,27 +48,6 @@ class VoiceController extends _$VoiceController {
 
   /// Whether the local mic is currently registering as speaking.
   bool get localIsSpeaking => _session?.localIsSpeaking ?? false;
-
-  /// Idle detection for the local user. Created lazily so tests that override
-  /// [build] (and so never join) don't install global input hooks.
-  AfkMonitor? _afkMonitor;
-
-  AfkMonitor _ensureAfkMonitor() {
-    final existing = _afkMonitor;
-    if (existing != null) return existing;
-    final monitor = AfkMonitor()
-      ..onAfkChanged = _onAfkChanged
-      ..micActive = _micActive;
-    return _afkMonitor = monitor;
-  }
-
-  /// The presence status we had before AFK flipped us to `idle`, so returning
-  /// restores exactly what the user chose. Null when we didn't touch it.
-  String? _presenceBeforeAfk;
-
-  /// The connection key we published the `idle` status on, so it can be undone
-  /// even after the voice session (and its `serverKey`) has gone away.
-  String? _afkPresenceKey;
 
   @override
   VoiceConnection build() {
@@ -284,6 +151,7 @@ class VoiceController extends _$VoiceController {
   /// overlapping connect/teardown cycles wedge the WebRTC layer.
   Future<void> _queue = Future<void>.value();
 
+  @override
   Future<void> _serialize(Future<void> Function() op) {
     final next = _queue.then((_) => op());
     // Keep the chain alive even if one op throws; the caller still sees the
@@ -302,6 +170,7 @@ class VoiceController extends _$VoiceController {
     _syncAfk();
   }
 
+  @override
   Future<void> _joinLocked(String channelId, String? spaceId) async {
     if (state.channelId == channelId && !needsReconnect(state.sessionState)) {
       return;
@@ -688,68 +557,6 @@ class VoiceController extends _$VoiceController {
     ..onDisconnected = _onSessionDisconnected
     ..setPushToTalk(ref.read(settingsControllerProvider).pushToTalk);
 
-  /// Hooks [_onKeyEvent] into the app-wide keyboard. Returns false where no
-  /// services binding exists (pure-Dart tests), which have no keyboard anyway.
-  bool _attachKeyHook() {
-    try {
-      HardwareKeyboard.instance.addHandler(_onKeyEvent);
-      return true;
-    } on FlutterError {
-      return false;
-    }
-  }
-
-  /// Pending close of the push-to-talk mic after the key was released.
-  Timer? _releasePushToTalk;
-
-  /// Watches the push-to-talk key outside the app too (Windows desktop), so it
-  /// works while a game or another app has focus.
-  final _globalKeys = GlobalKeyWatcher();
-
-  /// Watches the push-to-talk key system-wide while in a call with
-  /// push-to-talk on.
-  void _syncGlobalPushToTalk() {
-    final settings = ref.read(settingsControllerProvider);
-    if (settings.pushToTalk && state.isConnected) {
-      _globalKeys.watch(settings.pushToTalkKey, setPushToTalkPressed);
-    } else if (_globalKeys.watching) {
-      _globalKeys.stop();
-      setPushToTalkPressed(false);
-    }
-  }
-
-  /// App-wide key hook for push-to-talk. Never consumes the event, so the key
-  /// still types normally in text fields. Stands down while the key is watched
-  /// system-wide, which sees the same presses.
-  bool _onKeyEvent(KeyEvent event) {
-    if (event is KeyRepeatEvent || !state.isConnected) return false;
-    if (_globalKeys.watching) return false;
-    final settings = ref.read(settingsControllerProvider);
-    if (!settings.pushToTalk ||
-        event.physicalKey.usbHidUsage != settings.pushToTalkKey) {
-      return false;
-    }
-    setPushToTalkPressed(event is KeyDownEvent);
-    return false;
-  }
-
-  /// Push-to-talk key or voice-bar button pressed / released. Releasing keeps
-  /// the mic open for [pushToTalkReleaseDelay] so the last word isn't cut.
-  void setPushToTalkPressed(bool pressed) {
-    final session = _session;
-    if (session == null || !state.isConnected) return;
-    _releasePushToTalk?.cancel();
-    if (pressed) {
-      _afkMonitor?.markActivity();
-      unawaited(session.setPushToTalkPressed(true));
-    } else {
-      _releasePushToTalk = Timer(
-        pushToTalkReleaseDelay,
-        () => session.setPushToTalkPressed(false),
-      );
-    }
-  }
-
   /// High-frequency speaker churn (many times per second while anyone talks):
   /// only push a new state when the speaking set actually changed.
   void _onSessionChanged() {
@@ -873,128 +680,6 @@ class VoiceController extends _$VoiceController {
     ref
         .read(voiceStatesControllerProvider(serverKey).notifier)
         .seedChannel(channelId, data);
-  }
-
-  // ── AFK ──
-  //
-  // Detection is client-side: `AccordVoiceState` has no `afk` field and
-  // `updateVoiceState` accepts only the self_* flags, so AFK is published to
-  // other members by flipping our presence to `idle`.
-
-  /// Re-points the idle monitor at the current connection + timeout setting.
-  void _syncAfk() {
-    final minutes = ref.read(settingsControllerProvider).voiceAfkTimeoutMinutes;
-    _ensureAfkMonitor().update(
-      connected: state.isConnected,
-      timeout: effectiveAfkTimeout(minutes),
-    );
-  }
-
-  /// Whether the mic is picking us up right now — talking counts as activity
-  /// even with no keyboard/mouse input. Muted means no input by definition.
-  bool _micActive() {
-    final session = _session;
-    if (session == null || state.selfMute) return false;
-    if (session.localIsSpeaking) return true;
-    final threshold = ref.read(settingsControllerProvider).speakingThreshold;
-    return session.localAudioLevel >= threshold;
-  }
-
-  void _onAfkChanged(bool afk) {
-    if (state.isAfk == afk) return;
-    state = state.copyWith(isAfk: afk);
-    _publishAfkPresence(afk);
-    if (afk) unawaited(_moveToAfkChannel());
-  }
-
-  /// Mirrors AFK onto our presence so *other* members can see it. Only ever
-  /// touches a plain `online` status: a user who deliberately picked DND or
-  /// Invisible keeps it, and we restore whatever they had on return.
-  void _publishAfkPresence(bool afk) {
-    // On the way back, use the connection we *published on* rather than the
-    // current one: leaving voice clears `serverKey` before the AFK flag is
-    // cleared, and a stranded `idle` status would never be restored.
-    final key = afk ? state.serverKey : _afkPresenceKey;
-    if (key == null) return;
-    final client = ref.read(accordAuthProvider.notifier).clientForKey(key);
-    final userId = ref
-        .read(connectionsControllerProvider)
-        .connectionFor(key)
-        ?.session
-        .userId;
-    if (client == null || userId == null) return;
-    final presences = ref.read(presenceControllerProvider(key));
-    final current = accordPresenceStatus(presences, userId);
-
-    if (afk) {
-      if (current != 'online') return;
-      _presenceBeforeAfk = current;
-      _afkPresenceKey = key;
-      _setPresence(client, key, userId, 'idle', presences);
-    } else {
-      final restore = _presenceBeforeAfk;
-      _presenceBeforeAfk = null;
-      _afkPresenceKey = null;
-      // Don't stomp a status the user changed by hand while away.
-      if (restore == null || current != 'idle') return;
-      _setPresence(client, key, userId, restore, presences);
-    }
-  }
-
-  void _setPresence(
-    AccordClient client,
-    String serverKey,
-    String userId,
-    String status,
-    PresenceMap presences,
-  ) {
-    final custom = accordCustomStatus(presences, userId);
-    client.gateway.updatePresence(
-      status,
-      activity: custom == null ? const {} : {'name': custom, 'type': 'custom'},
-    );
-    ref
-        .read(presenceControllerProvider(serverKey).notifier)
-        .upsert(
-          AccordPresence(
-            userId: userId,
-            status: status,
-            activities: custom == null
-                ? []
-                : [AccordActivity(name: custom, type: 'custom')],
-          ),
-        );
-  }
-
-  /// Moves us into the space's designated AFK channel, when it has one. Accord
-  /// has no server-side move, so this is a plain re-join of the local user.
-  Future<void> _moveToAfkChannel() async {
-    if (!ref.read(settingsControllerProvider).voiceAfkAutoMove) return;
-    final spaceId = state.spaceId;
-    final serverKey = state.serverKey;
-    if (spaceId == null || serverKey == null) return;
-    // `_joinLocked` pins to whichever connection is *active*, so only auto-move
-    // when the call is on that connection — otherwise we'd rejoin on the wrong
-    // server.
-    final connections = ref.read(connectionsControllerProvider);
-    if (connections.activeKey != serverKey) return;
-    final space = connections
-        .connectionFor(serverKey)
-        ?.spaces
-        .firstWhereOrNull((s) => s.id == spaceId);
-    final afkChannelId = space?.afkChannelId;
-    if (afkChannelId == null ||
-        afkChannelId.isEmpty ||
-        afkChannelId == state.channelId) {
-      return;
-    }
-
-    // Deliberately the private join: the public one marks activity and
-    // re-syncs, which would immediately un-AFK us again.
-    await _serialize(() => _joinLocked(afkChannelId, spaceId));
-    if (state.isConnected && (_afkMonitor?.isAfk ?? false)) {
-      state = state.copyWith(isAfk: true);
-    }
   }
 
   void _sendVoiceStateUpdate() {

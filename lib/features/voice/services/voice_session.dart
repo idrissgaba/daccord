@@ -152,8 +152,12 @@ class VoiceSession {
 
   /// The room subscribes to everything it is offered; a screen share we did
   /// not ask to watch is dropped again as soon as it shows up.
-  void _dropUnwatchedStream(RemoteParticipant participant, TrackPublication pub) {
-    if (!_isScreenShare(pub) || _watchedStreams.contains(participant.identity)) {
+  void _dropUnwatchedStream(
+    RemoteParticipant participant,
+    TrackPublication pub,
+  ) {
+    if (!_isScreenShare(pub) ||
+        _watchedStreams.contains(participant.identity)) {
       return;
     }
     if (pub is RemoteTrackPublication) {
