@@ -236,7 +236,8 @@ class _ConnectedBody extends ConsumerWidget {
       final streaming =
           screen != null ||
           (session != null &&
-              (vs.selfStream || (!isMe && session.remoteIsStreaming(vs.userId))));
+              (vs.selfStream ||
+                  (!isMe && session.remoteIsStreaming(vs.userId))));
       if (streaming) {
         tiles.add(
           _Tile(
@@ -545,7 +546,6 @@ class _TileButton extends StatelessWidget {
     );
   }
 }
-
 
 /// The tile spotlighted when nobody picked one: someone else's screen share
 /// first (what you came to watch), then your own.
