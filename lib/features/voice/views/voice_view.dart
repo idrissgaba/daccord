@@ -74,6 +74,12 @@ bool _escapeExitsFullScreen(KeyEvent event) {
   return true;
 }
 
+/// Phones share the whole screen, this app included, so our own share must
+/// not be previewed there (it would film itself); desktops share a chosen
+/// screen or window.
+bool get screenShareCapturesApp =>
+    !kIsWeb && (UniversalPlatform.isAndroid || UniversalPlatform.isIOS);
+
 bool get _hasDesktopWindow =>
     !kIsWeb &&
     (UniversalPlatform.isWindows ||

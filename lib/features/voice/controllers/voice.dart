@@ -8,6 +8,7 @@ import 'package:bonfire/features/notifications/services/sound.dart';
 import 'package:bonfire/features/server/controllers/connections.dart';
 import 'package:bonfire/features/settings/controllers/settings.dart';
 import 'package:bonfire/features/settings/models/accord_settings.dart';
+import 'package:bonfire/features/spaces/utils/home_shortcuts.dart';
 import 'package:bonfire/features/voice/controllers/voice_states.dart';
 import 'package:bonfire/features/voice/models/voice_connection.dart';
 import 'package:bonfire/features/voice/services/afk_monitor.dart';
@@ -107,8 +108,17 @@ class VoiceController extends _$VoiceController with _VoiceAfk, _PushToTalk {
       settingsControllerProvider.select((s) => s.pushToTalkKey),
       (_, _) => _syncGlobalPushToTalk(),
     );
+    ref.listen(
+      settingsControllerProvider.select(
+        (s) => (s.keybinds, s.disabledDefaultKeybinds),
+      ),
+      (_, _) => _syncGlobalVoiceShortcuts(),
+    );
     listenSelf((prev, next) {
-      if (prev?.isConnected != next.isConnected) _syncGlobalPushToTalk();
+      if (prev?.isConnected != next.isConnected) {
+        _syncGlobalPushToTalk();
+        _syncGlobalVoiceShortcuts();
+      }
     });
     final keyHookAttached = _attachKeyHook();
     ref.onDispose(() {
@@ -116,6 +126,7 @@ class VoiceController extends _$VoiceController with _VoiceAfk, _PushToTalk {
         HardwareKeyboard.instance.removeHandler(_onKeyEvent);
       }
       _globalKeys.stop();
+      _globalShortcuts.stop();
       _releasePushToTalk?.cancel();
       _afkMonitor?.dispose();
       _afkMonitor = null;
@@ -284,6 +295,7 @@ class VoiceController extends _$VoiceController with _VoiceAfk, _PushToTalk {
     state = const VoiceConnection();
   }
 
+  @override
   void toggleMute() => setMute(!state.selfMute);
 
   void setMute(bool muted) {
@@ -350,6 +362,7 @@ class VoiceController extends _$VoiceController with _VoiceAfk, _PushToTalk {
     _sendVoiceStateUpdate();
   }
 
+  @override
   void toggleDeafen() => setDeafen(!state.selfDeaf);
 
   void setDeafen(bool deafened) {

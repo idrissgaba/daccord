@@ -1,9 +1,22 @@
+import 'dart:math' as math;
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_background/flutter_background.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart' as rtc;
 
 bool get _isAndroid =>
     !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
+
+/// The long side, in pixels, of what Android's screen capture produces: the
+/// whole display at its native size. Null elsewhere, where capture honours
+/// the requested resolution.
+int? get androidCaptureLongSide {
+  if (!_isAndroid) return null;
+  final displays = PlatformDispatcher.instance.displays;
+  if (displays.isEmpty) return null;
+  final size = displays.first.size;
+  return math.max(size.width, size.height).round();
+}
 
 /// Gets Android ready to capture the screen: the user's consent for this
 /// session, then the mediaProjection foreground service Android 14+ requires

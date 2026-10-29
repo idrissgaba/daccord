@@ -5,7 +5,7 @@ import 'package:bonfire/features/voice/controllers/call.dart';
 import 'package:bonfire/features/voice/controllers/voice.dart';
 import 'package:bonfire/features/voice/controllers/voice_states.dart';
 import 'package:bonfire/features/voice/views/voice_view.dart'
-    show showFullScreenVoice, voiceFullScreenOpen;
+    show screenShareCapturesApp, showFullScreenVoice, voiceFullScreenOpen;
 import 'package:bonfire/theme/theme.dart';
 import 'package:collection/collection.dart' show IterableExtension;
 import 'package:flutter/material.dart';
@@ -210,7 +210,9 @@ class _VoicePipOverlayState extends ConsumerState<VoicePipOverlay> {
     final voice = ref.read(voiceControllerProvider);
     final myId = ref.readUserId();
 
-    if (voice.selfStream && session.localScreenTrack != null) {
+    if (voice.selfStream &&
+        session.localScreenTrack != null &&
+        !screenShareCapturesApp) {
       return session.localScreenTrack;
     }
     if (voice.selfVideo && session.localCameraTrack != null) {

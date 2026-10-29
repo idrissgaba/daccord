@@ -28,6 +28,11 @@ On macOS, read ⌘ for Ctrl and ⌥ for Alt.
 | Ctrl+, | Open settings |
 | Ctrl+/ | Show the shortcuts list |
 
+In the Windows desktop app the mute and deafen chords (built-in or recorded
+in Settings › Keybinds) also work while another app has focus, during a call.
+Every other shortcut, and all of them on other platforms, needs the Daccord
+window focused.
+
 ## Messaging
 
 | Shortcut | Action |

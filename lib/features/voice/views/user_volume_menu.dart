@@ -1,5 +1,6 @@
 import 'package:bonfire/features/settings/controllers/settings.dart';
 import 'package:bonfire/features/settings/models/accord_settings.dart';
+import 'package:bonfire/features/voice/utils/voice_logic.dart';
 import 'package:bonfire/features/voice/views/voice_moderation_menu.dart';
 import 'package:bonfire/shared/utils/platform.dart';
 import 'package:bonfire/theme/theme.dart';
@@ -18,7 +19,8 @@ int get maxUserVolumeSlider => kIsWeb ? 100 : AccordSettings.maxUserVolume;
 ///
 /// With [spaceId] and [channelId] (a space voice channel), the menu also
 /// carries the voice moderation actions the current user may take. Without
-/// [showVolume] (our own row) it carries only those.
+/// [showVolume] (our own row) it carries only those. With [stream] (a screen
+/// share tile) the slider sets their stream's volume instead of their voice.
 Future<void> showUserVolumeMenu(
   BuildContext context, {
   required String serverKey,
@@ -28,6 +30,7 @@ Future<void> showUserVolumeMenu(
   String? spaceId,
   String? channelId,
   bool showVolume = true,
+  bool stream = false,
 }) {
   final moderation = spaceId != null && channelId != null;
   final panel = Column(
@@ -35,7 +38,12 @@ Future<void> showUserVolumeMenu(
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
       if (showVolume)
-        UserVolumePanel(serverKey: serverKey, userId: userId, name: name)
+        UserVolumePanel(
+          serverKey: serverKey,
+          userId: userId,
+          name: name,
+          stream: stream,
+        )
       else
         ListTile(
           dense: true,
@@ -110,20 +118,25 @@ class UserVolumePanel extends ConsumerWidget {
     required this.serverKey,
     required this.userId,
     required this.name,
+    this.stream = false,
   });
 
   final String serverKey;
   final String userId;
   final String name;
 
+  /// Sets the volume of their screen-share audio rather than their voice.
+  final bool stream;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final id = stream ? streamVolumeId(userId) : userId;
     final volume = ref.watch(
-      settingsControllerProvider.select((s) => s.userVolume(serverKey, userId)),
+      settingsControllerProvider.select((s) => s.userVolume(serverKey, id)),
     );
     final muted = ref.watch(
       settingsControllerProvider.select(
-        (s) => s.isUserLocallyMuted(serverKey, userId),
+        (s) => s.isUserLocallyMuted(serverKey, id),
       ),
     );
     final controller = ref.read(settingsControllerProvider.notifier);
@@ -149,28 +162,28 @@ class UserVolumePanel extends ConsumerWidget {
             title: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('User Volume'),
+                Text(stream ? 'Stream Volume' : 'User Volume'),
                 Text(muted ? 'Muted' : '$shown%'),
               ],
             ),
             subtitle: Slider(
-              key: const Key('user-volume-slider'),
+              key: Key(stream ? 'stream-volume-slider' : 'user-volume-slider'),
               value: shown.toDouble(),
               max: max.toDouble(),
-              divisions: max ~/ 5,
+              divisions: max,
               label: '$shown%',
               onChanged: muted
                   ? null
                   : (v) =>
-                        controller.setUserVolume(serverKey, userId, v.round()),
+                        controller.setUserVolume(serverKey, id, v.round()),
             ),
           ),
           CheckboxListTile(
             dense: true,
-            title: const Text('Mute for me'),
+            title: Text(stream ? 'Mute stream' : 'Mute for me'),
             value: muted,
             onChanged: (v) =>
-                controller.setUserLocallyMuted(serverKey, userId, v ?? false),
+                controller.setUserLocallyMuted(serverKey, id, v ?? false),
           ),
           Align(
             alignment: Alignment.centerRight,
@@ -179,7 +192,7 @@ class UserVolumePanel extends ConsumerWidget {
               child: TextButton(
                 onPressed: isDefault
                     ? null
-                    : () => controller.resetUserVolume(serverKey, userId),
+                    : () => controller.resetUserVolume(serverKey, id),
                 child: const Text('Reset'),
               ),
             ),

@@ -51,6 +51,19 @@ class HomeShortcutBinding {
   final bool alt;
   final String label;
 
+  /// The main key's USB HID usage: the recorded one, else derived from a
+  /// built-in's letter or digit key. Null for keys it can't derive, which
+  /// then can't be watched outside the app.
+  int? get physicalUsage {
+    if (physical != 0) return physical;
+    final id = key.keyId;
+    const page = 0x00070000;
+    if (id >= 0x61 && id <= 0x7a) return page + 0x04 + id - 0x61; // a–z
+    if (id >= 0x31 && id <= 0x39) return page + 0x1E + id - 0x31; // 1–9
+    if (id == 0x30) return page + 0x27; // 0
+    return null;
+  }
+
   bool matches({
     required LogicalKeyboardKey pressed,
     required bool control,

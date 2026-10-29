@@ -5,6 +5,26 @@ import 'package:bonfire/features/voice/utils/voice_logic.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  group('captureDownscale', () {
+    test('fits a phone panel to the chosen resolution', () {
+      expect(
+        captureDownscale(sourceLongSide: 3200, targetLongSide: 1280),
+        2.5,
+      );
+    });
+
+    test('never scales up or divides by zero', () {
+      expect(captureDownscale(sourceLongSide: 800, targetLongSide: 1280), 1);
+      expect(captureDownscale(sourceLongSide: 0, targetLongSide: 1280), 1);
+      expect(captureDownscale(sourceLongSide: 3200, targetLongSide: 0), 1);
+    });
+  });
+
+  test('stream volume is kept apart from the voice volume', () {
+    expect(streamVolumeId('42'), isNot('42'));
+    expect(streamVolumeId('42'), streamVolumeId('42'));
+  });
+
   group('voiceGain', () {
     test('100% is unity, 0% is silent, 200% is double', () {
       expect(voiceGain(100), 1.0);

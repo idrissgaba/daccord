@@ -69,10 +69,14 @@ mixin _HomeNavigation on ConsumerState<AccordHomeScreen> {
         );
         final target = next == null ? null : ServerEntityKey.tryDecode(next);
         if (target != null) _selectSpace(target.serverKey, target.entityId);
+      // While in a call on Windows the voice controller watches these chords
+      // system-wide and has already toggled.
       case HomeShortcut.toggleMute:
-        ref.read(voiceControllerProvider.notifier).toggleMute();
+        final voice = ref.read(voiceControllerProvider.notifier);
+        if (!voice.watchesVoiceShortcutsGlobally) voice.toggleMute();
       case HomeShortcut.toggleDeafen:
-        ref.read(voiceControllerProvider.notifier).toggleDeafen();
+        final voice = ref.read(voiceControllerProvider.notifier);
+        if (!voice.watchesVoiceShortcutsGlobally) voice.toggleDeafen();
       case HomeShortcut.toggleMembers:
         setState(() => _memberListVisible = !_memberListVisible);
       case HomeShortcut.openSettings:

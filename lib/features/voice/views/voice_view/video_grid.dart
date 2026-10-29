@@ -11,6 +11,7 @@ class _Tile {
     required this.isScreen,
     required this.muted,
     this.watching = true,
+    this.previewHidden = false,
   });
 
   final String userId;
@@ -24,6 +25,11 @@ class _Tile {
   /// False for a peer's screen share we haven't chosen to watch: the tile
   /// offers a "Watch stream" button instead of the video.
   final bool watching;
+
+  /// Our own screen share on a phone: the capture is the whole screen, so
+  /// drawing it here would film itself — an endless mirror that kept the
+  /// encoder at full load and froze Android phones. A card stands in.
+  final bool previewHidden;
 
   /// Which tile is spotlighted: a person has a camera tile and, while
   /// sharing, a screen tile — by user id alone the camera tile won, so
@@ -179,6 +185,7 @@ class _ConnectedBody extends ConsumerWidget {
               spaceId: spaceId,
               channelId: channelId,
               showVolume: t.userId != myId,
+              stream: t.isScreen,
             ),
     );
 
@@ -262,10 +269,11 @@ class _ConnectedBody extends ConsumerWidget {
             name: display.name,
             avatarUrl: display.avatarUrl,
             bg: display.color,
-            track: screen,
+            track: isMe && screenShareCapturesApp ? null : screen,
             isScreen: true,
             muted: false,
             watching: isMe || session!.isWatchingStream(vs.userId),
+            previewHidden: isMe && screenShareCapturesApp,
           ),
         );
       }
@@ -462,7 +470,9 @@ class _VideoTile extends StatelessWidget {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            if (tile.isScreen && !tile.watching)
+            if (tile.previewHidden)
+              const _SharingCard()
+            else if (tile.isScreen && !tile.watching)
               _LiveCard(tile: tile, onWatch: onToggleWatch)
             else if (tile.track != null)
               ValueListenableBuilder<int>(
@@ -491,11 +501,28 @@ class _VideoTile extends StatelessWidget {
               Positioned(
                 right: 6,
                 top: 6,
-                child: _TileButton(
-                  key: Key('stop-watching-${tile.userId}'),
-                  label: 'Stop watching',
-                  icon: Icons.visibility_off,
-                  onPressed: onToggleWatch!,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // The stream's own volume, apart from their voice: the
+                    // right-click/long-press menu has it too, but a viewer on
+                    // a touch screen wouldn't find it.
+                    if (openVolume != null) ...[
+                      _TileButton(
+                        key: Key('stream-volume-${tile.userId}'),
+                        label: 'Volume',
+                        icon: Icons.volume_up,
+                        onPressed: () => openVolume(null),
+                      ),
+                      const SizedBox(width: 6),
+                    ],
+                    _TileButton(
+                      key: Key('stop-watching-${tile.userId}'),
+                      label: 'Stop watching',
+                      icon: Icons.visibility_off,
+                      onPressed: onToggleWatch!,
+                    ),
+                  ],
                 ),
               ),
             Positioned(
@@ -582,6 +609,28 @@ class _LiveCard extends StatelessWidget {
           icon: Icons.play_arrow,
           onPressed: onWatch,
           primary: true,
+        ),
+      ],
+    );
+  }
+}
+
+/// Stands in for our own screen share where previewing it would film itself
+/// (see [_Tile.previewHidden]).
+class _SharingCard extends StatelessWidget {
+  const _SharingCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(Icons.screen_share, size: 32),
+        SizedBox(height: 8),
+        Text(
+          "You're sharing your screen",
+          key: Key('own-share-card'),
+          textAlign: TextAlign.center,
         ),
       ],
     );

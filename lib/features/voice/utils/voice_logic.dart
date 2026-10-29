@@ -23,6 +23,24 @@ const double maxNativeTrackGain = 2.0;
 /// `HTMLAudioElement` whose `volume` cannot exceed 1.
 const double maxWebTrackGain = 1.0;
 
+/// How far the encoder scales a screen capture down so its long side fits
+/// [targetLongSide]: Android captures the whole panel at its native size
+/// (1440×3200 on many phones) whatever resolution was asked for, and encoding
+/// that in full stalled the phone. Never scales up.
+double captureDownscale({
+  required int sourceLongSide,
+  required int targetLongSide,
+}) {
+  if (sourceLongSide <= 0 || targetLongSide <= 0) return 1;
+  final scale = sourceLongSide / targetLongSide;
+  return scale > 1 ? scale : 1;
+}
+
+/// The volume entry for [userId]'s screen-share audio. Kept beside their voice
+/// volume (same maps, same 0–200 %), so a loud stream can be turned down
+/// without making them quiet too, as in other chat apps.
+String streamVolumeId(String userId) => '$userId#stream';
+
 /// The gain for one remote participant's audio: our global output gain times
 /// that participant's own volume ([userVolumePercent], 100 when unset),
 /// clamped to [maxGain]. Zero when they are muted for us.

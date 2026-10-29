@@ -50,7 +50,7 @@ final class VoiceControllerProvider
   }
 }
 
-String _$voiceControllerHash() => r'6eaf0a281eff26aa4ffcf43ec1b30d080db383e2';
+String _$voiceControllerHash() => r'3c73e19ca32a98aaf045be0ce396b226891b9eac';
 
 /// Orchestrates voice channel join/leave and media toggles (reference:
 /// `client_voice.gd`). Owns a single [VoiceSession] (the LiveKit transport) and

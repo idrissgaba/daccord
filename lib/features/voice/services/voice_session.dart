@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:bonfire/features/voice/services/android_screen_capture.dart';
 import 'package:bonfire/features/voice/utils/voice_logic.dart';
@@ -614,6 +615,30 @@ class VoiceSession {
         publishOptions: screenShareAudioPublishOptions,
       );
     }
+    await _fitAndroidCapture(track, options.params.dimensions);
+  }
+
+  /// Android ignores the requested capture size and hands over the whole
+  /// panel; the encoder scales it down to [target] instead, which is what
+  /// kept phones from freezing under a full-resolution encode.
+  Future<void> _fitAndroidCapture(
+    LocalVideoTrack track,
+    VideoDimensions target,
+  ) async {
+    final source = androidCaptureLongSide;
+    final sender = track.sender;
+    if (source == null || sender == null) return;
+    final params = sender.parameters;
+    final encodings = params.encodings;
+    if (encodings == null || encodings.isEmpty) return;
+    final scale = captureDownscale(
+      sourceLongSide: source,
+      targetLongSide: math.max(target.width, target.height),
+    );
+    for (final encoding in encodings) {
+      encoding.scaleResolutionDownBy = scale;
+    }
+    await _guardMedia('screen share scale', () => sender.setParameters(params));
   }
 
   /// Applies [preference] to the published screen-share sender, for the paths
@@ -735,18 +760,26 @@ class VoiceSession {
     final room = _room;
     if (room == null) return;
     for (final participant in room.remoteParticipants.values) {
-      final gain = _gainFor(participant.identity);
       for (final pub in participant.audioTrackPublications) {
         final track = pub.track;
-        if (track != null) await _setRemoteVolume(track, gain);
+        if (track != null) {
+          await _setRemoteVolume(
+            track,
+            _gainFor(participant.identity, source: pub.source),
+          );
+        }
       }
     }
   }
 
-  /// The gain for [userId]'s audio: global output × their own volume.
-  double _gainFor(String userId) => participantGain(
+  /// The gain for [userId]'s audio: global output × their own volume, or ×
+  /// their stream volume for screen-share audio ([source]).
+  double _gainFor(String userId, {TrackSource? source}) => participantGain(
     outputGain: _outputGain,
-    userVolumePercent: _userVolumes[userId],
+    userVolumePercent:
+        _userVolumes[source == TrackSource.screenShareAudio
+            ? streamVolumeId(userId)
+            : userId],
     maxGain: kIsWeb ? maxWebTrackGain : maxNativeTrackGain,
   );
 
@@ -852,7 +885,13 @@ class VoiceSession {
           } else {
             final track = e.track;
             if (track is AudioTrack) {
-              await _setRemoteVolume(track, _gainFor(e.participant.identity));
+              await _setRemoteVolume(
+                track,
+                _gainFor(
+                  e.participant.identity,
+                  source: e.publication.source,
+                ),
+              );
             }
           }
         }

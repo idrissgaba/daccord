@@ -49,6 +49,9 @@ Material icons and existing sounds; no third-party brand assets are used.
 | Voice at 96 kbps Opus without DTX by default (DTX clipped the first syllable after each pause); high quality is 128 kbps mono with RED | `feature/voice-quality` | Deployed | `voice/utils/voice_logic.dart` |
 | Threads in a side panel, profile popouts beside the click, space menu under the space name (create category, mark as read, leave…), one-click voice join on desktop, live tab names, plain previews, visible inline code, colour emoji fallback, Escape closes settings | `feature/discord-polish` | Deployed | `messaging/views/thread_view.dart`, `member/views/accord_member_popout.dart`, `spaces/views/accord_home*.dart`, `messaging/utils/message_display.dart`, `shared/components/escape_to_close.dart`, `shared/components/settings_scaffold.dart`, `theme/app_theme.dart` |
 | Fixes from the 2026-10-28 QA (`docs/qa/`): one Windows instance (a second launch restores the running window and forwards its `daccord://` link), Shift+Enter breaks the line on the web, Enter saves / Escape cancels an inline edit, a cancelled screen-share prompt no longer shows a phantom share, Reply focuses the composer, DM placeholder reads "Message @name" | `fix/qa-2026-10-28` | Deployed | `windows/runner/main.cpp`, `windows/runner/CMakeLists.txt`, `messaging/views/message_pane/composer.dart`, `messaging/views/message_pane/message_row.dart`, `messaging/views/message_pane/message_pane.dart`, `voice/controllers/voice.dart`, `voice/services/voice_session.dart`, `user/views/accord_direct_messages_conversations.dart` |
+| Stream volume for viewers (its own slider and "Mute stream" from a Volume button on a watched stream, or right-click/long-press), apart from the streamer's voice volume | `feature/stream-volume` | Built | `voice/views/user_volume_menu.dart`, `voice/views/voice_view/video_grid.dart`, `voice/services/voice_session.dart`, `voice/utils/voice_logic.dart` |
+| Mute/deafen keybinds outside the app (Windows desktop, during a call) | `feature/global-voice-keybinds` | Built | `voice/services/global_key_watcher.dart`, `voice/controllers/voice_push_to_talk.dart`, `spaces/utils/home_shortcuts.dart`, `spaces/views/accord_home_navigation.dart` |
+| Fix: starting a screen share froze Android phones (the app previewed its own capture, filming itself, and the full-panel capture was encoded unscaled) | `fix/android-screen-share` | Built | `voice/views/voice_view/video_grid.dart`, `voice/views/voice_pip_overlay.dart`, `voice/services/voice_session.dart`, `voice/services/android_screen_capture.dart` |
 
 Paths are under `lib/features/` unless they start with `packages/`.
 
@@ -63,7 +66,12 @@ Notes:
   desktop app shares video only.
 - Push-to-talk works while another app has focus in the Windows desktop app
   (`feature/global-ptt`, polling `GetAsyncKeyState` through `win32` every
-  15 ms during a call); elsewhere it listens while the app has focus.
+  15 ms during a call); elsewhere it listens while the app has focus. The
+  mute and deafen keybinds are watched the same way during a call
+  (`feature/global-voice-keybinds`); other keybinds need the app focused.
+- Android captures the whole screen at its native size whatever resolution
+  is chosen; the encoder scales it down to the chosen one. Phones show a
+  "You're sharing your screen" card instead of previewing their own share.
 - Events, stickers, profile extras, the welcome screen, stages and super
   reactions need the
   server fork too; against an upstream server those panels stay empty or report

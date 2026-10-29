@@ -14,6 +14,26 @@ AccordChannel _channel(String id, {String type = 'text', String? parent}) =>
     });
 
 void main() {
+  test('mute and deafen chords map to physical keys for global watching', () {
+    expect(
+      defaultBindingFor(HomeShortcut.toggleMute).physicalUsage,
+      PhysicalKeyboardKey.keyM.usbHidUsage,
+    );
+    expect(
+      defaultBindingFor(HomeShortcut.toggleDeafen).physicalUsage,
+      PhysicalKeyboardKey.keyD.usbHidUsage,
+    );
+    final recorded = bindingFromCustom(
+      CustomKeybind(
+        action: HomeShortcut.toggleMute.name,
+        keyId: LogicalKeyboardKey.f9.keyId,
+        physicalKey: PhysicalKeyboardKey.f9.usbHidUsage,
+      ),
+    );
+    expect(recorded!.physicalUsage, PhysicalKeyboardKey.f9.usbHidUsage);
+    expect(defaultBindingFor(HomeShortcut.showShortcuts).physicalUsage, isNull);
+  });
+
   group('matchHomeShortcut', () {
     test('maps the chords users know from other chat apps', () {
       expect(
