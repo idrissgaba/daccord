@@ -631,15 +631,22 @@ class _AccordHomeScreenState extends ConsumerState<AccordHomeScreen>
     // [membersButton] is the escape hatch for the medium layout, where the
     // roster has been pushed into the end drawer to keep the message column
     // readable; the wide layout keeps it inline and passes false.
+    final showTabs = ref.watch(
+      settingsControllerProvider.select((s) => s.showChannelTabs),
+    );
     Widget messageArea({required bool membersButton, bool expanded = false}) =>
         Column(
           children: [
-            if (expanded)
+            if (expanded || (!showTabs && !membersButton))
               const SizedBox.shrink()
             else
               Row(
                 children: [
-                  Expanded(child: _TabStrip(onSelect: _selectTab)),
+                  Expanded(
+                    child: showTabs
+                        ? _TabStrip(onSelect: _selectTab)
+                        : const SizedBox.shrink(),
+                  ),
                   if (membersButton)
                     IconButton(
                       tooltip: 'Members',
@@ -847,7 +854,11 @@ class _AccordHomeScreenState extends ConsumerState<AccordHomeScreen>
                                       _scaffoldKey.currentState?.openDrawer(),
                                 ),
                               ),
-                              Expanded(child: _TabStrip(onSelect: _selectTab)),
+                              Expanded(
+                                child: showTabs
+                                    ? _TabStrip(onSelect: _selectTab)
+                                    : const SizedBox.shrink(),
+                              ),
                               if (hasMembers)
                                 IconButton(
                                   tooltip: 'Members',

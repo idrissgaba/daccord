@@ -1,7 +1,7 @@
 part of '../accord_settings_screen.dart';
 
-/// Theme preset chips, accent-colour swatches, compact mode, emoticon
-/// conversion, reduced motion, and the UI scale slider.
+/// Theme preset chips, accent-colour swatches, compact mode and the tray
+/// behaviour.
 class _AppearanceSection extends StatelessWidget {
   const _AppearanceSection({required this.settings, required this.controller});
 
@@ -70,35 +70,41 @@ class _AppearanceSection extends StatelessWidget {
             onChanged: controller.setCloseToTray,
           ),
         SwitchListTile(
-          title: const Text('Show embeds and link previews'),
-          subtitle: const Text(
-            'Hide previews only for you; message text stays visible',
-          ),
-          value: settings.showEmbeds,
-          onChanged: controller.setShowEmbeds,
-        ),
-        SwitchListTile(
           title: const Text('Compact mode'),
           subtitle: const Text('Denser message layout (smaller spacing)'),
           value: settings.compactMode,
           onChanged: controller.setCompactMode,
         ),
         SwitchListTile(
-          title: const Text('Convert emoticons to emoji'),
-          subtitle: const Text('Turn :) and <3 into 🙂 and ❤️ as you send'),
-          value: settings.convertEmoticons,
-          onChanged: controller.setConvertEmoticons,
-        ),
-        SwitchListTile(
-          key: const Key('settings-streamer-mode'),
-          title: const Text('Streamer mode'),
+          key: const Key('settings-channel-tabs'),
+          title: const Text('Channel tabs'),
           subtitle: const Text(
-            'Hide your notes and invite codes and silence notifications '
-            'while you stream or share your screen',
+            'Show the channels you have open as tabs above the messages',
           ),
-          value: settings.streamerMode,
-          onChanged: controller.setStreamerMode,
+          value: settings.showChannelTabs,
+          onChanged: controller.setShowChannelTabs,
         ),
+      ],
+    );
+  }
+}
+
+/// Reduced motion, UI scale and colour saturation.
+class _AccessibilitySection extends StatelessWidget {
+  const _AccessibilitySection({
+    required this.settings,
+    required this.controller,
+  });
+
+  final AccordSettings settings;
+  final SettingsController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SectionHeader('Accessibility'),
         SwitchListTile(
           title: const Text('Reduced motion'),
           subtitle: const Text('Minimise UI animations'),
@@ -126,6 +132,149 @@ class _AppearanceSection extends StatelessWidget {
             label: '${(settings.uiScale * 100).round()}%',
             onChanged: controller.setUiScale,
           ),
+        ),
+        ListTile(
+          title: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('Saturation'),
+              Text('${(settings.uiSaturation * 100).round()}%'),
+            ],
+          ),
+          subtitle: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Tone down the colours of the whole app; useful with colour '
+                'sensitivity',
+              ),
+              Slider(
+                key: const Key('settings-saturation'),
+                value: settings.uiSaturation.clamp(0.0, 1.0),
+                divisions: 10,
+                label: '${(settings.uiSaturation * 100).round()}%',
+                onChanged: controller.setUiSaturation,
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Link previews, emoticon conversion and the default emoji skin tone.
+class _TextImagesSection extends StatelessWidget {
+  const _TextImagesSection({required this.settings, required this.controller});
+
+  final AccordSettings settings;
+  final SettingsController controller;
+
+  static const _hand = EmojiEntry(
+    '✋',
+    'raised_hand',
+    EmojiCategory.people,
+    '',
+    ['✋🏻', '✋🏼', '✋🏽', '✋🏾', '✋🏿'],
+  );
+  static const _toneLabels = [
+    'None',
+    'Light',
+    'Medium-light',
+    'Medium',
+    'Medium-dark',
+    'Dark',
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = BonfireThemeExtension.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SectionHeader('Text & Images'),
+        SwitchListTile(
+          title: const Text('Show embeds and link previews'),
+          subtitle: const Text(
+            'Hide previews only for you; message text stays visible',
+          ),
+          value: settings.showEmbeds,
+          onChanged: controller.setShowEmbeds,
+        ),
+        SwitchListTile(
+          title: const Text('Convert emoticons to emoji'),
+          subtitle: const Text('Turn :) and <3 into 🙂 and ❤️ as you send'),
+          value: settings.convertEmoticons,
+          onChanged: controller.setConvertEmoticons,
+        ),
+        ListTile(
+          title: const Text('Default emoji skin tone'),
+          subtitle: Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Wrap(
+              spacing: 8,
+              children: [
+                for (var t = 0; t <= 5; t++)
+                  Tooltip(
+                    message: _toneLabels[t],
+                    child: InkWell(
+                      key: Key('settings-skin-tone-$t'),
+                      borderRadius: BorderRadius.circular(8),
+                      onTap: () => controller.setEmojiSkinTone(t),
+                      child: Container(
+                        width: 40,
+                        height: 40,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: settings.emojiSkinTone == t
+                              ? colors.primary.withValues(alpha: 0.25)
+                              : colors.darkGray,
+                          borderRadius: BorderRadius.circular(8),
+                          border: settings.emojiSkinTone == t
+                              ? Border.all(color: colors.primary)
+                              : null,
+                        ),
+                        child: Text(
+                          _hand.withTone(t),
+                          style: const TextStyle(fontSize: 22),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// The streamer-mode switch, as its own page like other chat apps.
+class _StreamerModeSection extends StatelessWidget {
+  const _StreamerModeSection({
+    required this.settings,
+    required this.controller,
+  });
+
+  final AccordSettings settings;
+  final SettingsController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SectionHeader('Streamer Mode'),
+        SwitchListTile(
+          key: const Key('settings-streamer-mode'),
+          title: const Text('Enable streamer mode'),
+          subtitle: const Text(
+            'Hide your notes and invite codes and silence notifications '
+            'while you stream or share your screen',
+          ),
+          value: settings.streamerMode,
+          onChanged: controller.setStreamerMode,
         ),
       ],
     );
@@ -181,7 +330,8 @@ class _NotificationsSection extends StatelessWidget {
   }
 }
 
-/// SFX toggle + volume slider.
+/// SFX toggle, volume slider and one switch per sound, each with a listen
+/// button.
 class _SoundsSection extends StatelessWidget {
   const _SoundsSection({required this.settings, required this.controller});
 
@@ -213,6 +363,23 @@ class _SoundsSection extends StatelessWidget {
             onChanged: settings.soundsEnabled ? controller.setSfxVolume : null,
           ),
         ),
+        for (final (name, label) in SoundManager.userSounds)
+          SwitchListTile(
+            key: Key('settings-sound-$name'),
+            dense: true,
+            title: Text(label),
+            secondary: IconButton(
+              tooltip: 'Listen',
+              onPressed: settings.soundsEnabled
+                  ? () => soundManager.preview(name)
+                  : null,
+              icon: const Icon(Icons.play_circle_outline, size: 20),
+            ),
+            value: !settings.disabledSounds.contains(name),
+            onChanged: settings.soundsEnabled
+                ? (on) => controller.setSoundEnabled(name, on)
+                : null,
+          ),
       ],
     );
   }

@@ -6,6 +6,8 @@ import 'package:bonfire/shared/components/section_header.dart';
 import 'package:bonfire/features/authentication/repositories/accord_auth.dart';
 import 'package:bonfire/features/authentication/utils/confirm_logout.dart';
 import 'package:bonfire/features/developer/views/developer_settings_page.dart';
+import 'package:bonfire/features/messaging/utils/emoji_catalog.dart';
+import 'package:bonfire/features/notifications/services/sound.dart';
 import 'package:bonfire/features/settings/controllers/settings.dart';
 import 'package:bonfire/features/profiles/views/profiles_page.dart';
 import 'package:bonfire/features/server/controllers/connections.dart';
@@ -33,14 +35,15 @@ import 'package:go_router/go_router.dart';
 
 part 'settings_screen/sections.dart';
 
-/// Client settings: appearance (theme preset + accent), notifications, account.
+/// Client settings, laid out like other chat apps' user settings.
 ///
 /// Two layouts share the same section widgets:
 ///
-/// * **Narrow** (< [kSettingsWideBreakpoint]) — the original single flat
-///   `ListView` of all eleven sections. Unchanged.
-/// * **Wide** — a left category sidebar (Account / App / System / Advanced)
-///   plus one ordered, width-capped content column. See [_DesktopSettings].
+/// * **Narrow** (< [kSettingsWideBreakpoint]) — one flat `ListView` of every
+///   section.
+/// * **Wide** — a left sidebar of categories grouped under *User settings*,
+///   *App settings* and *System*, plus one ordered, width-capped content
+///   column. See [_DesktopSettings].
 class AccordSettingsScreen extends ConsumerWidget {
   const AccordSettingsScreen({super.key});
 
@@ -83,13 +86,19 @@ class AccordSettingsScreen extends ConsumerWidget {
             children: [
               _AppearanceSection(settings: settings, controller: controller),
               const Divider(height: 24),
+              _AccessibilitySection(settings: settings, controller: controller),
+              const Divider(height: 24),
               _NotificationsSection(settings: settings, controller: controller),
               const Divider(height: 24),
               _SoundsSection(settings: settings, controller: controller),
               const Divider(height: 24),
               const _VoiceVideoSection(),
               const Divider(height: 24),
+              _TextImagesSection(settings: settings, controller: controller),
+              const Divider(height: 24),
               const KeybindsSection(),
+              const Divider(height: 24),
+              _StreamerModeSection(settings: settings, controller: controller),
               const Divider(height: 24),
               _AccountSection(
                 session: session,
@@ -131,34 +140,62 @@ class AccordSettingsScreen extends ConsumerWidget {
 // ---------------------------------------------------------------------------
 
 /// Width at which the settings screen swaps the flat scroll for the sidebar +
-/// multi-column pane.
+/// content pane.
 ///
 /// Deliberately *not* `shouldUseDesktopLayout`: that helper also requires
 /// height > 1000, so it is false on short-but-wide desktop windows — exactly
-/// the shape that needs a multi-column settings layout most. Column count is a
-/// pure function of width, so it is measured with a width-only breakpoint.
+/// the shape that needs the sidebar layout most. Column count is a pure
+/// function of width, so it is measured with a width-only breakpoint.
 const double kSettingsWideBreakpoint = 1000;
 
-/// Maximum width of the ordered settings content. Caps every control row so a label and
-/// its switch stay visually paired instead of sitting at opposite ends of an
-/// ultrawide window.
+/// Maximum width of the ordered settings content. Caps every control row so a
+/// label and its switch stay visually paired instead of sitting at opposite
+/// ends of an ultrawide window.
 const double kSettingsContentMaxWidth = 760;
 
 const double _kSidebarWidth = 232;
 const double _kPanePadding = 16;
 
-/// The sidebar categories the settings sections group into.
-enum SettingsCategory {
-  account('Account', Icons.person_outline),
-  app('App', Icons.tune),
-  keybinds('Keybinds', Icons.keyboard_outlined),
-  system('System', Icons.settings_applications_outlined),
-  advanced('Advanced', Icons.code);
+/// The sidebar's group headings.
+enum SettingsGroup {
+  user('User settings'),
+  app('App settings'),
+  system('System');
 
-  const SettingsCategory(this.label, this.icon);
+  const SettingsGroup(this.label);
+
+  final String label;
+}
+
+/// The sidebar categories the settings sections group into, in sidebar order.
+enum SettingsCategory {
+  account('My Account', Icons.person_outline, SettingsGroup.user),
+  privacy('Privacy & Safety', Icons.shield_outlined, SettingsGroup.user),
+  connections('Connections', Icons.link, SettingsGroup.user),
+  appearance('Appearance', Icons.palette_outlined, SettingsGroup.app),
+  accessibility(
+    'Accessibility',
+    Icons.accessibility_new_outlined,
+    SettingsGroup.app,
+  ),
+  voiceVideo('Voice & Video', Icons.mic_none, SettingsGroup.app),
+  textImages('Text & Images', Icons.image_outlined, SettingsGroup.app),
+  notifications(
+    'Notifications',
+    Icons.notifications_none_outlined,
+    SettingsGroup.app,
+  ),
+  keybinds('Keybinds', Icons.keyboard_outlined, SettingsGroup.app),
+  streamerMode('Streamer Mode', Icons.videocam_outlined, SettingsGroup.app),
+  advanced('Advanced', Icons.code, SettingsGroup.app),
+  system('System', Icons.settings_applications_outlined, SettingsGroup.system),
+  about('About', Icons.info_outline, SettingsGroup.system);
+
+  const SettingsCategory(this.label, this.icon, this.group);
 
   final String label;
   final IconData icon;
+  final SettingsGroup group;
 }
 
 /// Sidebar + content pane. Owns which category is selected.
@@ -192,8 +229,8 @@ class _DesktopSettingsState extends State<_DesktopSettings> {
   }
 }
 
-/// Fixed-width category list, with Log out pinned to the bottom so it stays
-/// reachable from every category.
+/// Fixed-width category list under group headings, with Log out pinned to the
+/// bottom so it stays reachable from every category.
 class _CategorySidebar extends StatelessWidget {
   const _CategorySidebar({
     required this.selected,
@@ -208,6 +245,37 @@ class _CategorySidebar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = BonfireThemeExtension.of(context);
+    final rows = <Widget>[];
+    SettingsGroup? group;
+    for (final category in SettingsCategory.values) {
+      if (category.group != group) {
+        group = category.group;
+        rows.add(
+          Padding(
+            padding: EdgeInsets.fromLTRB(20, rows.isEmpty ? 4 : 16, 16, 4),
+            child: Text(
+              group.label.toUpperCase(),
+              style: Theme.of(context).textTheme.labelSmall!.copyWith(
+                color: colors.gray,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.4,
+              ),
+            ),
+          ),
+        );
+      }
+      rows.add(
+        FocusTraversalOrder(
+          key: ValueKey('settings-category-${category.name}'),
+          order: NumericFocusOrder(category.index.toDouble()),
+          child: _SidebarTile(
+            category: category,
+            selected: category == selected,
+            onTap: () => onSelect(category),
+          ),
+        ),
+      );
+    }
     return Material(
       key: const ValueKey('settings-sidebar'),
       color: colors.foreground,
@@ -220,18 +288,7 @@ class _CategorySidebar extends StatelessWidget {
               Expanded(
                 child: ListView(
                   padding: const EdgeInsets.symmetric(vertical: 8),
-                  children: [
-                    for (final category in SettingsCategory.values)
-                      FocusTraversalOrder(
-                        key: ValueKey('settings-category-${category.name}'),
-                        order: NumericFocusOrder(category.index.toDouble()),
-                        child: _SidebarTile(
-                          category: category,
-                          selected: category == selected,
-                          onTap: () => onSelect(category),
-                        ),
-                      ),
-                  ],
+                  children: rows,
                 ),
               ),
               Divider(height: 1, thickness: 1, color: colors.background),
@@ -263,12 +320,13 @@ class _SidebarTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = BonfireThemeExtension.of(context);
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
       child: ListTile(
         dense: true,
+        visualDensity: VisualDensity.compact,
         selected: selected,
         selectedTileColor: colors.primary.withValues(alpha: 0.18),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
         leading: Icon(
           category.icon,
           size: 20,
@@ -285,8 +343,6 @@ class _SidebarTile extends StatelessWidget {
 }
 
 /// The selected category's sections in one predictable top-to-bottom sequence.
-/// Unequal sections retain their natural visual weight instead of each becoming
-/// an equal card or being distributed round-robin across columns.
 class _CategoryPane extends ConsumerWidget {
   const _CategoryPane({required this.category});
 
@@ -310,34 +366,48 @@ class _CategoryPane extends ConsumerWidget {
               .watch(connectionsControllerProvider)
               .hasMultiple,
           onPickServerProfile: () => _pickServerProfile(context, ref),
-          // Connections and Privacy & Data are cards in this same pane, so
-          // their "push a sub-page" tiles would be redundant here.
+          // Connections and Privacy & Safety are categories of their own.
           showSubPageTiles: false,
         ),
-        const ConnectionsScreen(embedded: true),
-        const PrivacySettingsScreen(embedded: true),
-        const _ServerDirectorySection(),
       ],
-      SettingsCategory.app => <Widget>[
+      SettingsCategory.privacy => <Widget>[
+        const PrivacySettingsScreen(embedded: true),
+      ],
+      SettingsCategory.connections => <Widget>[
+        const ConnectionsScreen(embedded: true),
+      ],
+      SettingsCategory.appearance => <Widget>[
         _AppearanceSection(settings: settings, controller: controller),
+      ],
+      SettingsCategory.accessibility => <Widget>[
+        _AccessibilitySection(settings: settings, controller: controller),
+      ],
+      SettingsCategory.voiceVideo => <Widget>[const _VoiceVideoSection()],
+      SettingsCategory.textImages => <Widget>[
+        _TextImagesSection(settings: settings, controller: controller),
+      ],
+      SettingsCategory.notifications => <Widget>[
         _NotificationsSection(settings: settings, controller: controller),
         _SoundsSection(settings: settings, controller: controller),
-        const _VoiceVideoSection(),
       ],
       SettingsCategory.keybinds => <Widget>[const KeybindsSection()],
+      SettingsCategory.streamerMode => <Widget>[
+        _StreamerModeSection(settings: settings, controller: controller),
+      ],
+      SettingsCategory.advanced => <Widget>[
+        // The local MCP server is desktop-only and never in a store build.
+        if (isDeveloperModeAvailable)
+          _DeveloperSection(settings: settings, controller: controller),
+        const _ServerDirectorySection(),
+        const OnboardingHelpSection(),
+      ],
       SettingsCategory.system => <Widget>[
         // Store builds update through the store and never expose the GitHub
         // self-updater (#292).
         if (isSelfUpdateEnabled) const _UpdatesSection(),
         const _BackupSection(),
       ],
-      SettingsCategory.advanced => <Widget>[
-        // The local MCP server is desktop-only and never in a store build.
-        if (isDeveloperModeAvailable)
-          _DeveloperSection(settings: settings, controller: controller),
-        const OnboardingHelpSection(),
-        const _AboutSection(),
-      ],
+      SettingsCategory.about => <Widget>[const _AboutSection()],
     };
 
     return SingleChildScrollView(

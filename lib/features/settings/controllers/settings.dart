@@ -304,6 +304,9 @@ class SettingsController extends _$SettingsController {
   void setCompactMode(bool enabled) =>
       _update(state.copyWith(compactMode: enabled));
 
+  void setShowChannelTabs(bool enabled) =>
+      _update(state.copyWith(showChannelTabs: enabled));
+
   void setStreamerMode(bool enabled) =>
       _update(state.copyWith(streamerMode: enabled));
 
@@ -315,6 +318,20 @@ class SettingsController extends _$SettingsController {
 
   void setReducedMotion(bool enabled) =>
       _update(state.copyWith(reducedMotion: enabled));
+
+  void setUiSaturation(double value) =>
+      _update(state.copyWith(uiSaturation: value.clamp(0.0, 1.0).toDouble()));
+
+  /// Switches one named sound on or off (see `SoundManager.userSounds`).
+  void setSoundEnabled(String name, bool enabled) {
+    final disabled = {...state.disabledSounds};
+    if (enabled) {
+      disabled.remove(name);
+    } else {
+      disabled.add(name);
+    }
+    _update(state.copyWith(disabledSounds: disabled.toList()..sort()));
+  }
 
   void setUiScale(double scale) => _update(
     state.copyWith(

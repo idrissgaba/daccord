@@ -427,7 +427,9 @@ class _MainWindowState extends ConsumerState<MainWindow> {
           themePreset: s.themePreset,
           accentColor: s.accentColor,
           uiScale: s.uiScale,
+          uiSaturation: s.uiSaturation,
           reducedMotion: s.reducedMotion,
+          disabledSounds: s.disabledSounds,
         ),
       ),
     );
@@ -443,6 +445,7 @@ class _MainWindowState extends ConsumerState<MainWindow> {
     ref.watch(taskbarBadgeControllerProvider);
     soundManager.enabled = settings.soundsEnabled;
     soundManager.volume = settings.sfxVolume;
+    soundManager.disabledSounds = settings.disabledSounds.toSet();
     final theme = buildAppTheme(
       settings.themePreset,
       accent: settings.accentColor == null
@@ -463,6 +466,7 @@ class _MainWindowState extends ConsumerState<MainWindow> {
         context,
         child,
         uiScale: settings.uiScale,
+        uiSaturation: settings.uiSaturation,
         reducedMotion: settings.reducedMotion,
       ),
     );

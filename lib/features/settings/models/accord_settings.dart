@@ -127,12 +127,15 @@ class AccordSettings {
     this.lastSpaceId = '',
     this.lastChannelId = '',
     this.compactMode = false,
+    this.showChannelTabs = false,
     this.showEmbeds = true,
     this.closeToTray = true,
     this.convertEmoticons = true,
     this.emojiSkinTone = 0,
     this.streamerMode = false,
     this.reducedMotion = false,
+    this.uiSaturation = 1.0,
+    this.disabledSounds = const <String>[],
     this.uiScale = 1.0,
     this.spaceOrder = const <String>[],
     this.spaceFolders = const <SpaceFolder>[],
@@ -345,6 +348,10 @@ class AccordSettings {
   /// cozy density. Mirrors the reference's layout-density setting.
   final bool compactMode;
 
+  /// Whether open channels show as a tab strip above the messages. Off by
+  /// default, like other chat apps; the tabs still exist underneath.
+  final bool showChannelTabs;
+
   /// Local display preference, independent of message suppression flags.
   final bool showEmbeds;
 
@@ -368,6 +375,13 @@ class AccordSettings {
   /// Reduces/disables UI animations (route transitions etc.). Mirrors
   /// `accessibility.reduced_motion`.
   final bool reducedMotion;
+
+  /// Colour saturation of the whole UI, 0.0 (greyscale) – 1.0 (normal).
+  final double uiSaturation;
+
+  /// Sound names (see `SoundManager.userSounds`) the user switched off one by
+  /// one, while sounds as a whole stay on.
+  final List<String> disabledSounds;
 
   /// App-wide text scale factor, clamped to [minUiScale]–[maxUiScale]. Mirrors
   /// `accessibility.ui_scale`.
@@ -454,12 +468,15 @@ class AccordSettings {
     String? lastSpaceId,
     String? lastChannelId,
     bool? compactMode,
+    bool? showChannelTabs,
     bool? showEmbeds,
     bool? closeToTray,
     bool? convertEmoticons,
     int? emojiSkinTone,
     bool? streamerMode,
     bool? reducedMotion,
+    double? uiSaturation,
+    List<String>? disabledSounds,
     double? uiScale,
     List<String>? spaceOrder,
     List<SpaceFolder>? spaceFolders,
@@ -527,12 +544,15 @@ class AccordSettings {
       lastSpaceId: lastSpaceId ?? this.lastSpaceId,
       lastChannelId: lastChannelId ?? this.lastChannelId,
       compactMode: compactMode ?? this.compactMode,
+      showChannelTabs: showChannelTabs ?? this.showChannelTabs,
       showEmbeds: showEmbeds ?? this.showEmbeds,
       closeToTray: closeToTray ?? this.closeToTray,
       convertEmoticons: convertEmoticons ?? this.convertEmoticons,
       emojiSkinTone: emojiSkinTone ?? this.emojiSkinTone,
       streamerMode: streamerMode ?? this.streamerMode,
       reducedMotion: reducedMotion ?? this.reducedMotion,
+      uiSaturation: uiSaturation ?? this.uiSaturation,
+      disabledSounds: disabledSounds ?? this.disabledSounds,
       uiScale: uiScale ?? this.uiScale,
       spaceOrder: spaceOrder ?? this.spaceOrder,
       spaceFolders: spaceFolders ?? this.spaceFolders,
@@ -746,12 +766,15 @@ class AccordSettings {
     'lastSpaceId': lastSpaceId,
     'lastChannelId': lastChannelId,
     'compactMode': compactMode,
+    'showChannelTabs': showChannelTabs,
     'showEmbeds': showEmbeds,
     'closeToTray': closeToTray,
     'convertEmoticons': convertEmoticons,
     'emojiSkinTone': emojiSkinTone,
     'streamerMode': streamerMode,
     'reducedMotion': reducedMotion,
+    'uiSaturation': uiSaturation,
+    'disabledSounds': disabledSounds,
     'uiScale': uiScale,
     'spaceOrder': spaceOrder,
     'spaceFolders': [for (final f in spaceFolders) f.toJson()],
@@ -869,6 +892,7 @@ class AccordSettings {
       lastSpaceId: (json['lastSpaceId'] as String?) ?? '',
       lastChannelId: (json['lastChannelId'] as String?) ?? '',
       compactMode: json['compactMode'] as bool? ?? false,
+      showChannelTabs: json['showChannelTabs'] as bool? ?? false,
       showEmbeds: json['showEmbeds'] as bool? ?? true,
       closeToTray: json['closeToTray'] as bool? ?? true,
       convertEmoticons: json['convertEmoticons'] as bool? ?? true,
@@ -878,6 +902,14 @@ class AccordSettings {
       ),
       streamerMode: json['streamerMode'] as bool? ?? false,
       reducedMotion: json['reducedMotion'] as bool? ?? false,
+      uiSaturation: ((json['uiSaturation'] as num?)?.toDouble() ?? 1.0).clamp(
+        0.0,
+        1.0,
+      ),
+      disabledSounds: [
+        for (final v in json['disabledSounds'] as List? ?? const [])
+          if (v is String) v,
+      ],
       uiScale:
           (json['uiScale'] as num?)?.toDouble().clamp(minUiScale, maxUiScale) ??
           1.0,

@@ -82,5 +82,6 @@ class CustomKeybind {
       other.alt == alt;
 
   @override
-  int get hashCode => Object.hash(action, keyId, physicalKey, keyLabel, control, shift, alt);
+  int get hashCode =>
+      Object.hash(action, keyId, physicalKey, keyLabel, control, shift, alt);
 }

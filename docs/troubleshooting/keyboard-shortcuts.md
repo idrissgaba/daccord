@@ -42,6 +42,9 @@ window focused.
 | ↑ (empty composer) | Edit your last message in the channel |
 | Escape | Cancel a reply, or close the @mention list |
 | Tab / Enter (with the @mention list open) | Insert the highlighted mention; ↑/↓ move the highlight |
+| `:` + two letters (`:thu`) | Emoji suggestions; Tab / Enter insert the highlighted one, ↑/↓ move, Escape closes |
+| Ctrl+E / Cmd+E | Open the emoji picker |
+| Shift + Delete (in the message menu) | Delete without the confirmation |
 | Ctrl+V / Cmd+V | Paste image or text from clipboard |
 
 ## Editing a Message

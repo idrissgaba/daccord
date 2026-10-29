@@ -104,6 +104,7 @@ part 'composer.dart';
 part 'composer_attachments.dart';
 part 'composer_commands.dart';
 part 'composer_emoji.dart';
+part 'dividers.dart';
 part 'composer_mentions.dart';
 part 'composer_view.dart';
 part 'mention_popup.dart';
@@ -223,6 +224,20 @@ class _MessagePaneState extends ConsumerState<MessagePane> {
   /// The row a jump just landed on, tinted for a moment.
   String? _highlightedMessageId;
 
+  /// The read position when this channel was opened: the "new messages"
+  /// divider sits after it. Null when nothing was new.
+  String? _unreadFrom;
+
+  void _captureUnreadFrom() {
+    final key = ref.readActiveServerKey();
+    final channelId = widget.channelId;
+    _unreadFrom = key == null || channelId == null
+        ? null
+        : ref
+              .read(readStateControllerProvider(key).notifier)
+              .readBefore(channelId);
+  }
+
   /// Set to a message id to open that row's inline editor (↑ in the empty
   /// composer edits the current user's last message).
   final _editRequest = ValueNotifier<String?>(null);
@@ -237,6 +252,7 @@ class _MessagePaneState extends ConsumerState<MessagePane> {
   @override
   void initState() {
     super.initState();
+    _captureUnreadFrom();
     _scroll.addListener(_onScroll);
     // A jump requested before this pane existed (a search hit that opened the
     // channel) is waiting in the provider.
@@ -261,6 +277,7 @@ class _MessagePaneState extends ConsumerState<MessagePane> {
     super.didUpdateWidget(oldWidget);
     // Clear any pending reply or selection when switching channels.
     if (oldWidget.channelId != widget.channelId) {
+      _captureUnreadFrom();
       // Leaving a channel marked unread lets it be read on the next visit.
       if (oldWidget.channelId case final left?) {
         _readTracker?.releaseHold(left);
@@ -862,8 +879,8 @@ class _MessagePaneState extends ConsumerState<MessagePane> {
                     // unmounting a row mid-dialog) each time the list
                     // shifted. See #198.
                     findChildIndexCallback: (key) {
-                      if (key is! ValueKey<String>) return null;
-                      return childIndexByMessageId[key.value];
+                      if (key is! MessageRowKey) return null;
+                      return childIndexByMessageId[key.messageId];
                     },
                     itemBuilder: (context, index) {
                       if (index == messages.length) {
@@ -922,7 +939,7 @@ class _MessagePaneState extends ConsumerState<MessagePane> {
                             mentionEveryone: message.mentionEveryone,
                             suppressEveryone: suppressEveryone,
                           );
-                      return _MessageRow(
+                      final row = _MessageRow(
                         // Keyed by message id, not list position. Under
                         // `reverse: true` every index shifts when a message
                         // arrives, so without a key Flutter re-binds a live
@@ -956,6 +973,13 @@ class _MessagePaneState extends ConsumerState<MessagePane> {
                         onToggleSelected: () => _toggleSelected(message.id),
                         messagesById: messagesById,
                         onReply: () => setState(() => _replyTo = message),
+                      );
+                      return withMessageDividers(
+                        row,
+                        key: MessageRowKey(message.id),
+                        previous: prev,
+                        message: message,
+                        unreadFrom: _unreadFrom,
                       );
                     },
                   ),

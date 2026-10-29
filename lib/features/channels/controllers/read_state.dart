@@ -178,6 +178,11 @@ class ReadStateController extends _$ReadStateController {
   final _syncedThrough = <String, String>{};
   final _pending = <String, String>{};
   final _sending = <String>{};
+
+  /// Where the read cursor stood before the last ack that advanced it — the
+  /// position the "new messages" divider is drawn after. Dropped again when
+  /// an ack finds nothing new, so a later visit doesn't resurrect it.
+  final _readBefore = <String, String>{};
   final _retries = <String, Timer>{};
   final _mentionIds = <String, Set<String>>{};
 
@@ -196,6 +201,10 @@ class ReadStateController extends _$ReadStateController {
   }
 
   String? latestMessageId(String channelId) => _latest[channelId];
+
+  /// The read position before the newest messages were acknowledged, or null
+  /// when the last ack brought nothing new. See [_readBefore].
+  String? readBefore(String channelId) => _readBefore[channelId];
 
   /// Records delivery before notifications/sounds are considered. A replay or
   /// a message already read on another device must not alert a second time.
@@ -237,7 +246,15 @@ class ReadStateController extends _$ReadStateController {
   /// from another device cannot hide messages that arrived after that position.
   void markRead(String channelId, {String? messageId}) {
     final position = messageId ?? _latest[channelId];
-    if (position != null) _advance(_readThrough, channelId, position);
+    if (position != null) {
+      final before = _readThrough[channelId];
+      if (before != null && compareMessageIds(position, before) > 0) {
+        _readBefore[channelId] = before;
+      } else if (before != null) {
+        _readBefore.remove(channelId);
+      }
+      _advance(_readThrough, channelId, position);
+    }
     unawaited(
       dismissReadNotifications(
         serverKey: serverKey,

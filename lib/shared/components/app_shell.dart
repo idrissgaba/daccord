@@ -28,6 +28,7 @@ Widget buildAppShell(
   Widget? child, {
   required double uiScale,
   required bool reducedMotion,
+  double uiSaturation = 1.0,
 }) {
   // Compose with the platform text scale (iOS Dynamic Type, Android font
   // size) rather than replacing it.
@@ -44,7 +45,42 @@ Widget buildAppShell(
     // The gate wraps the banner host too: a locked profile shows neither the
     // app nor who is calling it.
     child: ProfileGate(
-      child: withIncomingCallOverlay(withExperienceTurns(child)),
+      child: withSaturation(
+        uiSaturation,
+        withIncomingCallOverlay(withExperienceTurns(child)),
+      ),
     ),
   );
+}
+
+/// Desaturates [child] to [saturation] (1.0 = untouched) — the Accessibility
+/// setting for people who find the full-colour UI hard on the eyes.
+Widget withSaturation(double saturation, Widget child) {
+  final s = saturation.clamp(0.0, 1.0);
+  if (s >= 0.999) return child;
+  // Luminance weights (Rec. 601), as the CSS `saturate()` filter uses.
+  const lr = 0.213, lg = 0.715, lb = 0.072;
+  final matrix = <double>[
+    lr + (1 - lr) * s,
+    lg - lg * s,
+    lb - lb * s,
+    0,
+    0,
+    lr - lr * s,
+    lg + (1 - lg) * s,
+    lb - lb * s,
+    0,
+    0,
+    lr - lr * s,
+    lg - lg * s,
+    lb + (1 - lb) * s,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    0,
+  ];
+  return ColorFiltered(colorFilter: ColorFilter.matrix(matrix), child: child);
 }

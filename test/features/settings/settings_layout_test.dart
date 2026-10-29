@@ -114,54 +114,60 @@ void main() {
       );
     });
 
-    testWidgets('Account pane inlines Connections and Privacy as panes', (
+    testWidgets(
+      'Privacy & Safety and Connections are categories of their own',
+      (tester) async {
+        await _pumpAt(tester, const Size(1400, 900));
+
+        // My Account is the default category, without the sub-page tiles.
+        expect(_section('Account'), findsOneWidget);
+        expect(find.text('Privacy & Data'), findsNothing);
+        expect(
+          find.descendant(
+            of: _contentColumn(),
+            matching: find.text('Connections'),
+          ),
+          findsNothing,
+        );
+
+        // Privacy content itself is in its pane, not behind a pushed route.
+        await _selectCategory(tester, 'Privacy & Safety');
+        expect(find.text('Request Data Export'), findsOneWidget);
+        expect(_section('Data retention'), findsOneWidget);
+
+        await _selectCategory(tester, 'Connections');
+        expect(_section('Connections'), findsOneWidget);
+      },
+    );
+
+    testWidgets('every section is reachable from one of the categories', (
       tester,
     ) async {
-      await _pumpAt(tester, const Size(1400, 900));
+      await _pumpAt(tester, const Size(1400, 1600));
 
-      // Account is the default category.
-      expect(_section('Account'), findsOneWidget);
-      expect(_section('Connections'), findsOneWidget);
-      expect(_section('Privacy & Data'), findsOneWidget);
-      expect(_section('Server Directory'), findsOneWidget);
-
-      // Privacy content itself is present, not behind a pushed route.
-      expect(find.text('Request Data Export'), findsOneWidget);
-      expect(_section('Data retention'), findsOneWidget);
-
-      // The redundant "push a sub-page" tiles are gone from the Account card.
-      expect(find.text('Privacy & Data'), findsNothing);
-      expect(find.text('Connections'), findsNothing);
-    });
-
-    testWidgets('every section is reachable from one of the four categories', (
-      tester,
-    ) async {
-      await _pumpAt(tester, const Size(1400, 900));
-
-      await _selectCategory(tester, 'App');
-      for (final title in const [
-        'Appearance',
-        'Notifications',
-        'Sounds',
-        'Voice & Video',
-      ]) {
-        expect(_section(title), findsOneWidget, reason: title);
+      const expected = <String, List<String>>{
+        'Appearance': ['Appearance'],
+        'Accessibility': ['Accessibility'],
+        'Voice & Video': ['Voice & Video'],
+        'Text & Images': ['Text & Images'],
+        'Notifications': ['Notifications', 'Sounds'],
+        'Keybinds': ['Keybinds'],
+        'Streamer Mode': ['Streamer Mode'],
+        'Advanced': ['Developer', 'Server Directory'],
+        'System': ['Updates', 'Backup'],
+        'About': ['About'],
+        'My Account': ['Account'],
+      };
+      for (final entry in expected.entries) {
+        await _selectCategory(tester, entry.key);
+        for (final title in entry.value) {
+          expect(
+            _section(title),
+            findsOneWidget,
+            reason: '${entry.key}/$title',
+          );
+        }
       }
-
-      await _selectCategory(tester, 'System');
-      for (final title in const ['Updates', 'Backup']) {
-        expect(_section(title), findsOneWidget, reason: title);
-      }
-
-      await _selectCategory(tester, 'Advanced');
-      for (final title in const ['Developer', 'About']) {
-        expect(_section(title), findsOneWidget, reason: title);
-      }
-
-      await _selectCategory(tester, 'Account');
-      expect(_section('Account'), findsOneWidget);
-      expect(_section('Server Directory'), findsOneWidget);
     });
 
     testWidgets('keeps one ordered content column at every desktop width', (
@@ -179,14 +185,10 @@ void main() {
       }
     });
 
-    testWidgets('preserves the account pane scan order', (tester) async {
+    testWidgets('preserves the notifications pane scan order', (tester) async {
       await _pumpAt(tester, const Size(1400, 3000));
-      final headings = [
-        _section('Account'),
-        _section('Connections'),
-        _section('Privacy & Data'),
-        _section('Server Directory'),
-      ];
+      await _selectCategory(tester, 'Notifications');
+      final headings = [_section('Notifications'), _section('Sounds')];
       for (var i = 1; i < headings.length; i++) {
         expect(
           tester.getTopLeft(headings[i]).dy,
@@ -220,7 +222,7 @@ void main() {
       expect(_contentColumn(), findsOneWidget);
       expect(tester.takeException(), isNull);
 
-      await _selectCategory(tester, 'App');
+      await _selectCategory(tester, 'Appearance');
       expect(_section('Appearance'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
@@ -261,7 +263,7 @@ void main() {
 
       expect(_section('Developer'), findsNothing);
       expect(find.text('Developer Mode'), findsNothing);
-      expect(_section('About'), findsOneWidget);
+      expect(_section('Server Directory'), findsOneWidget);
     });
   });
 
@@ -286,7 +288,7 @@ void main() {
       await _selectCategory(tester, 'Advanced');
 
       expect(_section('Developer'), findsNothing);
-      expect(_section('About'), findsOneWidget);
+      expect(_section('Server Directory'), findsOneWidget);
     });
 
     testWidgets('the Updates section is untouched (sideload keeps it)', (

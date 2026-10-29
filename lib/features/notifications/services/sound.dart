@@ -35,7 +35,32 @@ class SoundManager {
     // A screen share starting or ending — ours, or a peer's in our channel.
     'stream_start': 'sfx/stream_start.wav',
     'stream_stop': 'sfx/stream_stop.wav',
+    // The ringtones, for a one-shot preview from Settings; calls loop them
+    // through [startRingtone].
+    'ringtone': 'sfx/ringtone.wav',
+    'ring_outgoing': 'sfx/ring_outgoing.wav',
   };
+
+  /// The sounds the user can switch off one by one in Settings ›
+  /// Notifications, as (name, label). Names are the keys [play] and
+  /// [startRingtone] are called with.
+  static const List<(String, String)> userSounds = [
+    ('message_received', 'Message'),
+    ('mention_received', 'Mention'),
+    ('message_sent', 'Message sent'),
+    ('voice_join', 'Voice connected'),
+    ('voice_leave', 'Voice disconnected'),
+    ('peer_join', 'Someone joins your voice channel'),
+    ('peer_leave', 'Someone leaves your voice channel'),
+    ('mute', 'Mute'),
+    ('unmute', 'Unmute'),
+    ('deafen', 'Deafen'),
+    ('undeafen', 'Undeafen'),
+    ('stream_start', 'Stream started'),
+    ('stream_stop', 'Stream ended'),
+    ('ringtone', 'Incoming call'),
+    ('ring_outgoing', 'Outgoing call'),
+  ];
 
   static const _poolSize = 4;
 
@@ -76,6 +101,10 @@ class SoundManager {
 
   /// Mirrors `AccordSettings.sfxVolume` (0.0–1.0).
   double volume = 1.0;
+
+  /// Mirrors `AccordSettings.disabledSounds`: names [play] and
+  /// [startRingtone] stay silent for. [preview] ignores it.
+  Set<String> disabledSounds = const {};
 
   /// Whether a LiveKit voice session is live. `VoiceController` raises this
   /// before the media session connects and clears it after it disconnects; see
@@ -199,6 +228,13 @@ class SoundManager {
   /// where a one-shot would break the call's audio session
   /// ([allowsOneShotInCall]).
   Future<void> play(String name) async {
+    if (disabledSounds.contains(name)) return;
+    return preview(name);
+  }
+
+  /// Plays [name] regardless of [disabledSounds] — the Settings page's
+  /// "listen" button.
+  Future<void> preview(String name) async {
     if (silent || _unavailable || !enabled || volume <= 0.0) return;
     if (voiceSessionActive &&
         !allowsOneShotInCall(platform: defaultTargetPlatform, isWeb: kIsWeb)) {
@@ -303,6 +339,9 @@ class SoundManager {
   /// already ringing, disabled, or muted.
   Future<void> startRingtone({bool outgoing = false}) async {
     if (silent || _unavailable || _ringing || !enabled || volume <= 0.0) {
+      return;
+    }
+    if (disabledSounds.contains(outgoing ? 'ring_outgoing' : 'ringtone')) {
       return;
     }
     _ringing = true;
