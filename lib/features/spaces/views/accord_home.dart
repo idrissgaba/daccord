@@ -209,6 +209,7 @@ class _AccordHomeScreenState extends ConsumerState<AccordHomeScreen> {
       control: mods.isControlPressed || mods.isMetaPressed,
       shift: mods.isShiftPressed,
       alt: mods.isAltPressed,
+      physicalPressed: event.physicalKey.usbHidUsage,
       custom: ref.read(settingsControllerProvider).keybinds,
     );
     if (shortcut == null) return false;

@@ -198,6 +198,7 @@ class _KeybindRowState extends State<_KeybindRow> {
     widget.onRecorded(
       widget.keybind.copyWith(
         keyId: key.keyId,
+        physicalKey: event.physicalKey.usbHidUsage,
         keyLabel: keybindKeyLabel(event),
         control: mods.isControlPressed || mods.isMetaPressed,
         shift: mods.isShiftPressed,
@@ -273,15 +274,22 @@ class _KeybindRowState extends State<_KeybindRow> {
 }
 
 /// How a recorded key is shown: the character it types on the current
-/// layout, else the key's name (F-keys, arrows, Space…).
+/// layout, else the key's name (F-keys, arrows, Space…), else the physical
+/// key's name (Ctrl held: no character, and some platforms report an odd
+/// logical key).
 String keybindKeyLabel(KeyEvent event) {
   final character = event.character?.trim() ?? '';
-  if (character.isNotEmpty) return character.toUpperCase();
+  if (character.isNotEmpty && character.runes.first >= 0x20) {
+    return character.toUpperCase();
+  }
   final key = event.logicalKey;
   if (key == LogicalKeyboardKey.arrowUp) return '↑';
   if (key == LogicalKeyboardKey.arrowDown) return '↓';
   if (key == LogicalKeyboardKey.arrowLeft) return '←';
   if (key == LogicalKeyboardKey.arrowRight) return '→';
   if (key == LogicalKeyboardKey.space) return 'Space';
-  return key.keyLabel.isNotEmpty ? key.keyLabel : 'Key ${key.keyId}';
+  if (key.keyLabel.trim().isNotEmpty) return key.keyLabel.toUpperCase();
+  final physical = event.physicalKey.debugName ?? '';
+  if (physical.isNotEmpty) return physical.replaceFirst(RegExp(r'^Key '), '');
+  return 'Key ${event.physicalKey.usbHidUsage.toRadixString(16)}';
 }
