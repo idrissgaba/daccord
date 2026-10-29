@@ -481,8 +481,10 @@ String keybindKeyLabel(KeyEvent event) {
   if (key == LogicalKeyboardKey.arrowLeft) return '←';
   if (key == LogicalKeyboardKey.arrowRight) return '→';
   if (key == LogicalKeyboardKey.space) return 'Space';
+  // With Ctrl held, Windows reports a logical key without a label: name the
+  // physical key instead (release-safe, unlike `debugName`).
+  final physical = physicalKeyName(event.physicalKey.usbHidUsage);
+  if (physical != null) return physical;
   if (key.keyLabel.trim().isNotEmpty) return key.keyLabel.toUpperCase();
-  final physical = event.physicalKey.debugName ?? '';
-  if (physical.isNotEmpty) return physical.replaceFirst(RegExp(r'^Key '), '');
   return 'Key ${event.physicalKey.usbHidUsage.toRadixString(16)}';
 }

@@ -192,6 +192,18 @@ void main() {
     });
   });
 
+  group('physicalKeyName', () {
+    test('names letters, digits, function and navigation keys', () {
+      expect(physicalKeyName(PhysicalKeyboardKey.keyP.usbHidUsage), 'P');
+      expect(physicalKeyName(PhysicalKeyboardKey.digit1.usbHidUsage), '1');
+      expect(physicalKeyName(PhysicalKeyboardKey.digit0.usbHidUsage), '0');
+      expect(physicalKeyName(PhysicalKeyboardKey.f5.usbHidUsage), 'F5');
+      expect(physicalKeyName(PhysicalKeyboardKey.arrowUp.usbHidUsage), '↑');
+      expect(physicalKeyName(PhysicalKeyboardKey.numpad0.usbHidUsage), 'Numpad 0');
+      expect(physicalKeyName(0x1234), isNull);
+    });
+  });
+
   group('orderedNavigableChannelIds', () {
     test('walks the list the way the sidebar draws it, skipping categories', () {
       final channels = [

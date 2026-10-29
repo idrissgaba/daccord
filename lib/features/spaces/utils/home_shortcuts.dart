@@ -177,6 +177,64 @@ const List<(String chord, String label)> composerShortcutRows = [
   ('Ctrl+V', 'Paste an image or a long text as an attachment'),
 ];
 
+/// A readable name for a physical key (its USB HID usage), for recorded
+/// chords whose logical key has no label (Ctrl held on Windows reports an
+/// odd logical key, and `PhysicalKeyboardKey.debugName` is debug-only).
+/// Null for keys this table doesn't know.
+String? physicalKeyName(int usbHidUsage) {
+  const page = 0x00070000;
+  if (usbHidUsage < page || usbHidUsage > page + 0xFF) return null;
+  final usage = usbHidUsage - page;
+  if (usage >= 0x04 && usage <= 0x1D) {
+    return String.fromCharCode(0x41 + usage - 0x04); // A–Z
+  }
+  if (usage >= 0x1E && usage <= 0x26) return '${usage - 0x1D}'; // 1–9
+  if (usage == 0x27) return '0';
+  if (usage >= 0x3A && usage <= 0x45) return 'F${usage - 0x39}'; // F1–F12
+  if (usage >= 0x68 && usage <= 0x73) return 'F${usage - 0x5B}'; // F13–F24
+  return switch (usage) {
+    0x28 => 'Enter',
+    0x29 => 'Esc',
+    0x2A => 'Backspace',
+    0x2B => 'Tab',
+    0x2C => 'Space',
+    0x2D => '-',
+    0x2E => '=',
+    0x2F => '[',
+    0x30 => ']',
+    0x31 => '\\',
+    0x33 => ';',
+    0x34 => "'",
+    0x35 => '`',
+    0x36 => ',',
+    0x37 => '.',
+    0x38 => '/',
+    0x39 => 'Caps Lock',
+    0x46 => 'Print Screen',
+    0x47 => 'Scroll Lock',
+    0x48 => 'Pause',
+    0x49 => 'Insert',
+    0x4A => 'Home',
+    0x4B => 'Page Up',
+    0x4C => 'Delete',
+    0x4D => 'End',
+    0x4E => 'Page Down',
+    0x4F => '→',
+    0x50 => '←',
+    0x51 => '↓',
+    0x52 => '↑',
+    0x54 => 'Numpad /',
+    0x55 => 'Numpad *',
+    0x56 => 'Numpad -',
+    0x57 => 'Numpad +',
+    0x58 => 'Numpad Enter',
+    0x63 => 'Numpad .',
+    _ => usage >= 0x59 && usage <= 0x62
+        ? 'Numpad ${usage == 0x62 ? 0 : usage - 0x58}'
+        : null,
+  };
+}
+
 /// What the Keybinds page calls each action.
 String homeShortcutLabel(HomeShortcut shortcut) => homeShortcutBindings
     .firstWhere((b) => b.shortcut == shortcut)
