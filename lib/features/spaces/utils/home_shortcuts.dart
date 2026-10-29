@@ -3,6 +3,8 @@
 library;
 
 import 'package:accordkit/accordkit.dart';
+import 'package:bonfire/features/settings/models/custom_keybind.dart';
+import 'package:collection/collection.dart';
 import 'package:flutter/services.dart';
 
 /// What a home-screen shortcut does.
@@ -28,10 +30,15 @@ class HomeShortcutBinding {
     this.shift = false,
     this.alt = false,
     required this.label,
+    this.keyLabel = '',
   });
 
   final HomeShortcut shortcut;
   final LogicalKeyboardKey key;
+
+  /// The main key as the layout that recorded it showed it (recorded
+  /// keybinds only); built-ins derive it from [key].
+  final String keyLabel;
 
   /// Ctrl on Windows/Linux, ⌘ on macOS (the matcher treats Meta as Control).
   final bool control;
@@ -56,10 +63,24 @@ class HomeShortcutBinding {
       if (control) mac ? '⌘' : 'Ctrl',
       if (alt) mac ? '⌥' : 'Alt',
       if (shift) mac ? '⇧' : 'Shift',
-      _keyName(key),
+      keyLabel.isNotEmpty ? keyLabel : _keyName(key),
     ];
     return parts.join('+');
   }
+
+  /// "Ctrl+Shift+M" style text for a chord that is still being composed.
+  static String describeChord({
+    required String keyLabel,
+    required bool control,
+    required bool shift,
+    required bool alt,
+    bool mac = false,
+  }) => [
+    if (control) mac ? '⌘' : 'Ctrl',
+    if (alt) mac ? '⌥' : 'Alt',
+    if (shift) mac ? '⇧' : 'Shift',
+    keyLabel,
+  ].join('+');
 
   static String _keyName(LogicalKeyboardKey key) {
     if (key == LogicalKeyboardKey.arrowUp) return '↑';
@@ -150,14 +171,53 @@ const List<(String chord, String label)> composerShortcutRows = [
   ('Ctrl+V', 'Paste an image or a long text as an attachment'),
 ];
 
-/// The binding [pressed] with these modifiers triggers, or null.
+/// What the Keybinds page calls each action.
+String homeShortcutLabel(HomeShortcut shortcut) => homeShortcutBindings
+    .firstWhere((b) => b.shortcut == shortcut)
+    .label;
+
+/// The built-in chord of [shortcut].
+HomeShortcutBinding defaultBindingFor(HomeShortcut shortcut) =>
+    homeShortcutBindings.firstWhere((b) => b.shortcut == shortcut);
+
+/// A recorded keybind as a binding, or null while it has no key yet or names
+/// an action this build doesn't know.
+HomeShortcutBinding? bindingFromCustom(CustomKeybind keybind) {
+  if (!keybind.isRecorded) return null;
+  final shortcut = HomeShortcut.values.firstWhereOrNull(
+    (s) => s.name == keybind.action,
+  );
+  if (shortcut == null) return null;
+  return HomeShortcutBinding(
+    shortcut,
+    LogicalKeyboardKey.findKeyByKeyId(keybind.keyId) ??
+        LogicalKeyboardKey(keybind.keyId),
+    control: keybind.control,
+    shift: keybind.shift,
+    alt: keybind.alt,
+    label: homeShortcutLabel(shortcut),
+    keyLabel: keybind.keyLabel,
+  );
+}
+
+/// The bindings in force: the user's recorded ones first (they win when a
+/// chord clashes with a built-in one), then the built-ins.
+List<HomeShortcutBinding> effectiveBindings(List<CustomKeybind> custom) => [
+  for (final keybind in custom)
+    if (bindingFromCustom(keybind) case final binding?) binding,
+  ...homeShortcutBindings,
+];
+
+/// The binding [pressed] with these modifiers triggers, or null. [custom]
+/// are the user's recorded keybinds, checked before the built-ins.
 HomeShortcut? matchHomeShortcut({
   required LogicalKeyboardKey pressed,
   required bool control,
   required bool shift,
   required bool alt,
+  List<CustomKeybind> custom = const [],
 }) {
-  for (final binding in homeShortcutBindings) {
+  for (final binding in effectiveBindings(custom)) {
     if (binding.matches(
       pressed: pressed,
       control: control,

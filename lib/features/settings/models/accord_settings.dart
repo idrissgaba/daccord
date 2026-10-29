@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:bonfire/features/settings/models/custom_keybind.dart';
 import 'package:bonfire/features/spaces/models/space_folder.dart';
 import 'package:bonfire/features/voice/utils/afk_logic.dart';
 import 'package:bonfire/shared/models/server_entity_key.dart';
@@ -134,6 +135,7 @@ class AccordSettings {
     this.uiScale = 1.0,
     this.spaceOrder = const <String>[],
     this.spaceFolders = const <SpaceFolder>[],
+    this.keybinds = const <CustomKeybind>[],
     this.mutedSpaces = const <String>[],
     this.hiddenSpaces = const <String>[],
     this.channelListWidth = defaultChannelListWidth,
@@ -373,6 +375,10 @@ class AccordSettings {
   /// User-defined rail folders. Mirrors the reference's `folders`.
   final List<SpaceFolder> spaceFolders;
 
+  /// Keybinds recorded on the Keybinds settings page. They win over the
+  /// built-in chords of `homeShortcutBindings` when the two clash.
+  final List<CustomKeybind> keybinds;
+
   /// Space IDs the user has muted (per-space notification suppression). Stored
   /// client-side: accordkit exposes no server-synced notification settings.
   final List<String> mutedSpaces;
@@ -446,6 +452,7 @@ class AccordSettings {
     double? uiScale,
     List<String>? spaceOrder,
     List<SpaceFolder>? spaceFolders,
+    List<CustomKeybind>? keybinds,
     List<String>? mutedSpaces,
     List<String>? hiddenSpaces,
     double? channelListWidth,
@@ -516,6 +523,7 @@ class AccordSettings {
       uiScale: uiScale ?? this.uiScale,
       spaceOrder: spaceOrder ?? this.spaceOrder,
       spaceFolders: spaceFolders ?? this.spaceFolders,
+      keybinds: keybinds ?? this.keybinds,
       mutedSpaces: mutedSpaces ?? this.mutedSpaces,
       hiddenSpaces: hiddenSpaces ?? this.hiddenSpaces,
       channelListWidth: channelListWidth ?? this.channelListWidth,
@@ -731,6 +739,7 @@ class AccordSettings {
     'uiScale': uiScale,
     'spaceOrder': spaceOrder,
     'spaceFolders': [for (final f in spaceFolders) f.toJson()],
+    'keybinds': [for (final k in keybinds) k.toJson()],
     'mutedSpaces': mutedSpaces,
     'hiddenSpaces': hiddenSpaces,
     'channelListWidth': channelListWidth,
@@ -857,6 +866,10 @@ class AccordSettings {
       spaceFolders: [
         for (final f in (json['spaceFolders'] as List? ?? const []))
           if (f is Map) SpaceFolder.fromJson(f),
+      ],
+      keybinds: [
+        for (final k in (json['keybinds'] as List? ?? const []))
+          if (k is Map) CustomKeybind.fromJson(k),
       ],
       mutedSpaces: [
         for (final s in (json['mutedSpaces'] as List? ?? const []))

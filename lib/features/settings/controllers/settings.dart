@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:bonfire/shared/utils/desktop_tray.dart';
 import 'package:bonfire/features/profiles/services/profile_store.dart';
 import 'package:bonfire/features/settings/models/accord_settings.dart';
+import 'package:bonfire/features/settings/models/custom_keybind.dart';
 import 'package:bonfire/features/spaces/models/space_folder.dart';
 import 'package:bonfire/features/voice/utils/afk_logic.dart';
 import 'package:bonfire/shared/models/server_entity_key.dart';
@@ -196,6 +197,9 @@ class SettingsController extends _$SettingsController {
       pushToTalkKeyLabel: label.trim().isEmpty ? '?' : label,
     ),
   );
+
+  void setKeybinds(List<CustomKeybind> keybinds) =>
+      _update(state.copyWith(keybinds: List.unmodifiable(keybinds)));
 
   void setScreenShareAudio(bool enabled) =>
       _update(state.copyWith(screenShareAudio: enabled));
