@@ -194,7 +194,8 @@ class _VoiceSettingsScreenState extends ConsumerState<VoiceSettingsScreen> {
             key: const Key('high-quality-audio-switch'),
             title: const Text('High quality audio'),
             subtitle: Text(
-              'Sends your microphone at 128 kbps — for music or instruments. '
+              'Sends your microphone at 128 kbps instead of 96 — for music or '
+              'instruments. '
               'Turn the three filters above off for the cleanest result. '
               'Applies when you next join a voice channel.',
               style: theme.textTheme.bodySmall!.copyWith(color: colors.gray),
