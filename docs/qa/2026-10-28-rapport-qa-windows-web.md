@@ -176,4 +176,20 @@ Ctrl+,, Ctrl+/, ↑ pour éditer, Échap, Tab/Entrée dans la liste des mentions
 l'entrée **Paramètres › App › Keyboard shortcuts**. Vérifié sur l'app Windows
 et le client web après reconstruction.
 
-Reste ouvert : B8, B10 à B25 et le reste de la section 2.
+Builds suivants (29 octobre 2026) :
+
+- **Build 8/9** : page **Paramètres › Keybinds** (ajouter un raccourci,
+  choisir l'action, enregistrer sa combinaison ; chaque raccourci intégré peut
+  être réenregistré, supprimé ou rétabli) ; voix à 96 kbps sans DTX, haute
+  qualité à 128 kbps mono.
+- **Build 10** : threads en panneau latéral, carte de profil à côté du clic,
+  menu de l'espace sous son nom (créer une catégorie, marquer comme lu…), un
+  clic sur un salon vocal le rejoint, onglets à jour (**B8**), aperçus sans
+  markdown (**B13**), `code` visible en Dark (**B11**), emoji couleur sous
+  Windows (**B10**), Échap ferme les paramètres et largeur bornée (**B16**),
+  carte de profil en popover (**B17**).
+
+Reste ouvert : B12 (picker d'emoji), B14 (message système d'épingle), B15
+(barre vocale), B18 à B25, et dans la section 2 les pages de paramètres
+manquantes. Écartés à la demande : sélecteur GIF (pas de clé Tenor/Giphy) et
+sons Discord (contenu protégé).
