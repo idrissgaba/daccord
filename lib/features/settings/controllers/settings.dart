@@ -201,6 +201,10 @@ class SettingsController extends _$SettingsController {
   void setKeybinds(List<CustomKeybind> keybinds) =>
       _update(state.copyWith(keybinds: List.unmodifiable(keybinds)));
 
+  void setDisabledDefaultKeybinds(Iterable<String> actions) => _update(
+    state.copyWith(disabledDefaultKeybinds: List.unmodifiable(actions.toSet())),
+  );
+
   void setScreenShareAudio(bool enabled) =>
       _update(state.copyWith(screenShareAudio: enabled));
 

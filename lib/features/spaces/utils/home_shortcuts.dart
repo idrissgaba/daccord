@@ -208,12 +208,20 @@ HomeShortcutBinding? bindingFromCustom(CustomKeybind keybind) {
 }
 
 /// The bindings in force: the user's recorded ones first (they win when a
-/// chord clashes with a built-in one), then the built-ins.
-List<HomeShortcutBinding> effectiveBindings(List<CustomKeybind> custom) => [
-  for (final keybind in custom)
-    if (bindingFromCustom(keybind) case final binding?) binding,
-  ...homeShortcutBindings,
-];
+/// chord clashes with a built-in one), then the built-ins the user hasn't
+/// removed ([disabledDefaults] holds their `HomeShortcut.name`s).
+List<HomeShortcutBinding> effectiveBindings(
+  List<CustomKeybind> custom, {
+  Iterable<String> disabledDefaults = const [],
+}) {
+  final disabled = disabledDefaults.toSet();
+  return [
+    for (final keybind in custom)
+      if (bindingFromCustom(keybind) case final binding?) binding,
+    for (final binding in homeShortcutBindings)
+      if (!disabled.contains(binding.shortcut.name)) binding,
+  ];
+}
 
 /// The binding [pressed] with these modifiers triggers, or null. [custom]
 /// are the user's recorded keybinds, checked before the built-ins.
@@ -224,8 +232,12 @@ HomeShortcut? matchHomeShortcut({
   required bool alt,
   int physicalPressed = 0,
   List<CustomKeybind> custom = const [],
+  Iterable<String> disabledDefaults = const [],
 }) {
-  for (final binding in effectiveBindings(custom)) {
+  for (final binding in effectiveBindings(
+    custom,
+    disabledDefaults: disabledDefaults,
+  )) {
     if (binding.matches(
       pressed: pressed,
       control: control,
