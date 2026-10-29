@@ -430,6 +430,7 @@ class _Tile {
     required this.track,
     required this.isScreen,
     required this.muted,
+    this.watching = true,
   });
 
   final String userId;
@@ -439,6 +440,10 @@ class _Tile {
   final VideoTrack? track;
   final bool isScreen;
   final bool muted;
+
+  /// False for a peer's screen share we haven't chosen to watch: the tile
+  /// offers a "Watch stream" button instead of the video.
+  final bool watching;
 
   /// Which tile is spotlighted: a person has a camera tile and, while
   /// sharing, a screen tile — by user id alone the camera tile won, so
@@ -551,6 +556,7 @@ class _ConnectedBody extends ConsumerWidget {
 
     final serverKey = ref.readActiveServerKey();
     final moderation = watchVoiceModerationRights(ref, spaceId);
+    final voice = ref.read(voiceControllerProvider.notifier);
     Widget tileWidget(_Tile t) => _VideoTile(
       key: tileKeys.putIfAbsent(t.spotlightKey, GlobalKey.new),
       fullScreen: fullScreen,
@@ -558,6 +564,16 @@ class _ConnectedBody extends ConsumerWidget {
       speaking: speaking.contains(t.userId),
       spotlighted: spotlightUserId == t.spotlightKey,
       onDoubleTap: () => onToggleSpotlight(t.spotlightKey),
+      onToggleWatch: !t.isScreen || t.userId == myId
+          ? null
+          : () {
+              // Stopping also drops the stream's spotlight: an unwatched
+              // tile is only a "live" card and shouldn't fill the body.
+              if (t.watching && spotlightUserId == t.spotlightKey) {
+                onToggleSpotlight(t.spotlightKey);
+              }
+              voice.setWatchingStream(t.userId, !t.watching);
+            },
       onOpenVolume: serverKey == null || (t.userId == myId && !moderation.any)
           ? null
           : (position) => showUserVolumeMenu(
@@ -635,7 +651,13 @@ class _ConnectedBody extends ConsumerWidget {
           : isMe
           ? session.localScreenTrack
           : session.remoteScreenTrack(vs.userId);
-      if (screen != null || (vs.selfStream && session != null)) {
+      // A peer's share stays unsubscribed until we watch it, so the tile
+      // follows the publication (and the voice-state flag), not the track.
+      final streaming =
+          screen != null ||
+          (session != null &&
+              (vs.selfStream || (!isMe && session.remoteIsStreaming(vs.userId))));
+      if (streaming) {
         tiles.add(
           _Tile(
             userId: vs.userId,
@@ -645,6 +667,7 @@ class _ConnectedBody extends ConsumerWidget {
             track: screen,
             isScreen: true,
             muted: false,
+            watching: isMe || session!.isWatchingStream(vs.userId),
           ),
         );
       }
@@ -740,6 +763,7 @@ class _VideoTile extends StatelessWidget {
     required this.spotlighted,
     required this.onDoubleTap,
     this.onOpenVolume,
+    this.onToggleWatch,
     this.fullScreen = false,
   });
 
@@ -748,6 +772,10 @@ class _VideoTile extends StatelessWidget {
   final bool speaking;
   final bool spotlighted;
   final VoidCallback onDoubleTap;
+
+  /// Starts or stops watching this peer's stream. Null for anything but a
+  /// peer's screen tile.
+  final VoidCallback? onToggleWatch;
 
   /// Opens the local volume menu (right-click position, null on long-press).
   /// Null for our own tiles.
@@ -778,7 +806,9 @@ class _VideoTile extends StatelessWidget {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            if (tile.track != null)
+            if (tile.isScreen && !tile.watching)
+              _LiveCard(tile: tile, onWatch: onToggleWatch)
+            else if (tile.track != null)
               ValueListenableBuilder<int>(
                 valueListenable: voiceFullScreenOpen,
                 builder: (context, openFullScreen, _) =>
@@ -799,6 +829,17 @@ class _VideoTile extends StatelessWidget {
                   radius: 28,
                   backgroundColor: tile.bg,
                   initialStyle: const TextStyle(fontSize: 20),
+                ),
+              ),
+            if (tile.isScreen && tile.watching && onToggleWatch != null)
+              Positioned(
+                right: 6,
+                top: 6,
+                child: _TileButton(
+                  key: Key('stop-watching-${tile.userId}'),
+                  label: 'Stop watching',
+                  icon: Icons.visibility_off,
+                  onPressed: onToggleWatch!,
                 ),
               ),
             Positioned(
@@ -836,6 +877,91 @@ class _VideoTile extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// A peer's screen share we aren't receiving: their avatar, a LIVE badge and
+/// the button that starts the stream, as in other chat apps.
+class _LiveCard extends StatelessWidget {
+  const _LiveCard({required this.tile, required this.onWatch});
+
+  final _Tile tile;
+  final VoidCallback? onWatch;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = BonfireThemeExtension.of(context);
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        AccordMemberAvatar(
+          avatarUrl: tile.avatarUrl,
+          initial: accordInitial(tile.name),
+          radius: 24,
+          backgroundColor: tile.bg,
+          initialStyle: const TextStyle(fontSize: 18),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+          decoration: BoxDecoration(
+            color: colors.red,
+            borderRadius: BorderRadius.circular(4),
+          ),
+          child: const Text(
+            'LIVE',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.5,
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        _TileButton(
+          key: Key('watch-stream-${tile.userId}'),
+          label: 'Watch stream',
+          icon: Icons.play_arrow,
+          onPressed: onWatch,
+          primary: true,
+        ),
+      ],
+    );
+  }
+}
+
+/// A compact pill button drawn over a video tile.
+class _TileButton extends StatelessWidget {
+  const _TileButton({
+    super.key,
+    required this.label,
+    required this.icon,
+    required this.onPressed,
+    this.primary = false,
+  });
+
+  final String label;
+  final IconData icon;
+  final VoidCallback? onPressed;
+  final bool primary;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = BonfireThemeExtension.of(context);
+    return FilledButton.icon(
+      onPressed: onPressed,
+      style: FilledButton.styleFrom(
+        backgroundColor: primary ? colors.primary : Colors.black54,
+        foregroundColor: Colors.white,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        minimumSize: Size.zero,
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+      ),
+      icon: Icon(icon, size: 16),
+      label: Text(label),
     );
   }
 }
@@ -1022,6 +1148,9 @@ class _ControlButton extends StatelessWidget {
 /// The tile spotlighted when nobody picked one: someone else's screen share
 /// first (what you came to watch), then your own.
 int _defaultSpotlight(List<_Tile> tiles, String? myId) {
-  final theirs = tiles.indexWhere((t) => t.isScreen && t.userId != myId);
+  // Only a stream we watch fills the body; a live card stays in the grid.
+  final theirs = tiles.indexWhere(
+    (t) => t.isScreen && t.userId != myId && t.watching,
+  );
   return theirs >= 0 ? theirs : tiles.indexWhere((t) => t.isScreen);
 }

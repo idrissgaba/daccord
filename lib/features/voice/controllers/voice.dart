@@ -545,7 +545,22 @@ class VoiceController extends _$VoiceController {
       await _session?.setScreenShareEnabled(false);
     }
     state = state.copyWith(selfStream: enable);
+    soundManager.play(enable ? 'stream_start' : 'stream_stop');
     _sendVoiceStateUpdate();
+  }
+
+  /// Whether we are receiving [userId]'s screen share.
+  bool isWatchingStream(String userId) =>
+      _session?.isWatchingStream(userId) ?? false;
+
+  /// Starts or stops receiving [userId]'s screen share.
+  Future<void> setWatchingStream(String userId, bool watch) async {
+    await _session?.setWatchingStream(userId, watch);
+  }
+
+  /// A peer in our channel went live or ended their stream.
+  void _onRemoteStreamChanged(String userId, {required bool started}) {
+    soundManager.play(started ? 'stream_start' : 'stream_stop');
   }
 
   /// Fresh LiveKit credentials arrived over the gateway. Reconnects only when
@@ -668,6 +683,7 @@ class VoiceController extends _$VoiceController {
   VoiceSession _buildSession() => VoiceSession()
     ..onChanged = _onSessionChanged
     ..onTracksChanged = _onSessionTracksChanged
+    ..onRemoteStreamChanged = _onRemoteStreamChanged
     ..onStateChanged = _onSessionStateChanged
     ..onDisconnected = _onSessionDisconnected
     ..setPushToTalk(ref.read(settingsControllerProvider).pushToTalk);

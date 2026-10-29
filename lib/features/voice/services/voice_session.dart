@@ -76,6 +76,14 @@ class VoiceSession {
   /// grid rebuilds on structural changes rather than on every speaker report.
   VoidCallback? onTracksChanged;
 
+  /// Fires when a peer starts ([started]) or stops sharing their screen.
+  void Function(String userId, {required bool started})? onRemoteStreamChanged;
+
+  /// Peers whose screen share we chose to watch. Every other share stays
+  /// unsubscribed — a tile says they are live, nothing downloads — the way
+  /// other chat apps leave a stream alone until you click "Watch".
+  final Set<String> _watchedStreams = {};
+
   /// Fires when the session transitions to a new lifecycle [state].
   void Function(VoiceSessionState state)? onStateChanged;
 
@@ -105,9 +113,53 @@ class VoiceSession {
       _videoTrackOf(_remoteByIdentity(userId), TrackSource.camera);
 
   /// A remote participant's screen-share track, or null when they aren't
-  /// sharing (or it hasn't been subscribed yet).
+  /// sharing (or we aren't watching it, see [setWatchingStream]).
   VideoTrack? remoteScreenTrack(String userId) =>
       _videoTrackOf(_remoteByIdentity(userId), TrackSource.screenShareVideo);
+
+  /// Whether [userId] has a screen share published, watched or not.
+  bool remoteIsStreaming(String userId) =>
+      _remoteByIdentity(userId)?.videoTrackPublications.any(
+        (pub) => pub.source == TrackSource.screenShareVideo,
+      ) ??
+      false;
+
+  bool isWatchingStream(String userId) => _watchedStreams.contains(userId);
+
+  /// Starts or stops receiving [userId]'s screen share (video and its audio).
+  Future<void> setWatchingStream(String userId, bool watch) async {
+    if (watch) {
+      _watchedStreams.add(userId);
+    } else {
+      _watchedStreams.remove(userId);
+    }
+    final participant = _remoteByIdentity(userId);
+    if (participant is RemoteParticipant) {
+      for (final pub in participant.trackPublications.values) {
+        if (!_isScreenShare(pub)) continue;
+        await _guardMedia(
+          watch ? 'watch stream' : 'stop watching stream',
+          () => watch ? pub.subscribe() : pub.unsubscribe(),
+        );
+      }
+    }
+    onTracksChanged?.call();
+  }
+
+  static bool _isScreenShare(TrackPublication pub) =>
+      pub.source == TrackSource.screenShareVideo ||
+      pub.source == TrackSource.screenShareAudio;
+
+  /// The room subscribes to everything it is offered; a screen share we did
+  /// not ask to watch is dropped again as soon as it shows up.
+  void _dropUnwatchedStream(RemoteParticipant participant, TrackPublication pub) {
+    if (!_isScreenShare(pub) || _watchedStreams.contains(participant.identity)) {
+      return;
+    }
+    if (pub is RemoteTrackPublication) {
+      unawaited(_guardMedia('unwatched stream', pub.unsubscribe));
+    }
+  }
 
   Participant? _remoteByIdentity(String userId) {
     final room = _room;
@@ -788,6 +840,7 @@ class VoiceSession {
   void _wireListener(EventsListener<RoomEvent> listener) {
     listener
       ..on<TrackSubscribedEvent>((e) async {
+        _dropUnwatchedStream(e.participant, e.publication);
         if (e.publication.kind == TrackType.AUDIO) {
           // Keep new remote audio muted while deafened, else apply our gain.
           if (_deafened) {
@@ -807,8 +860,21 @@ class VoiceSession {
       // changed.
       ..on<TrackMutedEvent>((_) => onTracksChanged?.call())
       ..on<TrackUnmutedEvent>((_) => onTracksChanged?.call())
-      ..on<TrackPublishedEvent>((_) => onTracksChanged?.call())
-      ..on<TrackUnpublishedEvent>((_) => onTracksChanged?.call())
+      ..on<TrackPublishedEvent>((e) {
+        _dropUnwatchedStream(e.participant, e.publication);
+        if (e.publication.source == TrackSource.screenShareVideo) {
+          onRemoteStreamChanged?.call(e.participant.identity, started: true);
+        }
+        onTracksChanged?.call();
+      })
+      ..on<TrackUnpublishedEvent>((e) {
+        if (e.publication.source == TrackSource.screenShareVideo) {
+          // The next share from them waits for a click again.
+          _watchedStreams.remove(e.participant.identity);
+          onRemoteStreamChanged?.call(e.participant.identity, started: false);
+        }
+        onTracksChanged?.call();
+      })
       ..on<TrackStreamStateUpdatedEvent>((_) => onTracksChanged?.call())
       ..on<LocalTrackPublishedEvent>((_) => onTracksChanged?.call())
       ..on<LocalTrackUnpublishedEvent>((_) => onTracksChanged?.call())

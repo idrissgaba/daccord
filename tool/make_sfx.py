@@ -71,4 +71,7 @@ write("mute", tone(620, 430, 0.11, amp=0.4, decay=26))
 write("unmute", tone(430, 620, 0.11, amp=0.4, decay=26))
 write("deafen", mix((0, tone(620, 520, 0.08, decay=30)), (0.07, tone(470, 360, 0.12, decay=24))))
 write("undeafen", mix((0, tone(360, 470, 0.08, decay=30)), (0.07, tone(520, 640, 0.12, decay=24))))
+# A stream going live: three quick rising notes. Ending: two falling ones.
+write("stream_start", mix((0, tone(660, 680, 0.10, decay=20)), (0.08, tone(880, 900, 0.10, decay=20)), (0.16, tone(1100, 1180, 0.24, decay=12))))
+write("stream_stop", mix((0, tone(880, 840, 0.12, decay=18)), (0.10, tone(620, 560, 0.26, decay=11))))
 print("ok")

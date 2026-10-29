@@ -32,6 +32,9 @@ class SoundManager {
     'unmute': 'sfx/unmute.wav',
     'deafen': 'sfx/deafen.wav',
     'undeafen': 'sfx/undeafen.wav',
+    // A screen share starting or ending — ours, or a peer's in our channel.
+    'stream_start': 'sfx/stream_start.wav',
+    'stream_stop': 'sfx/stream_stop.wav',
   };
 
   static const _poolSize = 4;
