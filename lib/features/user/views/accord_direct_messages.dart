@@ -32,6 +32,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 part 'accord_direct_messages_conversations.dart';
+part 'accord_direct_messages_conversation.dart';
 part 'accord_direct_messages_friends.dart';
 part 'accord_direct_messages_groups.dart';
 part 'accord_direct_messages_user_search.dart';
