@@ -29,9 +29,9 @@ class UpdateInstaller {
     http.Client? client,
     UpdateArchiveLimits archiveLimits = const UpdateArchiveLimits(),
     @visibleForTesting Future<Directory> Function()? temporaryDirectory,
-  })  : _http = client ?? http.Client(),
-        _archiveLimits = archiveLimits,
-        _temporaryDirectory = temporaryDirectory ?? getTemporaryDirectory;
+  }) : _http = client ?? http.Client(),
+       _archiveLimits = archiveLimits,
+       _temporaryDirectory = temporaryDirectory ?? getTemporaryDirectory;
 
   final http.Client _http;
   final UpdateArchiveLimits _archiveLimits;
@@ -132,10 +132,8 @@ class UpdateInstaller {
 
     final requestedName = fileName ?? Uri.parse(url).path;
     final name = p.posix.basename(requestedName.replaceAll('\\', '/'));
-    final safeName = name.isEmpty ||
-            name == '.' ||
-            name == '/' ||
-            name.contains('\u0000')
+    final safeName =
+        name.isEmpty || name == '.' || name == '/' || name.contains('\u0000')
         ? 'download'
         : name;
     final out = File(p.join(staging.path, safeName));
@@ -145,7 +143,9 @@ class UpdateInstaller {
       ..followRedirects = true;
     final resp = await _http.send(req);
     if (resp.statusCode != 200) {
-      throw UpdateInstallException('Download failed (HTTP ${resp.statusCode}).');
+      throw UpdateInstallException(
+        'Download failed (HTTP ${resp.statusCode}).',
+      );
     }
     final total = resp.contentLength ?? 0;
     if (total > _archiveLimits.maxCompressedBytes) {
@@ -238,8 +238,7 @@ class UpdateInstaller {
   Future<Directory> extractArchiveForTesting(
     File archiveFile,
     Directory dest,
-  ) =>
-      _extract(archiveFile, dest);
+  ) => _extract(archiveFile, dest);
 
   /// The directory that holds the running desktop bundle (everything the swap
   /// must replace). On macOS this is the `.app` bundle itself.
@@ -273,7 +272,12 @@ class UpdateInstaller {
     }
   }
 
-  Future<void> _installWindows(File zip) async {
+  Future<void> _installWindows(File asset) async {
+    if (asset.path.toLowerCase().endsWith('.exe')) {
+      await _installWindowsSetup(asset);
+      return;
+    }
+    final zip = asset;
     final dir = await _temporaryDirectory();
     final staged = await _extract(
       zip,
@@ -297,6 +301,33 @@ if not exist "$dst\\daccord.exe" (
   rmdir /S /Q "$dst.old" >NUL 2>&1
 )
 start "" "$dst\\daccord.exe"
+del "%~f0"
+''');
+    await Process.start('cmd.exe', [
+      '/c',
+      'start',
+      '',
+      '/min',
+      bat.path,
+    ], mode: ProcessStartMode.detached);
+  }
+
+  /// Runs a downloaded Inno Setup installer silently once this process has
+  /// quit, into the directory the running build lives in, then relaunches the
+  /// app. The installer is per-user (`PrivilegesRequired=lowest`), so no
+  /// elevation prompt appears; it closes nothing itself because we are already
+  /// gone by the time it runs.
+  Future<void> _installWindowsSetup(File setup) async {
+    final dst = _installRoot;
+    final pid = _pid;
+    final bat = await _writeHelper('apply-setup.bat', '''
+@echo off
+:wait
+tasklist /FI "PID eq $pid" 2>NUL | find "$pid" >NUL
+if "%ERRORLEVEL%"=="0" ( ping -n 2 127.0.0.1 >NUL & goto wait )
+"${setup.path}" /VERYSILENT /NORESTART /SUPPRESSMSGBOXES /CLOSEAPPLICATIONS /NOCANCEL /DIR="$dst"
+start "" "$dst\\daccord.exe"
+del "${setup.path}" >NUL 2>&1
 del "%~f0"
 ''');
     await Process.start('cmd.exe', [
@@ -338,9 +369,7 @@ fi
 nohup "$dst/daccord" >/dev/null 2>&1 &
 rm -f "\$0"
 ''');
-    await Process.start('bash', [
-      sh.path,
-    ], mode: ProcessStartMode.detached);
+    await Process.start('bash', [sh.path], mode: ProcessStartMode.detached);
   }
 
   /// Updates a system-package install by reinstalling the downloaded [deb] with
@@ -368,7 +397,9 @@ rm -f "\$0"
       }
       final err = (result.stderr as String? ?? '').trim();
       throw UpdateInstallException(
-        err.isEmpty ? 'Package install failed.' : 'Package install failed: $err',
+        err.isEmpty
+            ? 'Package install failed.'
+            : 'Package install failed: $err',
       );
     }
     // dpkg has replaced the bundle in place; relaunch the new binary after we
@@ -382,9 +413,7 @@ while kill -0 $pid 2>/dev/null; do sleep 0.5; done
 nohup "$dst/daccord" >/dev/null 2>&1 &
 rm -f "\$0"
 ''');
-    await Process.start('bash', [
-      sh.path,
-    ], mode: ProcessStartMode.detached);
+    await Process.start('bash', [sh.path], mode: ProcessStartMode.detached);
   }
 
   Future<void> _installMacOs(File dmg) async {
@@ -431,8 +460,6 @@ hdiutil detach "$mountPoint" -force >/dev/null 2>&1 || true
 open "$dst"
 rm -f "\$0"
 ''');
-    await Process.start('bash', [
-      sh.path,
-    ], mode: ProcessStartMode.detached);
+    await Process.start('bash', [sh.path], mode: ProcessStartMode.detached);
   }
 }

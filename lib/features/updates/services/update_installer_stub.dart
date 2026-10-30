@@ -35,8 +35,7 @@ class UpdateInstaller {
     String url, {
     String? fileName,
     void Function(double progress)? onProgress,
-  }) =>
-      throw UpdateInstallException('Self-update is not supported here.');
+  }) => throw UpdateInstallException('Self-update is not supported here.');
 
   Future<void> verify(String path, String expectedHex) =>
       throw UpdateInstallException('Self-update is not supported here.');
@@ -44,6 +43,5 @@ class UpdateInstaller {
   Future<void> install(
     String path, {
     required Future<void> Function() onReadyToQuit,
-  }) =>
-      throw UpdateInstallException('Self-update is not supported here.');
+  }) => throw UpdateInstallException('Self-update is not supported here.');
 }

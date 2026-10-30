@@ -3,6 +3,7 @@ import 'package:bonfire/features/updates/controllers/update_controller.dart';
 import 'package:bonfire/features/updates/views/updates_page.dart';
 import 'package:bonfire/shared/app_info.dart';
 import 'package:bonfire/shared/components/app_banner.dart';
+import 'package:bonfire/shared/utils/confirm_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -44,7 +45,9 @@ class UpdateBanner extends ConsumerWidget {
       return AppBanner(
         icon: Icons.system_update,
         message: 'Update ready — ${release.name}. $tail',
-        onTap: update.installing ? () {} : () => notifier.applyUpdate(),
+        onTap: update.installing
+            ? () {}
+            : () => _confirmAndApply(context, notifier, release.name),
         onDismiss: () => notifier.dismissCurrent(),
       );
     }
@@ -64,5 +67,24 @@ class UpdateBanner extends ConsumerWidget {
       onTap: () => showUpdatesSettings(context),
       onDismiss: () => notifier.dismissCurrent(),
     );
+  }
+
+  /// Nothing is replaced behind the user's back: the staged build is applied
+  /// only after they confirm, since the app closes and reopens to do it.
+  Future<void> _confirmAndApply(
+    BuildContext context,
+    UpdateController notifier,
+    String releaseName,
+  ) async {
+    final ok = await showConfirmDialog(
+      context,
+      title: 'Install $releaseName?',
+      message:
+          'Daccord will close and reopen on the new version. Anything you are '
+          'typing is kept as a draft.',
+      confirmLabel: 'Restart & install',
+      cancelLabel: 'Not now',
+    );
+    if (ok == true) await notifier.applyUpdate();
   }
 }

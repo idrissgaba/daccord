@@ -95,24 +95,32 @@ String normalizeVersion(String tag) {
 bool isPrerelease(String version) => normalizeVersion(version).contains('-');
 
 /// Whether semantic version [candidate] is strictly newer than [current].
-/// Compares the numeric `major.minor.patch` core; a build/prerelease suffix is
-/// ignored (sufficient for release-channel comparisons and matches the
-/// reference's `Updater.is_newer` behaviour for normal releases).
+/// Compares the numeric `major.minor.patch` core and then the build number —
+/// a fourth dot segment (`0.2.27.14`) or a `+build` suffix (`0.2.27+14`) — so
+/// a rebuild of the same version still ships as an update. A missing build
+/// counts as 0; a prerelease suffix is ignored (matches the reference's
+/// `Updater.is_newer` behaviour for normal releases).
 bool isNewerVersion(String candidate, String current) {
   final a = _coreParts(candidate);
   final b = _coreParts(current);
-  for (var i = 0; i < 3; i++) {
+  for (var i = 0; i < 4; i++) {
     if (a[i] != b[i]) return a[i] > b[i];
   }
   return false;
 }
 
 List<int> _coreParts(String version) {
-  // Drop any prerelease/build metadata, then take the first three dot segments.
-  final core = normalizeVersion(version).split(RegExp(r'[-+]')).first;
-  final segs = core.split('.');
-  return [
-    for (var i = 0; i < 3; i++)
+  // Drop the prerelease suffix, split the build off the `+`, then read up to
+  // four dot segments (the build may also come as the fourth segment).
+  final noPrerelease = normalizeVersion(version).split('-').first;
+  final plus = noPrerelease.split('+');
+  final segs = plus.first.split('.');
+  final parts = [
+    for (var i = 0; i < 4; i++)
       i < segs.length ? (int.tryParse(segs[i].trim()) ?? 0) : 0,
   ];
+  if (plus.length > 1 && segs.length < 4) {
+    parts[3] = int.tryParse(plus[1].trim()) ?? 0;
+  }
+  return parts;
 }

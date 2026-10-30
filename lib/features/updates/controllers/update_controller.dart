@@ -88,7 +88,7 @@ class UpdateState {
   /// this is belt-and-suspenders.
   bool get updateAvailable {
     final r = latest;
-    if (r == null || !isNewerVersion(r.version, kAppVersion)) return false;
+    if (r == null || !isNewerVersion(r.version, kAppFullVersion)) return false;
     if (r.prerelease && !isPrerelease(kAppVersion)) return false;
     return true;
   }
@@ -183,7 +183,7 @@ class UpdateController extends _$UpdateController {
     state = state.copyWith(checking: true, clearError: true);
     try {
       final res = await http
-          .get(Uri.parse(kGithubLatestReleaseUrl), headers: githubApiHeaders())
+          .get(Uri.parse(kUpdateFeedUrl), headers: githubApiHeaders())
           .timeout(const Duration(seconds: 15));
 
       if (res.statusCode == 404) {
@@ -196,7 +196,7 @@ class UpdateController extends _$UpdateController {
         state = state.copyWith(
           checking: false,
           checkedOnce: true,
-          error: 'GitHub returned ${res.statusCode}',
+          error: 'The update server returned ${res.statusCode}',
         );
         return state;
       }
@@ -261,8 +261,11 @@ class UpdateController extends _$UpdateController {
   List<String> get _installableExts {
     if (UniversalPlatform.isAndroid) return const ['.apk'];
     if (UniversalPlatform.isWindows) {
+      // A portable zip is swapped in place; a setup.exe is run silently by the
+      // helper. Both need the install root writable by this user (a per-user
+      // install), since neither path elevates.
       return UpdateInstaller.isInstallRootWritable
-          ? const ['windows-x86_64.zip', '.zip']
+          ? const ['windows-x86_64.zip', '.zip', '-setup.exe', '.exe']
           : const [];
     }
     if (UniversalPlatform.isMacOS) {

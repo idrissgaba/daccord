@@ -12,13 +12,26 @@ import 'package:bonfire/shared/package_manager_install.dart';
 /// published release as newer rather than hiding updates.
 String kAppVersion = '0.0.0';
 
-/// Reads the build's version into [kAppVersion]. Call once at startup, before
-/// anything reports or compares the version; a platform failure can't block
-/// startup.
+/// The build number from `pubspec.yaml` (`+13` → `13`), set by [initAppInfo].
+/// `0` when unknown.
+String kAppBuildNumber = '0';
+
+/// `major.minor.patch.build` — what the update checker compares against a
+/// release tag, so a rebuild of the same version (`0.2.27.14` after
+/// `0.2.27.13`) still counts as newer. Just the version when the build number
+/// is unknown.
+String get kAppFullVersion => kAppBuildNumber.isEmpty || kAppBuildNumber == '0'
+    ? kAppVersion
+    : '$kAppVersion.$kAppBuildNumber';
+
+/// Reads the build's version into [kAppVersion] and [kAppBuildNumber]. Call
+/// once at startup, before anything reports or compares the version; a
+/// platform failure can't block startup.
 Future<void> initAppInfo() async {
   try {
     final info = await PackageInfo.fromPlatform();
     if (info.version.isNotEmpty) kAppVersion = info.version;
+    if (info.buildNumber.isNotEmpty) kAppBuildNumber = info.buildNumber;
   } catch (_) {}
 }
 
@@ -95,6 +108,16 @@ const String kUniversalLinkBase = '$kDaccordWebsiteUrl/open';
 /// GitHub REST endpoint for the latest published release of [kUpdateRepo].
 const String kGithubLatestReleaseUrl =
     'https://api.github.com/repos/$kUpdateRepo/releases/latest';
+
+/// Where the updater asks for the latest release: a JSON document in the
+/// GitHub release shape (`tag_name`, `name`, `body`, `html_url`,
+/// `published_at`, `assets[{name, browser_download_url, size}]`). Defaults to
+/// GitHub; a self-hosted distribution points it at its own feed with
+/// `--dart-define=UPDATE_FEED_URL=https://<site>/download/latest.json`.
+const String kUpdateFeedUrl = String.fromEnvironment(
+  'UPDATE_FEED_URL',
+  defaultValue: kGithubLatestReleaseUrl,
+);
 
 /// GitHub REST endpoint for the release tagged `v[version]` of [kUpdateRepo].
 /// Used for the running build's notes, since `/releases/latest` may already
