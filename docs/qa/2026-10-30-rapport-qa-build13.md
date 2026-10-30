@@ -44,9 +44,10 @@ l'automatisation (demande du propriétaire — un jeu plein écran tournait) :
 | Carte membre, liste des membres par rôle (ADMIN / MEMBERS / OFFLINE) | OK |
 | Picker d'emoji, autocomplétion, recherche, épingles, suppression, paramètres, vocal | **Non testé en direct** (automatisation souris/clavier arrêtée). Couvert par les tests de widgets de la section 2 (panneau emoji, suggestions, séparateurs, mise en page des paramètres, dialogue de suppression, ligne d'épingle) — à valider à la main. |
 
-Note : l'application installée (`%LOCALAPPDATA%\Programs\Daccord`) a été
-fermée pour lancer le build 13 ; le nouvel installeur est
-`D:\ClaudeProjects\daccord-builds\daccord-idris-0.2.27.13-setup.exe`.
+Le build 13 final (avec les correctifs de session) a été installé sur le PC
+(`daccord-setup.exe /VERYSILENT`) et tourne depuis
+`%LOCALAPPDATA%\Programs\Daccord` ; il tient une connexion établie au serveur
+(vérifié par `Get-NetTCPConnection`, sans toucher à l'interface).
 
 ### Android (émulateur `Daccord_Test`, Pixel 7 / API 35, APK release x86_64 signé)
 
@@ -57,20 +58,30 @@ fermée pour lancer le build 13 ; le nouvel installeur est
 | Boîte « Run your own server » (Connect by URL, Read the guide) | OK |
 | Connexion à `chat.…` et suite | **Bloqué** : l'émulateur n'a pas de session et les identifiants ne sont pas lisibles par cette session (voir §4). |
 
-### Web (build 13 servi en local sur http://127.0.0.1:8787)
+### Web (build 13 déployé sur le site de la communauté, testé via l'extension Chrome)
 
 | Point | Résultat |
 |---|---|
-| Chargement, écran « Loading Daccord », conditions d'utilisation | OK |
-| Connexion et suite | **Bloqué** : pas d'identifiants ; le déploiement sur le site (qui aurait permis d'utiliser la session Chrome existante) a été refusé par le classifieur. |
+| Chargement direct de `/spaces` avec la session enregistrée | **Bug trouvé et corrigé** : coquille vide « Server unreachable » (la restauration de session n'avait lieu que sur `/`). Corrigé dans `accord_home.dart`, redéployé, vérifié. |
+| Onglets masqués, séparateurs de date (« October 28, 2026 », « Yesterday », « Today »), barre d'actions au survol, heure dans la gouttière des messages groupés | OK |
+| Picker d'emoji : popover ancré au bouton, rail de catégories, « Frequently used », barre d'aperçu (`:rofl:` au survol), bouton ton de peau, recherche « thumbs » → 👍👎, clic → inséré | OK (deux cases vides dans Smileys : emoji 15.x absents de la police Windows du poste) |
+| Autocomplétion `:tad` → `:tada:` / `:stadium:`, Entrée insère 🎉 ; envoi du message | OK |
+| Menu ⋯ → Pin : le message système « idrissgaba pinned a message to this channel. » arrive en direct avec la référence ; icône d'épingle sur le message | OK (serveur fork déployé) |
+| Dialogue des épingles : horodatage, boutons Jump / Unpin ; Jump fait défiler et surligne le message | OK |
+| Recherche `from:@idrissgaba in:#general pinned:true QA` → 2 résultats avec date et `#general` | OK |
+| Paramètres : barre latérale User settings / App settings / System ; Notifications avec un interrupteur et « écouter » par son ; Text & Images avec le ton de peau | OK |
+| Vocal (rejoindre, carte « Voice Connected ») | Non testé sur le web (l'invite micro de Chrome bloque l'automatisation) ; couvert par les tests de widgets. |
 
-## 4. Bloqué par les permissions de la session
+## 4. Déploiement (après autorisation explicite du propriétaire)
 
-Le classifieur de sécurité de la session a refusé :
-- la lecture des identifiants (`secrets/admin.txt`) → pas de connexion possible sur le build web local ni sur un émulateur vierge ;
-- `scripts/web-deploy.sh` et toute commande d'écriture par ssh sur le serveur (build de l'image serveur, build Linux, déploiement).
+| Cible | État |
+|---|---|
+| Image serveur `daccord-accordserver:idris` (message d'épingle) | Reconstruite et déployée (`deploy-server.sh` : sauvegarde, test de restauration, redémarrage, bot reconnecté) |
+| Client web | Déployé (trois fois : build 13, + vérification du jeton après rejet gateway, + restauration de session sur `/spaces`) |
+| Installeur Windows, `.deb` / `.tgz` Linux, APK arm64 / armv7 (versionCode 4013) | Publiés sur `/download/`, page mise à jour (tailles), `SHA256SUMS.txt` |
 
-Commandes à lancer par le propriétaire (voir section 6).
+Toujours impossible dans cette session : lire des identifiants (connexion sur un
+émulateur vierge).
 
 ## 5. Points ouverts après cette session
 
@@ -78,7 +89,7 @@ Commandes à lancer par le propriétaire (voir section 6).
 - Le message système « X pinned a message » n'apparaît qu'une fois l'image serveur reconstruite et déployée (§6).
 - Sons : jugement à l'oreille (ils sont synthétiques, pas ceux de Discord — droits).
 
-## 6. Commandes à lancer par le propriétaire
+## 6. Commandes (pour mémoire — tout a été exécuté)
 
 ```bash
 # 1. Pousser le client (déjà commité sur idris/main) — fait par la session si autorisé
