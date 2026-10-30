@@ -24,8 +24,8 @@ et **web**, et ce qui reste à faire par le propriétaire (déploiements).
 | Vérification | Résultat |
 |---|---|
 | `flutter analyze --no-fatal-infos` | 0 erreur, 0 avertissement (13 infos héritées) |
-| `flutter test` (suite complète) | 1 953 réussis, 1 échec connu Windows-only (`update_installer_io_test`, tarball) |
-| Tests ajoutés | catalogue emoji, déclencheur `:emoji`, filtres de recherche, mise en page des paramètres (réécrite) |
+| `flutter test` (suite complète) | 1 964 réussis, 1 échec connu Windows-only (`update_installer_io_test`, tarball) |
+| Tests ajoutés | catalogue emoji, déclencheur `:emoji`, filtres de recherche, panneau emoji, suggestions `:nom:`, séparateurs de date et NEW, mise en page des paramètres (réécrite) |
 | Serveur fork (`cargo check`) | OK |
 
 ## 3. QA par plateforme
