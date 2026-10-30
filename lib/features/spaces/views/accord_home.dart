@@ -171,6 +171,23 @@ class _AccordHomeScreenState extends ConsumerState<AccordHomeScreen>
     mcpHomeBridge.registerAll(_mcpNavHandlers());
     HardwareKeyboard.instance.addHandler(_onGlobalKey);
     trackPointerAnchor();
+    // Landing here directly — a web reload or a shared `/spaces?channel=…`
+    // link — skips the sign-in screen, which is where the saved session is
+    // normally restored. Restore it here, or hand over to sign-in; the auth
+    // listener in [build] only reacts to *changes*, so an initial logged-out
+    // state would otherwise leave an empty shell saying the server is
+    // unreachable.
+    if (ref.read(accordAuthProvider) is! AccordAuthLoggedIn) {
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        final notifier = ref.read(accordAuthProvider.notifier);
+        final restored = await notifier.restoreSession();
+        if (!mounted) return;
+        if (restored is! AccordAuthLoggedIn &&
+            ref.read(accordAuthProvider) is! AccordAuthLoggedIn) {
+          context.go('/');
+        }
+      });
+    }
     // Passive, throttled startup update check (gated on the setting).
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
