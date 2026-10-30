@@ -103,3 +103,10 @@ scripts/linux-build.sh origin/idris/main 0.2.27.13
 #    (daccord-web.tar.gz = build/web du build 13, daccord-setup.exe = daccord-idris-0.2.27.13-setup.exe)
 scripts/web-deploy.sh
 ```
+
+## 7. Mise à jour automatique Windows (builds 14 → 16)
+
+- Le build Windows est compilé avec `--dart-define=UPDATE_FEED_URL=https://<site>/download/latest.json` ; `scripts/web-deploy.sh` (via `scripts/update-feed.sh`) écrit ce flux au format « release GitHub » à côté des installeurs, avec les tailles et `SHA256SUMS.txt`.
+- Au démarrage puis toutes les heures, l'app lit le flux ; si le tag (`v0.2.27.16`) est plus récent que la version + numéro de build en cours, elle télécharge `daccord-setup.exe` en arrière-plan, vérifie son SHA-256, puis affiche la bannière « Update ready ».
+- Rien n'est installé sans accord : la bannière ouvre une confirmation (« Daccord will close and reopen on the new version ») ; après « Restart & install », l'app se ferme, un script lance `daccord-setup.exe /VERYSILENT` dans le dossier courant et relance l'app.
+- Build 14 (premier build avec le flux) puis build 15 installés en silencieux sur le PC ; build 16 publié pour que le build 15 installé propose la mise à jour.
