@@ -90,6 +90,12 @@ VoidCallback handleAccordEvents(
     client.onDisconnected.listen((info) {
       debugPrint('Accord gateway disconnected: ${info.code} ${info.reason}');
       setConnection(ConnectionStatus.disconnected);
+      // The gateway answered every IDENTIFY with "invalid session": either the
+      // token is dead or the server is struggling. One authenticated REST call
+      // tells them apart — a 401 fires the REST layer's onUnauthorized hook,
+      // which signs the account out instead of leaving it on a "Server
+      // unreachable" screen behind a dead token.
+      if (info.code == 4004) unawaited(client.users.getMe());
     }),
   );
 
