@@ -12,6 +12,7 @@ import 'package:bonfire/features/voice/services/voice_session.dart';
 import 'package:bonfire/features/voice/utils/audio_output_support.dart';
 import 'package:bonfire/features/voice/views/mic_level_meter.dart';
 import 'package:bonfire/features/voice/views/screen_share_picker.dart';
+import 'package:bonfire/features/voice/views/voice_connection_info.dart';
 import 'package:bonfire/theme/theme.dart';
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
@@ -162,6 +163,22 @@ class _VoiceBarState extends ConsumerState<VoiceBar> {
                               ),
                           ],
                         ),
+                      ),
+                    ),
+                    IconButton(
+                      key: const Key('voice-bar-connection-info'),
+                      tooltip: 'Connection info',
+                      onPressed: () => showVoiceConnectionInfo(context),
+                      visualDensity: VisualDensity.compact,
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(
+                        minWidth: 28,
+                        minHeight: 28,
+                      ),
+                      icon: Icon(
+                        Icons.network_check,
+                        size: 16,
+                        color: colors.gray,
                       ),
                     ),
                   ],

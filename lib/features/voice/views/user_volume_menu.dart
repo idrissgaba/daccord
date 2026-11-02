@@ -174,8 +174,7 @@ class UserVolumePanel extends ConsumerWidget {
               label: '$shown%',
               onChanged: muted
                   ? null
-                  : (v) =>
-                        controller.setUserVolume(serverKey, id, v.round()),
+                  : (v) => controller.setUserVolume(serverKey, id, v.round()),
             ),
           ),
           CheckboxListTile(

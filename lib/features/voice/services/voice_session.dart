@@ -3,6 +3,7 @@ import 'dart:math' as math;
 
 import 'package:bonfire/features/voice/services/android_screen_capture.dart';
 import 'package:bonfire/features/voice/utils/voice_logic.dart';
+import 'package:bonfire/features/voice/utils/voice_stats.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart' as rtc;
 import 'package:livekit_client/livekit_client.dart';
@@ -831,6 +832,64 @@ class VoiceSession {
     }
   }
 
+  /// One poll of the link's WebRTC counters for the connection-info panel:
+  /// our microphone's outbound stream and every participant's inbound audio
+  /// (keyed by user ID). Streams whose stats aren't available yet are left
+  /// out; failures yield an empty snapshot rather than an error.
+  Future<VoiceLinkSnapshot> collectStats() async {
+    final room = _room;
+    if (room == null) return const VoiceLinkSnapshot();
+    VoiceStreamSample? outgoing;
+    final mic = _localMicTrack;
+    if (mic is LocalAudioTrack) {
+      try {
+        final s = await mic.getSenderStats();
+        if (s != null) {
+          outgoing = VoiceStreamSample(
+            timestampMs: s.timestamp,
+            bytes: s.bytesSent ?? 0,
+            packets: s.packetsSent ?? 0,
+            packetsLost: s.packetsLost,
+            jitterSeconds: s.jitter,
+            roundTripSeconds: s.roundTripTime,
+            codec: s.mimeType,
+            channels: s.channels,
+            clockRate: s.clockRate,
+          );
+        }
+      } catch (_) {}
+    }
+    final incoming = <String, VoiceStreamSample>{};
+    for (final participant in room.remoteParticipants.values) {
+      for (final pub in participant.audioTrackPublications) {
+        if (pub.source != TrackSource.microphone) continue;
+        final track = pub.track;
+        if (track is! RemoteAudioTrack) continue;
+        try {
+          final s = await track.getReceiverStats();
+          if (s == null) continue;
+          incoming[participant.identity] = VoiceStreamSample(
+            timestampMs: s.timestamp,
+            bytes: s.bytesReceived ?? 0,
+            packets: s.packetsReceived ?? 0,
+            packetsLost: s.packetsLost,
+            jitterSeconds: s.jitter,
+            concealedSamples: s.concealedSamples,
+            totalSamplesDuration: s.totalSamplesDuration,
+            codec: s.mimeType,
+            channels: s.channels,
+            clockRate: s.clockRate,
+          );
+        } catch (_) {}
+      }
+    }
+    return VoiceLinkSnapshot(
+      outgoing: outgoing,
+      incoming: incoming,
+      quality: room.localParticipant?.connectionQuality.name ?? 'unknown',
+    );
+  }
+
   AudioTrack? get _localMicTrack {
     final participant = _room?.localParticipant;
     if (participant == null) return null;
@@ -887,10 +946,7 @@ class VoiceSession {
             if (track is AudioTrack) {
               await _setRemoteVolume(
                 track,
-                _gainFor(
-                  e.participant.identity,
-                  source: e.publication.source,
-                ),
+                _gainFor(e.participant.identity, source: e.publication.source),
               );
             }
           }

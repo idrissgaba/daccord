@@ -88,6 +88,12 @@ class VoiceAudioOptions {
     // Voice isolation is the platform's aggressive noise filter; keep it tied
     // to noise suppression so turning that off really passes everything.
     voiceIsolation: noiseSuppression,
+    // Cut rumble below the voice band; other voice chat apps do.
+    highPassFilter: true,
+    // WebRTC's typing detection ducks the mic on every keystroke, which chops
+    // words while chatting and typing at once; the noise suppressor already
+    // handles key clicks.
+    typingNoiseDetection: false,
   );
 
   /// Bitrate for ordinary voice: 96 kbps Opus (full band), the "good"
