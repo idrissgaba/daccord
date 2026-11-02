@@ -110,3 +110,12 @@ scripts/web-deploy.sh
 - Au démarrage puis toutes les heures, l'app lit le flux ; si le tag (`v0.2.27.16`) est plus récent que la version + numéro de build en cours, elle télécharge `daccord-setup.exe` en arrière-plan, vérifie son SHA-256, puis affiche la bannière « Update ready ».
 - Rien n'est installé sans accord : la bannière ouvre une confirmation (« Daccord will close and reopen on the new version ») ; après « Restart & install », l'app se ferme, un script lance `daccord-setup.exe /VERYSILENT` dans le dossier courant et relance l'app.
 - Build 14 (premier build avec le flux) puis build 15 installés en silencieux sur le PC ; build 16 publié pour que le build 15 installé propose la mise à jour.
+- **Vérifié** : le PC est passé de 15 à 16 par la mise à jour intégrée (validée par le propriétaire) ; build 17 publié ensuite.
+
+## 8. Qualité vocale (build 17)
+
+Constat : l'envoi était déjà à 96 kbps Opus pleine bande, sans DTX, avec redondance (RED) — au-dessus des 64 kbps de Discord. Deux réglages de capture WebRTC dégradaient pourtant la voix : la détection de frappe clavier (`typingNoiseDetection`, qui atténue le micro à chaque touche et hache les mots quand on tape en parlant) et l'absence de filtre passe-haut. Corrigés dans `voice_logic.dart`.
+
+Ajouté : un bouton **Connection info** dans la carte « Voice Connected » (codec, débit, pertes, gigue, aller-retour pour le micro ; débit, pertes, gigue, dissimulation par participant ; verdict de qualité du serveur), rafraîchi toutes les 2 s. Si les pertes ou la dissimulation dépassent 1 % le son se dégrade, au-delà de 5 % des mots sautent : c'est alors le réseau (UDP 7882 via la Freebox), pas le micro.
+
+Ce qui reste hors de portée sans composant externe : la suppression de bruit par apprentissage (Krisp chez Discord) ; les réglages Voice & Video permettent de couper la suppression de bruit / l'AGC WebRTC si ce sont eux qui dénaturent la voix. La qualité entendue dépend aussi du client de l'émetteur (Godot, web, Windows).
